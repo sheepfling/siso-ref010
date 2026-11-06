@@ -96,3 +96,14 @@ stderr; JSON mode carries the truncation flag in its result instead.
 
 The CLI is a local adapter over the importable API. It is not an HTTP service or
 a replacement for the upstream Vue graphical application.
+
+
+## Native graphical picker
+
+`dis-entity-types gui` launches the Python/Tk desktop picker. Global `--data PATH`
+also works for custom catalogs. `dis-entity-types-gui` and
+`python -m siso_entity_type.gui` launch the bundled-data picker directly.
+The GUI does not produce JSON; use the existing describe/search/list commands
+for machine output. Missing Tk or display support returns a readable error
+and exit code 2. No GUI import is needed for ordinary API/CLI use.
+See [gui.md](gui.md).

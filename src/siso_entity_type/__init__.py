@@ -60,5 +60,14 @@ from .parser import ParseError as ParseError
 from .parser import SisoEnumsFactory as SisoEnumsFactory
 from .parser import SisoEnumsParser as SisoEnumsParser
 from .utils import LongKeyMap as LongKeyMap
+from .xml_types import Convert as Convert
+from .xml_types import ExtraElement as ExtraElement
+from .xml_types import JSONValue as JSONValue
+from .xml_types import Key as Key
+from .xml_types import SISOXMLTypes as SISOXMLTypes
+from .xml_types import SpecificElement as SpecificElement
+from .xml_types import Status as Status
+from .xml_types import Type as Type
+from .xml_types import XMLShapeError as XMLShapeError
 
 SisoEnumType = SisoEnum

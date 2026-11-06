@@ -1,3 +1,12 @@
+# Native Python completion (unreleased)
+
+- Add a native Tkinter picker with editable cascading fields, filtered labels,
+  ID loading, description search, result selection, copy/reset, and clear errors.
+- Add typed incremental parser methods and native JSON shape validation/conversion.
+- Add Python-only catalog regeneration and standard-library import checks.
+- Test installed consumers with no Node executable on PATH.
+- Preserve current licenses and distinguish source reference from SISO data rights.
+
 # Review preparation (unreleased)
 
 - Propose `dis-entity-types` as the distribution name; retain `siso_entity_type` imports.

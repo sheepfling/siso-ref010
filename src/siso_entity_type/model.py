@@ -102,6 +102,10 @@ UINT64_MAX: Final = (1 << 64) - 1
 def create_entity_kind_from_number(value: int | float) -> EntityKind | None:
     if isinstance(value, bool):
         return None
+    if isinstance(value, float):
+        if not value.is_integer():
+            return None
+        value = int(value)
     try:
         return EntityKind(value)
     except (ValueError, TypeError):
@@ -111,6 +115,10 @@ def create_entity_kind_from_number(value: int | float) -> EntityKind | None:
 def create_entity_domain_from_number(value: int | float) -> EntityDomain | None:
     if isinstance(value, bool):
         return None
+    if isinstance(value, float):
+        if not value.is_integer():
+            return None
+        value = int(value)
     try:
         return EntityDomain(value)
     except (ValueError, TypeError):

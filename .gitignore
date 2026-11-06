@@ -9,3 +9,5 @@ node_modules/
 _oracle-build/
 .coverage
 htmlcov/
+
+.mypy_cache/

@@ -147,8 +147,9 @@ def _parser(*, json_errors: bool = False) -> _ArgumentParser:
         "--qualified", action="store_true", help="Store joined descriptions (nondefault extension)"
     )
     picker = commands.add_parser("pick", help="Interactive terminal entity picker")
+    gui = commands.add_parser("gui", help="Native Python desktop picker (requires Tk and a display)")
     info = commands.add_parser("info", help="Source, version and actual catalog counts")
-    for child in (describe, search, listing, key, parse, picker, info):
+    for child in (describe, search, listing, key, parse, picker, gui, info):
         child.json_errors = json_errors
         _output_options(child)
     return parser
@@ -221,6 +222,16 @@ def main(argv: list[str] | None = None) -> int:
                 )
             return 0
         api = EntityTypeAPI.from_json(cast(Path, args.data)) if args.data is not None else EntityTypeAPI()
+        if command == "gui":
+            if machine:
+                raise ValueError("The desktop picker does not emit JSON; use describe/search/list instead")
+            from .gui import launch
+
+            try:
+                launch(api)
+            except RuntimeError as exc:
+                raise ValueError(str(exc)) from exc
+            return 0
         if command == "info":
             info = api.info()
             if machine:

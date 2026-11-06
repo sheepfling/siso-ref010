@@ -31,6 +31,7 @@ Issues = "https://github.com/sheepfling/dis-entity-types/issues"
 dev = ["pytest>=8", "pytest-cov>=6", "pyright>=1.1.414", "ruff>=0.14", "build>=1.2", "twine>=6"]
 
 [project.scripts]
+dis-entity-types-gui = "siso_entity_type.gui:main"
 dis-entity-types = "siso_entity_type.cli:main"
 siso-entity-type = "siso_entity_type.cli:main"
 

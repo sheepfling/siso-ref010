@@ -11,10 +11,13 @@ from __future__ import annotations
 import json
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
 from .catalog import SisoEnumsData
 from .model import create_key
+from .xml_types import ExtraElement, SpecificElement
 
 DEFAULT_QUALIFIED = False
 DEFAULT_DELIMITER = " / "
@@ -178,6 +181,91 @@ class SisoEnumsParser:
             for child in _children(element, next_tag):
                 self._walk(child, fields, level + 1, description)
 
+    def _incremental_rows(
+        self, rows: Sequence[SpecificElement | ExtraElement], prefix: tuple[int, ...], text: str
+    ) -> None:
+        if not isinstance(cast(object, text), str):
+            raise ParseError("Parent text must be a string")
+        pending: dict[int, str] = {}
+
+        def add(row: SpecificElement | ExtraElement, fields: tuple[int, ...], parent: str) -> None:
+            if not isinstance(cast(object, row), (SpecificElement, ExtraElement)):
+                raise ParseError("Expected a typed SpecificElement or ExtraElement")
+            fields = (*fields, row.value)
+            for index, value in enumerate(fields):
+                limit = 65535 if index == 2 else 255
+                if (
+                    isinstance(cast(object, value), bool)
+                    or not isinstance(cast(object, value), int)
+                    or not 0 <= value <= limit
+                ):
+                    raise ParseError(f"Field {index} must be an integer in 0..{limit}")
+            if not isinstance(cast(object, row.description), str):
+                raise ParseError("Description must be a string")
+            description = parent + self.delimiter + row.description if self.qualified else row.description
+            full = (*fields, *((0,) * (7 - len(fields))))
+            pending[create_key(*full)] = description
+            if isinstance(row, SpecificElement):
+                if isinstance(row.extra, ExtraElement):
+                    extras: Sequence[ExtraElement] = (row.extra,)
+                elif isinstance(cast(object, row.extra), Sequence) and not isinstance(
+                    row.extra, (str, bytes)
+                ):
+                    extras = row.extra
+                else:
+                    raise ParseError("Specific extras must be a record or sequence of records")
+                for extra in extras:
+                    if not isinstance(cast(object, extra), ExtraElement):
+                        raise ParseError("Specific extras must be ExtraElement records")
+                    add(extra, fields, description)
+
+        for row in rows:
+            add(row, prefix, text)
+        self._subcategories.update(pending)
+
+    def initialize_specific(
+        self,
+        kind: int,
+        domain: int,
+        country: int,
+        category: int,
+        subcategory: int,
+        spec: SpecificElement | Sequence[SpecificElement],
+        text: str,
+    ) -> None:
+        """Atomically add specific/extra lookup rows; source XML is unchanged."""
+        if isinstance(spec, SpecificElement):
+            rows: Sequence[SpecificElement] = (spec,)
+        elif isinstance(cast(object, spec), Sequence) and not isinstance(spec, (str, bytes)):
+            rows = tuple(spec)
+        else:
+            raise ParseError("Expected a SpecificElement or sequence of records")
+        if any(not isinstance(cast(object, row), SpecificElement) for row in rows):
+            raise ParseError("Expected SpecificElement records")
+        self._incremental_rows(rows, (kind, domain, country, category, subcategory), text)
+
+    def initialize_extra(
+        self,
+        kind: int,
+        domain: int,
+        country: int,
+        category: int,
+        subcategory: int,
+        specific: int,
+        extra: ExtraElement | Sequence[ExtraElement],
+        text: str,
+    ) -> None:
+        """Atomically add extra lookup rows; duplicate keys replace prior text."""
+        if isinstance(extra, ExtraElement):
+            rows: Sequence[ExtraElement] = (extra,)
+        elif isinstance(cast(object, extra), Sequence) and not isinstance(extra, (str, bytes)):
+            rows = tuple(extra)
+        else:
+            raise ParseError("Expected an ExtraElement or sequence of records")
+        if any(not isinstance(cast(object, row), ExtraElement) for row in rows):
+            raise ParseError("Expected ExtraElement records")
+        self._incremental_rows(rows, (kind, domain, country, category, subcategory, specific), text)
+
     def get_country(self, key: int) -> str | None:
         return self._countries.get(key)
 
@@ -214,6 +302,8 @@ class SisoEnumsParser:
         )
         return path
 
+    initializeSpecific = initialize_specific
+    initializeExtra = initialize_extra
     countryCount = country_count
     kindCount = kind_count
     domainCount = domain_count

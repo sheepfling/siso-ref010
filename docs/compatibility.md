@@ -12,19 +12,26 @@
   by an explicit namespace-aware Python XML traversal, not a full XSD validator.
 - Principal picker workflow: terminal hierarchy selection, CLI search and lookup.
 
-## What is not ported
+## Python replacements and remaining boundaries
 
-The Vue/Vuetify GUI, responsive styling, browser clipboard, client-side store,
-web hosting, npm publication/build pipeline and generated TypeScript types are not
-Python features in this delivery. The terminal picker is a replacement workflow,
-not pixel or UI-state parity with the Vue application. `initializeSpecific` and
-`initializeExtra` are upstream parser implementation hooks, not exposed as Python
-incremental mutation methods. Parse a complete XML document instead.
+The original Vue application is replaced by a native Tkinter desktop picker and
+terminal workflow, not retained as a browser UI. ID entry, cascading selection,
+label filtering, description search, selecting results, clipboard output, and
+reset are implemented in Python. Native widget appearance differs from Vue;
+there is no browser store, Vue/Vuetify component API, web hosting or npm pipeline.
+Tk support and a graphical display are required only when launching the GUI.
 
-The full repository scope was inspected (three packages), not assumed to consist
-only of the main library. A source snapshot used by the reference generator is
-included under `vendor/upstream`. There has been no public repository creation,
-push, deployment, or package publication.
+The parser now provides `initialize_specific` / `initialize_extra` and camel-case
+aliases using typed Python records. A handwritten `Convert` API validates the
+public XML-as-JSON interchange shape in Python. See [parser.md](parser.md) for
+intentional normalized-shape/date differences. This is not a full SISO XSD
+validator, and the entity catalog still extracts only the upstream entity subset.
+
+The full upstream three-package scope was inspected. The private review PR
+contains source attribution and data provenance. Reference TypeScript and the
+Node oracle remain historical development material, not application runtime;
+removing that scaffolding is a separate pending review change. Nothing is
+published to a package index, tagged, or released.
 
 ## Preserved behavior worth knowing
 

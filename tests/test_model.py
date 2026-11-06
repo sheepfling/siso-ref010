@@ -166,3 +166,11 @@ def test_description_helpers():
     assert get_entity_kind_description(255) is None
     assert get_entity_domain_description(1) == "Land"
     assert get_entity_domain_description(255) is None
+
+
+@pytest.mark.parametrize("value", [0.5, float("inf"), float("-inf"), float("nan")])
+def test_nonintegral_enum_inputs_return_none(value):
+    from siso_entity_type import create_entity_domain_from_number, create_entity_kind_from_number
+
+    assert create_entity_kind_from_number(value) is None
+    assert create_entity_domain_from_number(value) is None

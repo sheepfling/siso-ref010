@@ -1,11 +1,36 @@
 # Verification record
 
-Validated on Linux with Python 3.11.17, 3.12.14, 3.13.5, and 3.14.8; the original
-TypeScript oracle was executed with Node 24.22.1. Windows and macOS have not
-yet been executed. This is measured pinned-revision parity, not an assertion of
+The initial port was validated on Linux with Python 3.11.17, 3.12.14, 3.13.5,
+and 3.14.8; the original TypeScript oracle was executed with Node 24.22.1.
+The initial GitHub CI also passed on Windows and macOS at commit
+`f346de4f167e9cbb51ca9919414ca0ea37902d77` (run `42169259894`). This is measured pinned-revision parity, not an assertion of
 complete behavior equivalence on every future or malformed input.
 
-## Review preparation checks
+## Native Python completion checks
+
+The added desktop picker, incremental parser APIs, and JSON shape converter were
+checked locally on Python 3.12.14: **217 tests passed, 3 real-Tk tests skipped**
+because this host has no graphical display. Ruff lint/format and strict Pyright
+passed. The Python-only catalog rebuild matched the bundled JSON byte for byte
+(SHA-256 `e215511c87c6cb5dbe8bb0f909ae225f84c34a707d17176a00ef34e32c453e6b`).
+The wheel and source distribution built successfully.
+
+CI now runs coverage under `xvfb-run` with `SISO_REQUIRE_GUI_TESTS=1`, so missing Tk
+or a display fails instead of silently skipping the real widget tests. These
+exercise repeated/invalid ID loads, cascading selections, result selection,
+clipboard copy, stale-query cancellation, reset, and repeated close. This is
+automated widget testing, not a claim of manual visual QA on all platforms.
+The [draft PR](https://github.com/sheepfling/dis-entity-types/pull/1) is the source
+for exact-commit CI results.
+
+Runtime tests reject non-stdlib runtime imports and subprocess/foreign-runtime
+bridges. The installed-wheel smoke test restricts PATH to its fresh Python virtual
+environment, verifies lazy Tk import, and exercises the added typed parser records.
+Python can regenerate the production catalog without Node. The optional historical
+oracle generator and the Pyright development checker still use Node; neither is
+an application runtime dependency.
+
+## Initial review preparation checks
 
 The renamed `dis-entity-types` candidate was rechecked on Python 3.12.14:
 140 tests, Ruff lint/format, strict Pyright, wheel/sdist build, strict Twine
@@ -13,11 +38,11 @@ metadata validation, and fresh-wheel consumer checks for both CLI names.
 The full 140-test suite also passed locally on Python 3.11.17, 3.13.5, and
 3.14.8, and all 140 tests passed from the rebuilt source distribution on 3.12.14.
 The proposed GitHub matrix covers Python 3.11–3.14 on Linux and 3.12 on
-Windows/macOS. These jobs are configured but have not yet run remotely.
+Windows/macOS. All seven initial CI jobs succeeded for the initial revision noted above.
 Byte-preserved fixture attributes protect upstream hashes from checkout
 line-ending conversion. No package-index upload was performed.
 
-## Results
+## Initial port results
 
 - **140 pytest tests passed**, including all tests below.
 - **Strict Pyright:** 0 errors, 0 warnings, covering runtime modules and the API example.
@@ -72,7 +97,8 @@ line-ending conversion. No package-index upload was performed.
 ## Reproduce
 
 ```sh
-python -m pytest -q --cov=siso_entity_type --cov-report=term-missing
+xvfb-run -a python -m pytest -q --cov=siso_entity_type --cov-report=term-missing
+python tools/rebuild_catalog.py --check
 pyright
 ruff check .
 ruff format --check .
@@ -88,6 +114,6 @@ the bundled original TypeScript snapshot and repeats that measurement. Only impo
 resolution is adapted; algorithmic source is unchanged. The source tree hashes
 are retained in `vendor/upstream/git-tree.json`.
 
-Known intentional differences and unported GUI scope are listed in
+Known intentional differences and native GUI scope are listed in
 [compatibility.md](compatibility.md). In particular, typed validation deliberately
 does not reproduce JavaScript's malformed-number coercion.

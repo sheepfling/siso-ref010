@@ -1,6 +1,7 @@
 # dis-entity-types (proposed distribution name)
 
-A typed, zero-runtime-dependency Python 3.11+ port of the **library and XML parser** in
+A typed, zero-runtime-dependency Python 3.11+ implementation of the **library, XML parser,
+and picker workflows** in
 [TNO-MST/siso-entity-type](https://github.com/TNO-MST/siso-entity-type/tree/bb195c647b6f9c4b7bea4e5a10e6c560a0b0bceb),
 pinned to commit `bb195c647b6f9c4b7bea4e5a10e6c560a0b0bceb` (upstream packages 1.0.3).
 This independent port has its own version, 0.2.0. It has not been published to PyPI.
@@ -17,9 +18,12 @@ The bundled data is the original **SISO-REF-010-v35, dated 2025-04-27**, not a c
 about the newest SISO standard. It includes 279 countries, 10 kinds, 68 kind/domain
 pairs, 1,867 categories, and 24,637 subcategory/specific/extra records.
 
-The upstream Vue picker was inspected. A Python **terminal picker** and search CLI
-provide its principal lookup workflow. The Vue/Vuetify application itself has not
-been recreated as a Python graphical UI. See [scope and compatibility](docs/compatibility.md).
+The application code executes directly in Python, not through a JavaScript wrapper
+or transpiled runtime. A native **Tkinter desktop picker** now implements ID entry,
+cascading/filtered selections, description search, result selection, clipboard copy,
+and reset alongside the terminal picker. Tk is an optional system/Python component.
+See [GUI usage](docs/gui.md), [scope](docs/compatibility.md), and
+[code/data provenance](docs/code-provenance.md).
 
 ## Install locally
 
@@ -32,9 +36,10 @@ python -m pip install dist/dis_entity_types-0.2.0-py3-none-any.whl
 
 No network access is used at runtime. Python 3.11+ is the supported language target;
 the test suite passed on Linux Python 3.11.17, 3.12.14, 3.13.5, and 3.14.8.
-Windows/macOS CI is configured but has not yet run.
+The initial PR CI also passed on Windows and macOS. See the PR for the latest
+commit-specific results, including the added GUI checks.
 
-## Two first-class components
+## Python API, CLI, and desktop picker
 
 - **Python API:** `from siso_entity_type.api import EntityTypeAPI` provides typed,
   immutable results for describe/search/hierarchy queries. No printing or exits.
@@ -42,6 +47,9 @@ Windows/macOS CI is configured but has not yet run.
 - **CLI:** `siso-entity-type` or `python -m siso_entity_type` calls the same API.
   Use `--text` for human output or `--json` for versioned machine output.
   Commands, schemas and exit codes: [CLI reference](docs/cli.md).
+- **Desktop picker:** `dis-entity-types gui` or `dis-entity-types-gui` launches a
+  native Tk window. It uses the same Python API, with no browser, JavaScript,
+  Node, web server, or network connection. [GUI reference](docs/gui.md).
 
 ```python
 from siso_entity_type.api import EntityTypeAPI
@@ -99,6 +107,7 @@ siso-entity-type list subcategories 1 4 153 5
 siso-entity-type key 1.2.225.7.8.7.1
 siso-entity-type key --decode 72621510476957441
 siso-entity-type pick
+dis-entity-types gui
 siso-entity-type info
 ```
 
@@ -128,6 +137,8 @@ The parser extracts the same entity-type subset as upstream, including its chose
 country/domain/life-form UID tables and CET hierarchy. It is not a full SISO schema
 validator, and it does not extract every unrelated SISO enumeration or bitfield.
 DTD/entity declarations are rejected. UTF-8 XML and namespaces are supported.
+The parser also exposes typed incremental specific/extra insertion and a native
+JSON-interchange converter/validator. See [parser reference](docs/parser.md).
 Deprecated rows are retained, matching upstream. Optional `qualified=True` or
 CLI `parse --qualified` stores joined descriptions instead of the default leaf names.
 
@@ -161,6 +172,11 @@ Node and the exact locked development dependencies are needed only for regenerat
 that fixture. Running the Python test suite does not require Node or network access.
 
 ## Licensing and provenance
+
+A different license for newly authored code is under consideration; this review
+has not changed the current licensing. Native Python syntax does not by itself
+prove copyright independence from referenced source. Required attribution and
+separate SISO notices remain intact. See [the provenance inventory](docs/code-provenance.md).
 
 The distribution metadata declares `Apache-2.0 AND LicenseRef-SISO-Data`: Apache
 for the software, with the separate SISO notice for the included material. The

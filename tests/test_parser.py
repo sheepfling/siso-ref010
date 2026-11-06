@@ -119,3 +119,63 @@ def test_missing_and_wildcard_applicability():
     wildcard = '<ebv><enum uid="472" applicability="3.X"><enumrow value="2" description="A"/></enum></ebv>'
     parsed = SisoEnumsParser.from_string(wildcard)
     assert parsed.get_category(create_key(3, 0, 0, 2, 0, 0, 0)) == "A"
+
+
+def test_incremental_specific_extra_and_source_unchanged():
+    from siso_entity_type.xml_types import ExtraElement, SpecificElement
+
+    parser = SisoEnumsParser.from_string("<ebv/>")
+    original = parser.to_string()
+    parser.initializeSpecific(
+        1, 2, 225, 7, 8, SpecificElement(9, "Specific", ExtraElement(10, "Extra")), "Parent"
+    )
+    assert parser.get_subcategory(create_key(1, 2, 225, 7, 8, 9, 0)) == "Specific"
+    assert parser.get_subcategory(create_key(1, 2, 225, 7, 8, 9, 10)) == "Extra"
+    parser.initializeExtra(1, 2, 225, 7, 8, 9, [ExtraElement(10, "Replacement"), ExtraElement(11, "New")], "")
+    assert parser.subcategory_count == 3
+    assert parser.get_subcategory(create_key(1, 2, 225, 7, 8, 9, 10)) == "Replacement"
+    assert parser.to_string() == original
+    assert len(parser.to_data()["subcategories"]) == 3
+
+
+def test_incremental_qualified_and_atomic_validation():
+    from siso_entity_type.xml_types import ExtraElement, SpecificElement
+
+    parser = SisoEnumsParser.from_string("<ebv/>", qualified=True, delimiter=" > ")
+    parser.initialize_specific(
+        1, 2, 3, 4, 5, [SpecificElement(6, "Child", (ExtraElement(7, "Leaf"),))], "Parent"
+    )
+    assert parser.get_subcategory(create_key(1, 2, 3, 4, 5, 6, 7)) == "Parent > Child > Leaf"
+    before = parser.to_data()
+    for invalid in [
+        ExtraElement(-1, "Bad"),
+        ExtraElement(256, "Bad"),
+        ExtraElement(True, "Bad"),
+        ExtraElement(0, None),
+    ]:
+        with pytest.raises(ParseError):
+            parser.initialize_extra(1, 2, 3, 4, 5, 6, [ExtraElement(8, "Valid"), invalid], "Parent")
+        assert parser.to_data() == before
+    with pytest.raises(ParseError):
+        parser.initialize_specific(1, 2, 65536, 4, 5, SpecificElement(1, "Bad country"), "")
+    with pytest.raises(ParseError):
+        parser.initialize_specific(1, 2, 3, 4, 5, [ExtraElement(1, "Wrong type")], "")
+    parser.initialize_extra(1, 2, 3, 4, 5, 6, [], "")
+    assert parser.to_data() == before
+
+
+@pytest.mark.parametrize("bad", [None, "bad", b"bad", 1, [None]])
+def test_incremental_invalid_containers_are_parse_errors(bad):
+    from siso_entity_type import ExtraElement, SpecificElement
+
+    parser = SisoEnumsParser.from_string("<ebv/>")
+    original = parser.to_data()
+    with pytest.raises(ParseError):
+        parser.initialize_specific(1, 2, 225, 1, 1, bad, "parent")
+    with pytest.raises(ParseError):
+        parser.initialize_extra(1, 2, 225, 1, 1, 1, bad, "parent")
+    with pytest.raises(ParseError):
+        parser.initialize_specific(1, 2, 225, 1, 1, SpecificElement(1, "x", bad), "parent")
+    with pytest.raises(ParseError, match="Parent text"):
+        parser.initialize_extra(1, 2, 225, 1, 1, 1, ExtraElement(1, "x"), None)
+    assert parser.to_data() == original

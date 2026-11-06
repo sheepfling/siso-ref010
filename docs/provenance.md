@@ -21,7 +21,11 @@ reconstructed or inferred from excerpts.
 ## Two different sets of terms
 
 TNO's original source is under Apache-2.0, with its copyright line retained in
-`LICENSE` and `NOTICE`. The Python code is a modified derivative under that license.
+`LICENSE` and `NOTICE`. The current Python review retains that license and source-informed adaptation
+notices. A different license for eligible newly authored code is under consideration
+but has not been selected or applied. See the detailed
+[code/data inventory](code-provenance.md); native Python implementation is not a
+claim of independent clean-room development.
 
 The XML has an additional SISO copyright notice. That notice is copied verbatim
 into `SISO-DATA-NOTICE.txt` and retained in the XML fixture. It grants a general,
@@ -35,6 +39,6 @@ express written permission is obtained from the SISO Inc. Board of Directors.
 The notice does not precisely classify every extracted descriptive string. This
 port preserves the upstream dataset and notice, but does not offer a legal
 conclusion that every downstream commercial use or redistribution is cleared.
-In particular, the software's Apache-2.0 metadata is not a license replacement for
+In particular, the software's Apache-2.0 license is not a license replacement for
 the standard's documentation. Confirm applicable rights for a commercial product
 that redistributes descriptive material. No SISO or TNO endorsement is implied.

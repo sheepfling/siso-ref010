@@ -27,6 +27,9 @@ def main() -> None:
         root = Path(directory)
         venv.EnvBuilder(with_pip=True).create(root / "venv")
         binary = root / "venv" / ("Scripts" if os.name == "nt" else "bin")
+        # Consumer execution has only the fresh Python environment on PATH.
+        # In particular, no system Node/npm executable can satisfy a dependency.
+        environment["PATH"] = str(binary)
         python = binary / ("python.exe" if os.name == "nt" else "python")
         console = binary / ("siso-entity-type.exe" if os.name == "nt" else "siso-entity-type")
 
@@ -45,8 +48,16 @@ def main() -> None:
             "-c",
             """
 import json
+import sys
 from importlib.resources import files
 from siso_entity_type.api import EntityTypeAPI, decode_key, encode_entity
+from siso_entity_type import Convert, ExtraElement, SpecificElement, SisoEnumsParser
+import siso_entity_type.gui
+assert "tkinter" not in sys.modules
+parser = SisoEnumsParser.from_string("<ebv/>")
+parser.initialize_specific(1, 2, 225, 1, 1, SpecificElement(1, "Variant", ExtraElement(2, "Equipment")), "")
+assert parser.subcategory_count == 2
+assert callable(Convert.to_siso_xml_types)
 api = EntityTypeAPI()
 item = api.describe("1.3.153.6.4.2.0")
 assert item.description == "F803 Tromp"
