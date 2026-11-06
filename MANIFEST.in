@@ -1,0 +1,13 @@
+include .gitignore .gitattributes
+include NOTICE SISO-DATA-NOTICE.txt
+recursive-include docs *.md
+recursive-include tests *.py *.xml *.json
+recursive-include tools *.mjs
+recursive-include vendor *.ts *.cjs *.md *.json LICENSE
+recursive-include tools *.json
+prune tools/oracle/_oracle-build
+prune tools/oracle/node_modules
+
+include CHANGELOG.md
+recursive-include examples *.py
+recursive-include tools *.py

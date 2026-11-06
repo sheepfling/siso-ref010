@@ -1,0 +1,64 @@
+# Modified work (2026): Python adaptation of TNO-MST/siso-entity-type.
+# Original copyright 2025 TNO; Apache-2.0. See LICENSE and NOTICE.
+"""Typed Python port of TNO-MST/siso-entity-type at a pinned upstream revision."""
+
+from ._version import DATA_DATE as DATA_DATE
+from ._version import DATA_VERSION as DATA_VERSION
+from ._version import UPSTREAM_COMMIT as UPSTREAM_COMMIT
+from ._version import UPSTREAM_VERSION as UPSTREAM_VERSION
+from ._version import __version__ as __version__
+from .api import Choice as Choice
+from .api import Choices as Choices
+from .api import Collection as Collection
+from .api import EntityDescription as EntityDescription
+from .api import EntityEncoding as EntityEncoding
+from .api import EntityTypeAPI as EntityTypeAPI
+from .api import SearchHit as SearchHit
+from .api import SearchResults as SearchResults
+from .api import decode_key as decode_key
+from .api import encode_entity as encode_entity
+from .catalog import BITMAP_0 as BITMAP_0
+from .catalog import BITMAP_0_CAT as BITMAP_0_CAT
+from .catalog import BITMAP_0_CAT_SUBCAT as BITMAP_0_CAT_SUBCAT
+from .catalog import BITMAP_0_CAT_SUBCAT_SPECIFIC as BITMAP_0_CAT_SUBCAT_SPECIFIC
+from .catalog import BITMAP_0_CAT_SUBCAT_SPECIFIC_EXTRA as BITMAP_0_CAT_SUBCAT_SPECIFIC_EXTRA
+from .catalog import BITMAP_BYTE as BITMAP_BYTE
+from .catalog import BITMAP_COUNTRY as BITMAP_COUNTRY
+from .catalog import BITMAP_COUNTRY_CAT as BITMAP_COUNTRY_CAT
+from .catalog import BITMAP_COUNTRY_CAT_SUBCAT as BITMAP_COUNTRY_CAT_SUBCAT
+from .catalog import BITMAP_COUNTRY_CAT_SUBCAT_SPECIFIC as BITMAP_COUNTRY_CAT_SUBCAT_SPECIFIC
+from .catalog import BITMAP_KIND as BITMAP_KIND
+from .catalog import BITMAP_KIND_DOMAIN as BITMAP_KIND_DOMAIN
+from .catalog import BITMAP_KIND_DOMAIN_COUNTRY as BITMAP_KIND_DOMAIN_COUNTRY
+from .catalog import BITMAP_SHORT as BITMAP_SHORT
+from .catalog import BYTE_SHIFT as BYTE_SHIFT
+from .catalog import SisoEnums as SisoEnums
+from .catalog import SisoEnumsData as SisoEnumsData
+from .catalog import SisoEnumsDataType as SisoEnumsDataType
+from .model import ENTITY_DOMAIN_DESCRIPTIONS as ENTITY_DOMAIN_DESCRIPTIONS
+from .model import ENTITY_KIND_DESCRIPTIONS as ENTITY_KIND_DESCRIPTIONS
+from .model import EntityDomain as EntityDomain
+from .model import EntityDomainDescriptions as EntityDomainDescriptions
+from .model import EntityKind as EntityKind
+from .model import EntityKindDescriptions as EntityKindDescriptions
+from .model import SisoEnum as SisoEnum
+from .model import Utils as Utils
+from .model import create_entity_domain_from_number as create_entity_domain_from_number
+from .model import create_entity_domain_from_string as create_entity_domain_from_string
+from .model import create_entity_kind_from_number as create_entity_kind_from_number
+from .model import create_entity_kind_from_string as create_entity_kind_from_string
+from .model import create_key as create_key
+from .model import createEntityDomainFromNumber as createEntityDomainFromNumber
+from .model import createEntityDomainFromString as createEntityDomainFromString
+from .model import createEntityKindFromNumber as createEntityKindFromNumber
+from .model import createEntityKindFromString as createEntityKindFromString
+from .model import get_entity_domain_description as get_entity_domain_description
+from .model import get_entity_kind_description as get_entity_kind_description
+from .model import getEntityDomainDescription as getEntityDomainDescription
+from .model import getEntityKindDescription as getEntityKindDescription
+from .parser import ParseError as ParseError
+from .parser import SisoEnumsFactory as SisoEnumsFactory
+from .parser import SisoEnumsParser as SisoEnumsParser
+from .utils import LongKeyMap as LongKeyMap
+
+SisoEnumType = SisoEnum

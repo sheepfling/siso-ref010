@@ -1,0 +1,9 @@
+# Preserve line endings across platforms, including files checked by Git blob hash.
+* text=auto eol=lf
+/tests/fixtures/* -text
+/src/siso_entity_type/data/*.json -text
+/vendor/upstream/** -text
+# Verbatim notices/snapshots intentionally preserve upstream whitespace.
+/SISO-DATA-NOTICE.txt -whitespace
+/tests/fixtures/* -whitespace
+/vendor/upstream/** -whitespace

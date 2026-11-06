@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dis-entity-types"
+version = "0.2.0"
+description = "Typed Python port of the TNO SISO-REF-010 entity-type library and parser"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0 AND LicenseRef-SISO-Data"
+license-files = ["LICENSE", "NOTICE", "SISO-DATA-NOTICE.txt"]
+dependencies = []
+keywords = ["DIS", "entity-type", "SISO-REF-010", "simulation", "interoperability"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Repository = "https://github.com/sheepfling/dis-entity-types"
+Issues = "https://github.com/sheepfling/dis-entity-types/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=6", "pyright>=1.1.414", "ruff>=0.14", "build>=1.2", "twine>=6"]
+
+[project.scripts]
+dis-entity-types = "siso_entity_type.cli:main"
+siso-entity-type = "siso_entity_type.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+siso_entity_type = ["py.typed", "data/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.pyright]
+include = ["src", "examples"]
+typeCheckingMode = "strict"
+pythonVersion = "3.11"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
