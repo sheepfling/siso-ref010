@@ -2,18 +2,24 @@ import random
 
 import pytest
 
-from siso_entity_type import (
+from dis_entity_types import (
+    CategoryCode,
+    CountryCode,
+    DomainCode,
     EntityDomain,
     EntityKind,
-    SisoEnum,
-    Utils,
+    EntityType,
+    ExtraCode,
+    KindCode,
+    SpecificCode,
+    SubcategoryCode,
+)
+from dis_entity_types.model import (
     create_entity_domain_from_number,
     create_entity_domain_from_string,
     create_entity_kind_from_number,
     create_entity_kind_from_string,
     create_key,
-    createEntityDomainFromNumber,
-    createEntityKindFromNumber,
 )
 
 
@@ -28,25 +34,36 @@ from siso_entity_type import (
     ],
 )
 def test_wire_fixtures(fields, key):
-    entity = SisoEnum(*fields)
+    entity = EntityType(*fields)
     assert entity.to_key() == key
-    assert SisoEnum.from_key(key) == entity
-    assert SisoEnum.from_string(str(entity)) == entity
-    assert SisoEnum.from_bytes(entity.to_bytes()) == entity
+    assert EntityType.from_key(key) == entity
+    assert EntityType.from_string(str(entity)) == entity
+    assert EntityType.from_bytes(entity.to_bytes()) == entity
     assert len(entity.to_bytes()) == 8
     assert entity.to_key(signed=False) == key & ((1 << 64) - 1)
-    assert Utils.createKey(*fields) == key
+    assert (
+        create_key(
+            kind=KindCode(fields[0]),
+            domain=DomainCode(fields[1]),
+            country=CountryCode(fields[2]),
+            category=CategoryCode(fields[3]),
+            subcategory=SubcategoryCode(fields[4]),
+            specific=SpecificCode(fields[5]),
+            extra=ExtraCode(fields[6]),
+        )
+        == key
+    )
 
 
 def test_seeded_full_width_roundtrips():
     randomizer = random.Random(0x5150)
     for _ in range(10000):
         key = randomizer.getrandbits(64)
-        entity = SisoEnum.from_key(key)
+        entity = EntityType.from_key(key)
         assert entity.to_key(signed=False) == key
         assert entity.to_bytes() == key.to_bytes(8, "big")
-        assert SisoEnum.from_string(str(entity)) == entity
-        assert SisoEnum.from_key(entity.to_key()) == entity
+        assert EntityType.from_string(str(entity)) == entity
+        assert EntityType.from_key(entity.to_key()) == entity
 
 
 @pytest.mark.parametrize(
@@ -66,50 +83,70 @@ def test_seeded_full_width_roundtrips():
 )
 def test_invalid_strings(text):
     with pytest.raises(ValueError):
-        SisoEnum.from_string(text)
+        EntityType.from_string(text)
 
 
 @pytest.mark.parametrize("key", [-(1 << 63) - 1, 1 << 64])
 def test_key_bounds(key):
     with pytest.raises(ValueError):
-        SisoEnum.from_key(key)
+        EntityType.from_key(key)
 
 
 @pytest.mark.parametrize("value", [True, 1.1, "1", None])
 def test_reject_coercion(value):
     with pytest.raises(TypeError):
-        SisoEnum(value, 0, 0, 0, 0, 0, 0)
+        EntityType(value, 0, 0, 0, 0, 0, 0)
     with pytest.raises(TypeError):
-        SisoEnum.from_key(value)
+        EntityType.from_key(value)
     with pytest.raises(TypeError):
-        create_key(value, 0, 0, 0, 0, 0, 0)
+        create_key(
+            kind=KindCode(value),
+            domain=DomainCode(0),
+            country=CountryCode(0),
+            category=CategoryCode(0),
+            subcategory=SubcategoryCode(0),
+            specific=SpecificCode(0),
+            extra=ExtraCode(0),
+        )
 
 
-def test_low_level_masking_and_aliases():
-    assert create_key(257, -1, 65536, 256, 0, 0, 0) == create_key(1, 255, 0, 0, 0, 0, 0)
-    entity = SisoEnum.fromString("1|2|3|4|5|6|7", "|")
-    assert entity.toString() == "1.2.3.4.5.6.7"
-    assert SisoEnum.fromKey(entity.toKey()) == entity
+def test_low_level_masking_and_native_methods():
+    assert create_key(
+        kind=KindCode(257),
+        domain=DomainCode(-1),
+        country=CountryCode(65536),
+        category=CategoryCode(256),
+        subcategory=SubcategoryCode(0),
+        specific=SpecificCode(0),
+        extra=ExtraCode(0),
+    ) == create_key(
+        kind=KindCode(1),
+        domain=DomainCode(255),
+        country=CountryCode(0),
+        category=CategoryCode(0),
+        subcategory=SubcategoryCode(0),
+        specific=SpecificCode(0),
+        extra=ExtraCode(0),
+    )
+    entity = EntityType.from_string("1|2|3|4|5|6|7", "|")
+    assert entity.to_string() == "1.2.3.4.5.6.7"
+    assert EntityType.from_key(entity.to_key()) == entity
     assert entity.get_kind() is EntityKind.PLATFORM
-    assert entity.getKind() == "Platform"
     assert entity.get_domain() is EntityDomain.AIR
-    assert entity.getDomain() == "Air"
     with pytest.raises(ValueError):
-        SisoEnum.from_string("123", "")
+        EntityType.from_string("123", "")
     with pytest.raises(ValueError):
-        SisoEnum.from_bytes(b"\x00")
+        EntityType.from_bytes(b"\x00")
 
 
-@pytest.mark.parametrize("value", [5.562, -1, 10, float("nan"), float("inf"), True])
+@pytest.mark.parametrize("value", [5.562, -1, 11, float("nan"), float("inf"), True])
 def test_invalid_kind(value):
     assert create_entity_kind_from_number(value) is None
-    assert createEntityKindFromNumber(value) is None
 
 
 @pytest.mark.parametrize("value", [3.562, -1, 6, 10, float("nan"), float("inf"), True])
 def test_invalid_domain(value):
     assert create_entity_domain_from_number(value) is None
-    assert createEntityDomainFromNumber(value) is None
 
 
 @pytest.mark.parametrize(
@@ -129,48 +166,6 @@ def test_kind_names(name, kind):
 def test_domain_names():
     assert create_entity_domain_from_string("LAND") is EntityDomain.LAND
     assert create_entity_domain_from_string("space") is EntityDomain.SPACE
-    assert create_entity_domain_from_string(" Land") is None  # Upstream does not trim names.
-    assert createEntityKindFromNumber(9) == "SensorEmitter"
-    assert createEntityDomainFromNumber(4) == "Subsurface"
-
-
-def test_map_compatibility():
-    from siso_entity_type import LongKeyMap
-
-    table = LongKeyMap[str]()
-    table.set(1, "a")
-    table.set(2, "b")
-    table.set(1, "c")
-    assert table.size == 2
-    assert table.keys() == [1, 2]
-    assert table.values() == ["c", "b"]
-    assert table.entries() == [(1, "c"), (2, "b")]
-    assert table.get(1) == "c"
-    assert table.has(1)
-    assert table.get(0) is None
-    seen = []
-    table.forEach(lambda value, key, owner: seen.append((value, key, owner is table)))
-    assert seen == [("c", 1, True), ("b", 2, True)]
-    assert table.delete(1)
-    assert not table.delete(1)
-    table.clear()
-    assert table.size == 0
-    assert EntityKind.Platform is EntityKind.PLATFORM
-    assert EntityDomain.Air is EntityDomain.AIR
-
-
-def test_description_helpers():
-    from siso_entity_type import get_entity_domain_description, get_entity_kind_description
-
-    assert get_entity_kind_description(9) == "Sensor/Emitter"
-    assert get_entity_kind_description(255) is None
-    assert get_entity_domain_description(1) == "Land"
-    assert get_entity_domain_description(255) is None
-
-
-@pytest.mark.parametrize("value", [0.5, float("inf"), float("-inf"), float("nan")])
-def test_nonintegral_enum_inputs_return_none(value):
-    from siso_entity_type import create_entity_domain_from_number, create_entity_kind_from_number
-
-    assert create_entity_kind_from_number(value) is None
-    assert create_entity_domain_from_number(value) is None
+    assert create_entity_domain_from_string(" Land") is None  # Leading whitespace is not ignored.
+    assert create_entity_kind_from_number(9) is EntityKind.SENSOR_EMITTER
+    assert create_entity_domain_from_number(4) is EntityDomain.SUBSURFACE

@@ -1,74 +1,51 @@
-# Native Python parser APIs
+# XML parser
 
-The XML parser uses Python's standard library. It extracts the same entity-type
-lookup tables as the upstream parser; it does not validate the complete SISO XSD.
-The bundled full XML-to-catalog fixture test checks exact values and insertion
-order. SISO data attribution and the upstream source notices still apply.
-
-## Incremental lookup rows
+`EntityTypeXmlParser` reads SISO-REF-010 XML with Python's standard library and
+returns an immutable Pydantic `EntityTypeStandard`. Pydantic validates numeric
+fields, value ranges, and nested records during construction. It does not turn
+the source into a
+JSON catalog or flatten the entity hierarchy during parsing.
 
 ```python
-from siso_entity_type.parser import SisoEnumsParser
-from siso_entity_type.xml_types import SpecificElement, ExtraElement
+from dis_entity_types import EntityTypeCatalog, EntityTypeXmlParser
 
-parser = SisoEnumsParser.from_string("<ebv/>")
-parser.initialize_specific(
-    1,
-    2,
-    225,
-    7,
-    8,
-    SpecificElement(9, "Aircraft variant", ExtraElement(1, "Equipment variant")),
-    "Parent description",
-)
+standard = EntityTypeXmlParser.from_file("SISO-REF-010.xml")
+print(standard.title, standard.date)
+
+entity_kinds = standard.enumeration("Entity Kind")
+print(entity_kinds.uid, entity_kinds.applicability)
+print(entity_kinds.entries[0].description)
+
+catalog = EntityTypeCatalog(standard)  # Optional lookup projection
 ```
 
-`initialize_specific` / `initializeSpecific` takes one `SpecificElement` or a
-sequence, plus kind, domain, country, category, subcategory and parent text.
-`initialize_extra` / `initializeExtra` additionally takes the specific number
-and one `ExtraElement` or a sequence. Specific records accept a single extra or
-a tuple of extras. Both methods return `None`. Duplicate keys replace earlier
-text. Lookup methods, counts, `to_data`, and written catalogs see these changes.
-As upstream does, these methods modify lookup tables, not the source document:
-`to_string` still serializes the original XML.
+`from_file()` accepts a string or any `os.PathLike[str]` value. File paths are
+normalized to `Path` inside the package.
 
-These typed dataclasses are Python-facing records, not XML attribute dictionaries.
-Values must be integers in 0..255 (country 0..65535), excluding booleans, and
-descriptions must be strings. Invalid batches raise `ParseError` without partial
-updates. Unlike upstream's coercion/skipping, invalid values are rejected.
-Qualified descriptions use the parser's `qualified` and `delimiter` settings.
+Use `EntityTypeXmlParser.from_string(xml)` for in-memory parsing. Namespaced and
+unnamespaced `<ebv>` documents are accepted. DTD and entity declarations are
+rejected.
 
-## XML-as-JSON conversion
+## Structured source model
 
-`xml_types.Convert.to_siso_xml_types(text)` and
-`Convert.siso_xml_types_to_json(document)` validate and round-trip the separate
-XML-as-JSON interchange document exported by the upstream parser package.
-Aliases are `toSISOXMLTypes` and `sISOXMLTypesToJson`. This is **not** the compact
-`siso-enums.json` catalog format and does not parse XML or populate a parser.
-`SISOXMLTypes` is a typed dictionary alias over recursive `JSONValue` values;
-validation returns ordinary dictionaries/lists. `XMLShapeError` reports malformed
-JSON, missing fields, unexpected fields, invalid enums, and structural errors.
+- `EntityTypeStandard` contains root attributes, namespace, revision records,
+  copyright text, every `<enum>` table, and the Entity Types CET.
+- `EnumerationTable` retains its UID, name, applicability, declared size,
+  source attributes, `<enumrow>` or `<enumrow_range>` entries, and table-level
+  description/header annotations.
+- `EntityBranch` and `ReferenceEntry` preserve categories through extras,
+  including ranges and nested children.
+- `SourceInfo` keeps element attributes, `<meta>` key/value pairs, and direct
+  change request values or ranges. Enumeration cross-references remain attached
+  to their source entries and can be followed through `EntityTypeStandard`.
 
-The document requires `?xml`, `?xml-stylesheet`, and `ebv` sections. Validation
-covers metadata, revisions, dictionaries, enums, entity/object hierarchies,
-bitfields, records, and jammer descriptions. Optional fields may be omitted,
-not set to null. XML attribute values remain strings. Runtime string enums
-`Status`, `Type`, and `Key` retain upstream member spellings.
+For example, `standard.enumeration_by_uid(21)` resolves a `subcategory_xref`
+whose source attributes contain `xref="21"`. `EntityTypeCatalog` uses this
+relationship when creating hierarchy choices.
 
-This is a newly authored Python validator informed by the upstream declarations,
-not a mechanical translation of its generated validation engine or a claim of
-clean-room implementation. The generated TypeScript interfaces and runtime
-unions disagree in several places. Python deliberately normalizes singleton and
-array child shapes to the declared interfaces rather than reproducing generated
-`Purple`/`Fluffy` union inconsistencies. For example a singleton entity accepts
-the same category shapes as an array entry, and datatype records have a required
-name and optional constrained type. Enum-row ranges accept optional change
-references and footnotes in either singleton or array form. Consequently this
-converter is not a byte-for-byte or rejection-for-rejection clone of that engine.
-
-Dates are validated ISO 8601 strings and remain strings, rather than becoming
-JavaScript Date objects. Permissive JavaScript date parsing and numeric date
-coercion are not reproduced. Pretty-printed JSON retains Unicode characters.
-The validator checks structure, not semantic UID references or DIS field ranges;
-use the XML parser and entity model for entity-type interpretation. Generated
-compile-time-only interface names are not duplicated as Python runtime classes.
+This is a structured model of standard data, not a lossless XML infoset. Unknown
+extension elements, comments, processing instructions, and formatting are not
+retained. The parser checks basic structure and numeric values but does not
+validate arbitrary files against the complete XSD. The bundled XML is validated
+against the packaged XSD in CI. Use `standard.model_dump(mode="json")` to
+serialize the structured model.

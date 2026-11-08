@@ -1,6 +1,7 @@
 """Run after installing: python examples/api_usage.py"""
 
-from siso_entity_type.api import Collection, EntityTypeAPI, decode_key, encode_entity
+from dis_entity_types import EntityTypePrefix
+from dis_entity_types.api import Collection, EntityTypeAPI, decode_key, encode_entity
 
 
 def main() -> None:
@@ -8,10 +9,11 @@ def main() -> None:
     details = api.describe("1.3.153.6.4.2.0")
     print(details.qualified_description)
     print(api.search("F803", limit=10).hits)
-    print(api.choices(Collection.CATEGORIES, 1, 4, 153).items)
+    category_parent = EntityTypePrefix(kind=1, domain=4, country=153)
+    print(api.choices(Collection.CATEGORIES, category_parent).items)
     encoding = encode_entity(details.entity)
     assert decode_key(encoding.key).entity == details.entity
-    print(encoding.to_dict())
+    print(encoding.model_dump(mode="json", by_alias=True))
 
 
 if __name__ == "__main__":

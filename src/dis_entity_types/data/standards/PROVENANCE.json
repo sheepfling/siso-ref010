@@ -1,0 +1,647 @@
+{
+  "archive_schema": 2,
+  "created_utc": "2026-11-08T02:52:30.826229+00:00",
+  "xml_contents_verified": true,
+  "verification_scope": "Every XML edition was matched to its recorded upstream source by SHA-256 and Git blob SHA-1; the bundled v2.7 XSD was matched to the supplied SISO v37 publisher archive extraction. XML well-formedness and embedded edition metadata are checked; no publisher signature is verified.",
+  "entries": [
+    {
+      "status": "verified",
+      "version": 20,
+      "file": "xml/v20.xml",
+      "bytes": 3022273,
+      "sha256": "42fc960fa00e95b7f3b18c1bd6c6e3e1353d15ae504f21790ee22abe058d1944",
+      "git_blob_sha1": "ac67c69dd530afdf9d3f601f81019e37bc841afc",
+      "title": "SISO-REF-010-00v20-0",
+      "edition_date": "2013-11-19",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.2",
+      "elements": 29068,
+      "enum_tables": 302,
+      "primary_source": {
+        "provider": "SourceForge",
+        "repository": "esitools",
+        "reference": {
+          "type": "svn-revision",
+          "value": "3974"
+        },
+        "path": "tags/SISO-REF-010-v20-0 v2/SISO-REF-010/SISO-REF-010.xml",
+        "url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v20-0%20v2/SISO-REF-010/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 21,
+      "file": "xml/v21.xml",
+      "bytes": 3510109,
+      "sha256": "f1aa58c67df061a82d83ce57feef54d4ee20ccedb9bcf778f93d99f771d06bd2",
+      "git_blob_sha1": "4319456af68fb88f5bf7d7f349453d21f760685d",
+      "title": "SISO-REF-010-v21",
+      "edition_date": "2015-03-17",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.3.1",
+      "elements": 34891,
+      "enum_tables": 322,
+      "primary_source": {
+        "provider": "SourceForge",
+        "repository": "esitools",
+        "reference": {
+          "type": "svn-revision",
+          "value": "3974"
+        },
+        "path": "tags/SISO-REF-010-v21-final/SISO-REF-010/SISO-REF-010.xml",
+        "url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v21-final/SISO-REF-010/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 22,
+      "file": "xml/v22.xml",
+      "bytes": 4120363,
+      "sha256": "6a704f4239cdfa94b97bc7a42a00f5096cc3772c92d7cf3c135708d552d294d5",
+      "git_blob_sha1": "0a07709bfb4cd2d6d7416dbe1d25f3dac63c74ca",
+      "title": "SISO-REF-010-v22",
+      "edition_date": "2016-05-10",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.3.2",
+      "elements": 41915,
+      "enum_tables": 327,
+      "primary_source": {
+        "provider": "SourceForge",
+        "repository": "esitools",
+        "reference": {
+          "type": "svn-revision",
+          "value": "3974"
+        },
+        "path": "tags/SISO-REF-010-v22/SISO-REF-010/SISO-REF-010.xml",
+        "url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v22/SISO-REF-010/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 23,
+      "file": "xml/v23.xml",
+      "bytes": 4245560,
+      "sha256": "0107aba01a44a7862f0e38d27812fa860afc4ca5b5c9c6c1a85f2dcb753d2f87",
+      "git_blob_sha1": "1d5e5ef2a402adf7073c0f51e994725372077571",
+      "title": "SISO-REF-010-v23",
+      "edition_date": "2017-08-21",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.3.2",
+      "elements": 43883,
+      "enum_tables": 333,
+      "primary_source": {
+        "provider": "SourceForge",
+        "repository": "esitools",
+        "reference": {
+          "type": "svn-revision",
+          "value": "3974"
+        },
+        "path": "tags/SISO-REF-010-v23_Offical_Release_Information/SISO-REF-010.xml",
+        "url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v23_Offical_Release_Information/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 24,
+      "file": "xml/v24.xml",
+      "bytes": 4505911,
+      "sha256": "ad66153eeeb1ae6ea5b583376711e42c862442edab47e5de2beb152abcd73326",
+      "git_blob_sha1": "080322de7fdbda818014eed1a0f5bc2260795696",
+      "title": "SISO-REF-010-v24",
+      "edition_date": "2018-04-27",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.4",
+      "elements": 46892,
+      "enum_tables": 356,
+      "primary_source": {
+        "provider": "SourceForge",
+        "repository": "esitools",
+        "reference": {
+          "type": "svn-revision",
+          "value": "3974"
+        },
+        "path": "tags/SISO-REF-010-v24/SISO-REF-010/SISO-REF-010.xml",
+        "url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v24/SISO-REF-010/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 25,
+      "file": "xml/v25.xml",
+      "bytes": 4722311,
+      "sha256": "779479523e1422e3b1eb6408181b352169de036274c01fed63a0d7953c666730",
+      "git_blob_sha1": "8a1e5fa600455d845c97ad538955868146de38b6",
+      "title": "SISO-REF-010-v25",
+      "edition_date": "2018-08-29",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.4",
+      "elements": 50339,
+      "enum_tables": 383,
+      "primary_source": {
+        "provider": "GitHub",
+        "repository": "open-dis/opendis7-source-generator",
+        "reference": {
+          "type": "git-commit",
+          "value": "8d9e136140f63428887aee584b4ee850616aaaaa"
+        },
+        "path": "xml/SISO/SISO_REF_010_v25/SISO_REF_010.xml",
+        "url": "https://raw.githubusercontent.com/open-dis/opendis7-source-generator/8d9e136140f63428887aee584b4ee850616aaaaa/xml/SISO/SISO_REF_010_v25/SISO_REF_010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 26,
+      "file": "xml/v26.xml",
+      "bytes": 4845648,
+      "sha256": "9b751a151bfaf36d8b08169763036847543b5316b62d01dd5f3ea1a1ea012e8e",
+      "git_blob_sha1": "a5295e7ffa7972e4e119d09db54a05d07688bdd8",
+      "title": "SISO-REF-010-v26",
+      "edition_date": "2019-03-15",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.4",
+      "elements": 51341,
+      "enum_tables": 384,
+      "primary_source": {
+        "provider": "SourceForge",
+        "repository": "esitools",
+        "reference": {
+          "type": "svn-tag",
+          "value": "SISO-REF-010-v26"
+        },
+        "path": "tags/SISO-REF-010-v26/SISO-REF-010/SISO-REF-010.xml",
+        "url": "https://svn.code.sf.net/p/esitools/code/tags/SISO-REF-010-v26/SISO-REF-010/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 27,
+      "file": "xml/v27.xml",
+      "bytes": 5161399,
+      "sha256": "cea76dc1b892d924f8bc1a2493dabae4ad5eebda2d267874705203fbffd472ca",
+      "git_blob_sha1": "4a7fc13fb40d2e79512dcb9d57a9ecd998b8dfb2",
+      "title": "SISO-REF-010-v27",
+      "edition_date": "2019-10-14",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.5",
+      "elements": 55008,
+      "enum_tables": 397,
+      "primary_source": {
+        "provider": "SourceForge",
+        "repository": "esitools",
+        "reference": {
+          "type": "svn-tag",
+          "value": "SISO-REF-010-v27-final"
+        },
+        "path": "tags/SISO-REF-010-v27-final/SISO-REF-010/SISO-REF-010.xml",
+        "url": "https://svn.code.sf.net/p/esitools/code/tags/SISO-REF-010-v27-final/SISO-REF-010/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 28,
+      "file": "xml/v28.xml",
+      "bytes": 5197356,
+      "sha256": "721236e30ae25fbd69f07374c8f27b1de5b45906c39ea7e3450aa4aff8cc0dc7",
+      "git_blob_sha1": "2c3de28110bd2bbc30e3f75d37a09b2ff59bc6e1",
+      "title": "SISO-REF-010-v28",
+      "edition_date": "2020-05-07",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.6",
+      "elements": 55700,
+      "enum_tables": 402,
+      "primary_source": {
+        "provider": "GitHub",
+        "repository": "open-dis/opendis7-source-generator",
+        "reference": {
+          "type": "git-commit",
+          "value": "7121d12781679a03c9b2460e2b9f0106fc1d4804"
+        },
+        "path": "xml/SISO/SISO-REF-010.xml",
+        "url": "https://raw.githubusercontent.com/open-dis/opendis7-source-generator/7121d12781679a03c9b2460e2b9f0106fc1d4804/xml/SISO/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 29,
+      "file": "xml/v29.xml",
+      "bytes": 5360873,
+      "sha256": "cb56f99b1e6ad2f0ec889d5cfe88550dffa3651aa129aa73b1ae356c03a3d493",
+      "git_blob_sha1": "10b49389a2e8860784cc725abba067ad83725b90",
+      "title": "SISO-REF-010-v29",
+      "edition_date": "2021-05-19",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.6",
+      "elements": 58376,
+      "enum_tables": 403,
+      "primary_source": {
+        "provider": "GitHub",
+        "repository": "open-dis/opendis7-source-generator",
+        "reference": {
+          "type": "git-commit",
+          "value": "afa86cf816898d8bc97657acaabe16d7245741a5"
+        },
+        "path": "xml/SISO/SISO-REF-010.xml",
+        "url": "https://raw.githubusercontent.com/open-dis/opendis7-source-generator/afa86cf816898d8bc97657acaabe16d7245741a5/xml/SISO/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 30,
+      "file": "xml/v30.xml",
+      "bytes": 5410091,
+      "sha256": "f55c8adafbaaada23281b8c85be9705d5c5ecc6bf9ee4097b157420b6124faed",
+      "git_blob_sha1": "fec91997dd5dd8c7d9fa999173d1dfd01b5ac530",
+      "title": "SISO-REF-010-v30",
+      "edition_date": "2022-04-17",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.7",
+      "elements": 59088,
+      "enum_tables": 404,
+      "primary_source": {
+        "provider": "GitHub",
+        "repository": "open-dis/opendis7-source-generator",
+        "reference": {
+          "type": "git-commit",
+          "value": "4d94510eac721259a1830d68638b06208181522a"
+        },
+        "path": "xml/SISO/SISO-REF-010.xml",
+        "url": "https://raw.githubusercontent.com/open-dis/opendis7-source-generator/4d94510eac721259a1830d68638b06208181522a/xml/SISO/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 31,
+      "file": "xml/v31.xml",
+      "bytes": 5477600,
+      "sha256": "5e62ae9f1a6636b3b46062771b510b957b99cd1d0924d6901b113e6dd66fe2ff",
+      "git_blob_sha1": "0a661a04ca21fea2600f3487e09d9ebb0df6996a",
+      "title": "SISO-REF-010-v31",
+      "edition_date": "2022-10-08",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.7",
+      "elements": 59920,
+      "enum_tables": 405,
+      "primary_source": {
+        "provider": "GitHub",
+        "repository": "open-dis/opendis7-source-generator",
+        "reference": {
+          "type": "git-commit",
+          "value": "f6d80d6a07adb4a3554751042ae95a513dc3e0d2"
+        },
+        "path": "xml/SISO/SISO-REF-010.xml",
+        "url": "https://raw.githubusercontent.com/open-dis/opendis7-source-generator/f6d80d6a07adb4a3554751042ae95a513dc3e0d2/xml/SISO/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 32,
+      "file": "xml/v32.xml",
+      "bytes": 5822246,
+      "sha256": "6e38f8e6afdd5cc290e65800dfb727829f715b8a0f61aad82746f0174447fbd5",
+      "git_blob_sha1": "bffb8ea03e8dcf35940eee1b8beb35de00480622",
+      "title": "SISO-REF-010-v32",
+      "edition_date": "2023-08-14",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.7",
+      "elements": 62777,
+      "enum_tables": 405,
+      "primary_source": {
+        "provider": "GitHub",
+        "repository": "zlubsen/dis-rs",
+        "reference": {
+          "type": "git-commit",
+          "value": "2e0e41846d1ba232fe92849773dcc5845b04818b"
+        },
+        "path": "dis-rs/enumerations/SISO-REF-010.xml",
+        "url": "https://raw.githubusercontent.com/zlubsen/dis-rs/2e0e41846d1ba232fe92849773dcc5845b04818b/dis-rs/enumerations/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 33,
+      "file": "xml/v33.xml",
+      "bytes": 5811630,
+      "sha256": "9475f3ea6840ea0faf5d0e1a5de6107a856c6376af31d952800d92b444ea4425",
+      "git_blob_sha1": "73e7ab952a667fb7f91921f592b8d9e52cba3260",
+      "title": "SISO-REF-010-v33",
+      "edition_date": "2024-05-29",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.7",
+      "elements": 63852,
+      "enum_tables": 406,
+      "primary_source": {
+        "provider": "GitHub",
+        "repository": "open-dis/opendis7-source-generator",
+        "reference": {
+          "type": "git-commit",
+          "value": "332cd7bda1cda6226e5a3f0d11e8933bafdbb5fe"
+        },
+        "path": "xml/SISO/SISO-REF-010.xml",
+        "url": "https://raw.githubusercontent.com/open-dis/opendis7-source-generator/332cd7bda1cda6226e5a3f0d11e8933bafdbb5fe/xml/SISO/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 34,
+      "file": "xml/v34.xml",
+      "bytes": 5940239,
+      "sha256": "baec7a601b22f39cca12687a772a4e62bd923f435d52f4ad3c27e419ca56d682",
+      "git_blob_sha1": "ea102ead0b02a3cb17edb6dc71d4ab7dc20f9a84",
+      "title": "SISO-REF-010-v34",
+      "edition_date": "2024-10-15",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.7",
+      "elements": 65417,
+      "enum_tables": 431,
+      "primary_source": {
+        "provider": "GitHub",
+        "repository": "open-dis/opendis7-source-generator",
+        "reference": {
+          "type": "git-commit",
+          "value": "132b648d0960a1b55c194ad58562bf8962937b77"
+        },
+        "path": "xml/SISO/SISO-REF-010.xml",
+        "url": "https://raw.githubusercontent.com/open-dis/opendis7-source-generator/132b648d0960a1b55c194ad58562bf8962937b77/xml/SISO/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 35,
+      "file": "xml/v35.xml",
+      "bytes": 6179202,
+      "sha256": "7df8fe406dc7e57290b8af99f89fec1563728372d18f2303d3a1de0183818826",
+      "git_blob_sha1": "11878e7df77f6c4c1bda9f4924b15aca67a324e8",
+      "title": "SISO-REF-010-v35",
+      "edition_date": "2025-04-27",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.7",
+      "elements": 67360,
+      "enum_tables": 436,
+      "primary_source": {
+        "provider": "GitHub",
+        "repository": "ngjunsiang/siso-ref-010-xml",
+        "reference": {
+          "type": "git-commit",
+          "value": "7e37652162bb6fb646be17a5539ef6352d0f59b2"
+        },
+        "path": "v35/SISO-REF-010.xml",
+        "url": "https://raw.githubusercontent.com/ngjunsiang/siso-ref-010-xml/7e37652162bb6fb646be17a5539ef6352d0f59b2/v35/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 36,
+      "file": "xml/v36.xml",
+      "bytes": 6456451,
+      "sha256": "571e1b80457c7f66a8150ac35ea2a65b86c466b4d3bc21a2276bedb538f9a192",
+      "git_blob_sha1": "992913008c70b496705ead301a37b0d93d0b985e",
+      "title": "SISO-REF-010-v36",
+      "edition_date": "2025-11-17",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.7",
+      "elements": 70869,
+      "enum_tables": 520,
+      "primary_source": {
+        "provider": "SourceForge",
+        "repository": "esitools",
+        "reference": {
+          "type": "svn-revision",
+          "value": "3834"
+        },
+        "path": "Release_Information/Release_DRAFT/SISO-REF-010-v36/SISO-REF-010.xml",
+        "url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3834/Release_Information/Release_DRAFT/SISO-REF-010-v36/SISO-REF-010.xml",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [],
+      "source_history": [
+        {
+          "status": "resolved",
+          "recorded_at": "2026-11-08T02:08:08.987124+00:00",
+          "attempted_urls": [
+            "https://svn.code.sf.net/p/esitools/code/tags/SISO-REF-010-v36/SISO-REF-010/SISO-REF-010.xml",
+            "https://sourceforge.net/p/esitools/code/HEAD/tree/tags/SISO-REF-010-v36/SISO-REF-010/SISO-REF-010.xml?format=raw"
+          ],
+          "finding": "The attempted tag URLs returned v35 XML when v36 was requested.",
+          "resolution": "The verified v36 source is the revision 3834 record above; both source hashes match."
+        }
+      ],
+      "bundle_file": "data/standards/editions.xz"
+    },
+    {
+      "status": "verified",
+      "version": 37,
+      "file": "xml/v37.xml",
+      "bytes": 6624541,
+      "sha256": "eaafe0b868e5fe6b3497c915226f312ca9853c242fae11d2f6afcbfb53c8be8c",
+      "git_blob_sha1": "d1874b83c10acb226361850df8141004f1640b03",
+      "title": "SISO-REF-010-v37",
+      "edition_date": "2026-05-25",
+      "release": "",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.7",
+      "elements": 72994,
+      "enum_tables": 535,
+      "primary_source": {
+        "provider": "SISO",
+        "repository": "SISO-REF-010 product data files",
+        "reference": {
+          "type": "publisher-release",
+          "value": "SISO-REF-010-2026-v37"
+        },
+        "path": "SISO-REF-010.xml",
+        "url": "https://www.sisostandards.org/resource/resmgr/reference_documents_/siso-ref-010-v37.zip",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      },
+      "verified_mirrors": [
+        {
+          "provider": "GitHub",
+          "repository": "open-dis/opendis7-source-generator",
+          "reference": {
+            "type": "git-commit",
+            "value": "604a0ee981b8487c7288c21230407a9e4d173105"
+          },
+          "path": "xml/SISO/SISO-REF-010.xml",
+          "url": "https://raw.githubusercontent.com/open-dis/opendis7-source-generator/604a0ee981b8487c7288c21230407a9e4d173105/xml/SISO/SISO-REF-010.xml",
+          "verification": {
+            "sha256_match": true,
+            "git_blob_sha1_match": true
+          }
+        }
+      ],
+      "source_history": [],
+      "bundle_file": "data/standards/editions.xz"
+    }
+  ],
+  "recovery_input": {
+    "archive": "siso_ref_010_historical_recovery_12of18.zip",
+    "archive_schema": 1,
+    "created_utc": "2026-11-08T02:08:08.987124+00:00",
+    "xml_contents_verified": true
+  },
+  "registry_schema": 1,
+  "source_verification": {
+    "checked_at_utc": "2026-11-08T03:47:19Z",
+    "method": "Direct XML bytes were compared with each entry SHA-256 and Git blob SHA-1; v37 was also compared with the supplied SISO publisher archive extraction.",
+    "versions": [
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37
+    ]
+  },
+  "artifacts": [
+    {
+      "kind": "xml-schema",
+      "file": "data/SISO-REF-010.xsd",
+      "bytes": 39448,
+      "sha256": "4f6cb195ac133daf745e3fd51e070534c99fc2cb5b53a8dc9a58e8c9e49327ab",
+      "git_blob_sha1": "7a120e114edb74550f4d461f8c249d979ab579c3",
+      "schema_namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.7",
+      "primary_source": {
+        "provider": "SISO",
+        "repository": "SISO-REF-010 product data files",
+        "reference": {
+          "type": "publisher-release",
+          "value": "SISO-REF-010-2026-v37"
+        },
+        "path": "SISO-REF-010.xsd",
+        "url": "https://www.sisostandards.org/resource/resmgr/reference_documents_/siso-ref-010-v37.zip",
+        "verification": {
+          "sha256_match": true,
+          "git_blob_sha1_match": true
+        }
+      }
+    }
+  ]
+}

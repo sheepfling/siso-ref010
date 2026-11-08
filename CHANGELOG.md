@@ -1,37 +1,18 @@
-# Native Python completion (unreleased)
+# Unreleased
 
-- Add a native Tkinter picker with editable cascading fields, filtered labels,
-  ID loading, description search, result selection, copy/reset, and clear errors.
-- Add typed incremental parser methods and native JSON shape validation/conversion.
-- Add Python-only catalog regeneration and standard-library import checks.
-- Test installed consumers with no Node executable on PATH.
-- Preserve current licenses and distinguish source reference from SISO data rights.
-
-# Review preparation (unreleased)
-
-- Propose `dis-entity-types` as the distribution name; retain `siso_entity_type` imports.
-- Add an equivalent `dis-entity-types` CLI command and package metadata.
-- Distinguish Apache software and separately licensed SISO data in metadata.
-- Add CI and a gated Trusted Publishing plan; no publishing workflow is enabled.
-
-# Changelog
-
-## 0.2.0
-
-- Explicit `siso_entity_type.api` application API with `EntityTypeAPI`, immutable
-  typed results, JSON-safe `to_dict()` views and encoding helpers.
-- CLI describe/search/list/key/info/pick now delegate to the shared API.
-- Consistent opt-in `--text` and versioned `--json` modes, including structured
-  noninteractive errors and JSON-safe 64-bit string keys.
-- Validated hierarchy queries reject booleans and out-of-range parent fields.
-- `--data PATH info` now reports actual custom catalog counts and does not claim the
-  bundled v35 provenance for an arbitrary JSON file.
-- Dedicated API and CLI references, executable API example, parity tests and
-  reproducible offline installed-wheel consumer checks.
-- Original 0.1.0 core library/parser interfaces and default CLI rendering retained.
-
-## 0.1.0
-
-Initial Python library/parser port, terminal picker, pinned v35 data, upstream
-reference fixture, tests, source distribution and wheel. The original delivery
-remains available separately.
+- Add entity and enumeration value histories and pairwise edition diffs with JSON/text CLI output, filters, and UUID-based move/recode recognition.
+- Retain enumeration table description/header annotations for inspection and comparison.
+- Start this independent v37-focused package at version 0.0.1.
+- Use Pydantic v2 for bounded entity fields, validated source records, and automatic model serialization.
+- Use Pydantic `model_dump()` directly for API and CLI JSON output, including nested seven-field entity values.
+- Use named keyword arguments for low-level `create_key()` calls and expose the info result as `CatalogInfo`.
+- Build immutable `CatalogData` through a functional projection, leaving `EntityTypeCatalog` as a lookup facade.
+- Use nominal integer code types and an `EntityTypePrefix` model to keep field domains distinct in APIs and lookup maps.
+- Parse SISO-REF-010 into a structured source model that retains all enum tables, entity hierarchy, ranges, metadata, change requests, and cross-references.
+- Build entity lookup choices from the Entity Types hierarchy, resolving subcategory enumeration references instead of mixing unrelated category tables into the catalog.
+- Remove flattened JSON catalog import/export and the CLI parse-to-JSON command; alternate data sources are loaded directly from XML.
+- Add the v37 C2 Logical Object entity kind to the source-aligned kind model.
+- Use official SISO-REF-010-v37 XML and XSD as packaged source data.
+- Load the bundled lookup catalog directly from the XML.
+- Remove the embedded catalog snapshot, copied JavaScript source, and comparison harness.
+- Add typed Python exceptions and validate the packaged XML against its XSD in CI.

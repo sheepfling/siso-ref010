@@ -1,11 +1,11 @@
 import json
-from dataclasses import FrozenInstanceError
 
 import pytest
+from pydantic import ValidationError
 
-from siso_entity_type import EntityTypeAPI, SisoEnum, SisoEnums
-from siso_entity_type.api import Collection, decode_key, encode_entity
-from siso_entity_type.cli import main
+from dis_entity_types import EntityType, EntityTypeAPI, EntityTypeCatalog, EntityTypePrefix
+from dis_entity_types.api import Collection, decode_key, encode_entity
+from dis_entity_types.cli import main
 
 
 @pytest.fixture(scope="module")
@@ -15,13 +15,14 @@ def api():
 
 def test_typed_describe(api, capsys):
     item = api.describe("1.3.153.6.4.2.0")
-    assert isinstance(item.entity, SisoEnum)
+    assert isinstance(item.entity, EntityType)
     assert item.description == "F803 Tromp"
     assert item.country_name == "Netherlands (NLD)"
     assert api.describe(item.entity) == item
-    assert item.to_dict()["fields"]["country"] == 153
-    assert json.loads(json.dumps(item.to_dict()))["key"] == "72902676198982144"
-    with pytest.raises(FrozenInstanceError):
+    result = item.model_dump(mode="json", by_alias=True)
+    assert result["entity"]["country"] == 153
+    assert json.loads(json.dumps(result))["key"] == "72902676198982144"
+    with pytest.raises(ValidationError):
         item.description = "mutated"
     assert capsys.readouterr() == ("", "")
 
@@ -29,13 +30,13 @@ def test_typed_describe(api, capsys):
 def test_search_contract(api):
     results = api.search("F803")
     assert results.total == 1
-    assert results.hits[0].entity == SisoEnum.from_string("1.3.153.6.4.2.0")
+    assert results.hits[0].entity == EntityType.from_string("1.3.153.6.4.2.0")
     assert not results.truncated
     assert api.search("", limit=0).hits == ()
-    assert api.search("", limit=0).total == 24637
+    assert api.search("", limit=0).total == 27323
     assert api.search("", limit=1).truncated
     assert api.search("no-such-item-xyz").total == 0
-    assert api.search("no-such-item-xyz").to_dict()["returned"] == 0
+    assert api.search("no-such-item-xyz").model_dump(mode="json", by_alias=True)["returned"] == 0
 
 
 @pytest.mark.parametrize("limit", [-1, True, 1.5, "1"])
@@ -48,27 +49,27 @@ def test_search_limit_validation(api, limit):
     "collection,parents,expected",
     [
         (Collection.COUNTRIES, (), 279),
-        (Collection.KINDS, (), 10),
+        (Collection.KINDS, (), 11),
         (Collection.DOMAINS, (1,), 6),
         (Collection.CATEGORIES, (1, 4, 153), 2),
         (Collection.SUBCATEGORIES, (1, 4, 153, 5), 2),
-        (Collection.SPECIFICS, (1, 2, 106, 20, 2), 4),
-        (Collection.EXTRAS, (1, 2, 225, 7, 8, 7), 5),
+        (Collection.SPECIFICS, (1, 2, 106, 20, 2), 3),
+        (Collection.EXTRAS, (1, 2, 225, 7, 8, 7), 4),
     ],
 )
 def test_choices(api, collection, parents, expected):
-    choices = api.choices(collection, *parents)
+    choices = api.choices(collection, EntityTypePrefix.from_values(parents))
     assert len(choices.items) == expected
     assert choices.parents == parents
     assert choices.collection is collection
-    assert len(choices.to_dict()["choices"]) == expected
+    assert len(choices.model_dump(mode="json", by_alias=True)["choices"]) == expected
 
 
 @pytest.mark.parametrize(
     "collection,parents,error",
     [
         ("domains", (), ValueError),
-        ("domains", (True,), TypeError),
+        ("domains", (True,), ValueError),
         ("domains", (256,), ValueError),
         ("domains", (-1,), ValueError),
         ("categories", (1, 1, 65536), ValueError),
@@ -77,7 +78,7 @@ def test_choices(api, collection, parents, expected):
 )
 def test_parent_validation(api, collection, parents, error):
     with pytest.raises(error):
-        api.choices(collection, *parents)
+        api.choices(collection, EntityTypePrefix.from_values(parents))
 
 
 def test_encoding_contract():
@@ -88,7 +89,7 @@ def test_encoding_contract():
     assert decode_key(encoded.key) == encoded
     assert decode_key("0xffffffffffffffff") == encoded
     assert decode_key("18446744073709551615") == encoded
-    assert encoded.to_dict()["unsigned_key"] == "18446744073709551615"
+    assert encoded.model_dump(mode="json", by_alias=True)["unsigned_key"] == "18446744073709551615"
 
 
 def test_bad_types(api):
@@ -100,28 +101,54 @@ def test_bad_types(api):
         api.search(123)
 
 
-def test_metadata_and_custom_data(api, tmp_path):
-    assert api.info()["data_version"] == "SISO-REF-010-v35"
-    assert api.info()["counts"]["subcategories"] == 24637
-    custom = {"countries": {}, "domains": {}, "categories": {}, "subcategories": {}}
-    path = tmp_path / "bundled"
-    path.write_text(json.dumps(custom))
-    custom_api = EntityTypeAPI.from_json(path)
-    assert custom_api.info()["data_version"] is None
-    assert custom_api.info()["counts"]["countries"] == 0
-    assert EntityTypeAPI(SisoEnums(custom)).info()["data_version"] is None
+def test_metadata_and_custom_xml(api, tmp_path):
+    assert api.info().data_version == "SISO-REF-010-v37"
+    assert api.info().counts.subcategories == 25473
+    path = tmp_path / "custom.xml"
+    path.write_text(
+        '<ebv title="CUSTOM" date="2026-01-01"><enum uid="29" name="Country">'
+        '<enumrow value="1" description="Afghanistan"/></enum></ebv>'
+    )
+    custom_api = EntityTypeAPI.from_xml(path)
+    assert custom_api.info().data_version == "CUSTOM"
+    assert custom_api.info().data_date == "2026-01-01"
+    assert custom_api.info().counts.countries == 1
+    assert EntityTypeAPI(EntityTypeCatalog()).info().data_version is None
     assert custom_api.describe("1.2.3.4.5.6.7").description == "-"
+
+
+def test_bundled_version_discovery():
+    available = EntityTypeAPI.bundled_versions()
+    assert available.default_version == 37
+    assert available.versions == tuple(range(20, 38))
 
 
 @pytest.mark.parametrize(
     "args,method",
     [
-        (["describe", "1.3.153.6.4.2.0"], lambda api: api.describe("1.3.153.6.4.2.0").to_dict()),
-        (["search", "F803"], lambda api: api.search("F803", limit=20).to_dict()),
-        (["list", "categories", "1", "4", "153"], lambda api: api.choices("categories", 1, 4, 153).to_dict()),
-        (["key", "1.2.225.7.8.7.1"], lambda api: encode_entity("1.2.225.7.8.7.1").to_dict()),
-        (["key", "--decode", "72621510476957441"], lambda api: decode_key("72621510476957441").to_dict()),
-        (["info"], lambda api: api.info()),
+        (
+            ["describe", "1.3.153.6.4.2.0"],
+            lambda api: api.describe("1.3.153.6.4.2.0").model_dump(mode="json", by_alias=True),
+        ),
+        (
+            ["search", "F803"],
+            lambda api: api.search("F803", limit=20).model_dump(mode="json", by_alias=True),
+        ),
+        (
+            ["list", "categories", "1", "4", "153"],
+            lambda api: api.choices("categories", EntityTypePrefix(kind=1, domain=4, country=153)).model_dump(
+                mode="json", by_alias=True
+            ),
+        ),
+        (
+            ["key", "1.2.225.7.8.7.1"],
+            lambda api: encode_entity("1.2.225.7.8.7.1").model_dump(mode="json", by_alias=True),
+        ),
+        (
+            ["key", "--decode", "72621510476957441"],
+            lambda api: decode_key("72621510476957441").model_dump(mode="json", by_alias=True),
+        ),
+        (["info"], lambda api: api.info().model_dump(mode="json", by_alias=True)),
     ],
 )
 def test_cli_api_json_parity(api, capsys, args, method):
@@ -169,25 +196,14 @@ def test_text_output(capsys, args, expected):
     assert expected in capsys.readouterr().out
 
 
-def test_json_picker(monkeypatch, capsys):
-    values = iter(["153", "1", "3", "6", "4", "2", "0"])
-    monkeypatch.setattr("builtins.input", lambda _: next(values))
-    assert main(["pick", "--json"]) == 0
-    captured = capsys.readouterr()
-    assert json.loads(captured.out)["result"]["entity"] == "1.3.153.6.4.2.0"
-    assert "Country [0]:" in captured.err
-
-
-def test_json_parse_and_custom_info(tmp_path, capsys):
+def test_json_custom_xml_info(tmp_path, capsys):
     path = tmp_path / "input.xml"
-    path.write_text('<ebv title="CUSTOM"><enum uid="29"><enumrow value="1" description="A"/></enum></ebv>')
-    assert main(["parse", str(path), "--output", str(tmp_path), "--json"]) == 0
-    parsed = json.loads(capsys.readouterr().out)["result"]
-    assert parsed["title"] == "CUSTOM"
-    assert parsed["counts"]["countries"] == 1
-    assert main(["--data", parsed["output"], "info", "--json"]) == 0
+    path.write_text(
+        '<ebv title="CUSTOM"><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum></ebv>'
+    )
+    assert main(["--xml", str(path), "info", "--json"]) == 0
     info = json.loads(capsys.readouterr().out)["result"]
-    assert info["data_version"] is None
+    assert info["data_version"] == "CUSTOM"
     assert info["counts"]["countries"] == 1
 
 
@@ -207,24 +223,7 @@ def test_argument_error_output_override_and_terminator(arguments, capsys):
     assert '"schema_version"' not in captured.err
 
 
-def test_unknown_leaf_and_country_use_upstream_fallbacks(api):
+def test_unknown_leaf_and_country_fallbacks(api):
     assert api.describe("1.3.153.6.4.2.255").description == "F803 Tromp"
-    assert len(api.choices("categories", 1, 4, 65535).items) == 1
-
-
-def test_json_cancel(monkeypatch, capsys):
-    def cancel(_):
-        raise KeyboardInterrupt
-
-    monkeypatch.setattr("builtins.input", cancel)
-    assert main(["pick", "--json"]) == 130
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert '"type": "Cancelled"' in captured.err
-
-
-def test_text_parse(tmp_path, capsys):
-    source = tmp_path / "source.xml"
-    source.write_text("<ebv/>")
-    assert main(["parse", str(source), "--output", str(tmp_path), "--text"]) == 0
-    assert capsys.readouterr().out.startswith("Wrote ")
+    prefix = EntityTypePrefix(kind=1, domain=4, country=65535)
+    assert len(api.choices("categories", prefix).items) == 1

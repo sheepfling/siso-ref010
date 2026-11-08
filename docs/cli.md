@@ -1,109 +1,200 @@
-# Command-line interface
+# Command line
 
-Install the wheel or source package, then use either equivalent entry point:
-
-```sh
-siso-entity-type --help
-python -m siso_entity_type --help
-```
-
-Every subcommand has `--help`. The top-level help points to the Python API.
-Global `--data PATH` must appear before the subcommand. It applies to describe,
-search, list, pick and info. Key conversion needs no catalog; parse uses its XML
-input and ignores `--data`.
-
-## Commands
+Install the package, then use `dis-entity-types` or the equivalent
+`python -m dis_entity_types` entry point.
 
 ```sh
-siso-entity-type describe 1.3.153.6.4.2.0 --qualified --text
-siso-entity-type search 'F803 Tromp' --text
-siso-entity-type list categories 1 4 153 --text
-siso-entity-type key 1.2.225.7.8.7.1 --text
-siso-entity-type key --decode 72621510476957441 --json
-siso-entity-type parse SISO-REF-010.xml --output output --json
-siso-entity-type --data output/siso-enums.json info --json
-siso-entity-type pick
+dis-entity-types --help
+dis-entity-types describe 1.3.153.6.4.2.0 --qualified
+dis-entity-types search 'F803 Tromp'
+dis-entity-types query --country 153 --text Tromp --limit 20
+dis-entity-types --standard-version 35 --warmup query --entity-kind 1 --country 153 --offset 20 --limit 20 --json
+dis-entity-types list categories 1 4 153
+dis-entity-types key 1.2.225.7.8.7.1
+dis-entity-types key --decode 72621510476957441
+dis-entity-types info
+dis-entity-types history --entity 1.3.153.6.4.2.0 --versions 35 36 37
+dis-entity-types history --enum-uid 7 --value 1
+dis-entity-types compare 35 37
+dis-entity-types compare 35 37 --material-only
+dis-entity-types compare 35 37 --scope enumerations --enum-uid 7 --detail concise --json
+dis-entity-types compare 35 37 --detail audit --json
+dis-entity-types compare 35 37 --detail review-queue --priority high --limit 25 --json
+dis-entity-types compare 35 37 --detail review-queue --priority low --category raw_metadata --json
+dis-entity-types compare 35 37 --detail review-queue --wire-encoding potentially_breaking --json
+dis-entity-types compare 35 37 --detail review-queue --application-migration recommended --json
+dis-entity-types --standard-version 37 inspect summary
+dis-entity-types --standard-version 37 inspect report --json
+dis-entity-types --standard-version 37 inspect diagnostics
+dis-entity-types --standard-version 37 inspect diagnostics --details --limit 100
+dis-entity-types inspect tables --query country --json
+dis-entity-types inspect values --kind enumeration --table-uid 7 --limit 25
+dis-entity-types inspect value 3 93 --json
+dis-entity-types inspect search 'reserved values' --limit 25 --offset 0
+dis-entity-types inspect uuid a-source-uuid --json
+dis-entity-types inspect entity 1.3.153.6.4.2.0
 ```
 
-For hierarchy parent order, see the table in `api.md`. Search defaults to 20
-results; `--limit 0` returns all. The parser's `--qualified` option stores joined
-rather than leaf descriptions. `describe --qualified` changes text/default output;
-JSON always includes both short and qualified descriptions.
+Human-readable output is the default. Add `--json` for a versioned JSON result
+or `--text` to force text output. These flags work before or after the
+subcommand; a subcommand flag overrides the global flag. Help and version output
+are always text.
 
-## Output modes
-
-- `--text`: human-readable lines for every command.
-- `--json`: a versioned machine-readable envelope for every successful command.
-- No flag: preserves the original 0.1.0 presentation (description/decoded key/path
-  as text, search/list/info/encoded key as JSON). For automation, explicitly use
-  `--json` rather than relying on this legacy presentation.
-
-`--text` and `--json` can appear before or after the subcommand. A subcommand flag
-can override a global flag. `--help` and `--version` always use ordinary text.
-
-Example:
+The bundled XML is used by default. Supply another SISO-REF-010 XML file with
+global `--xml PATH` before the command:
 
 ```sh
-siso-entity-type key 1.2.225.7.8.7.1 --json
+dis-entity-types --xml ./SISO-REF-010.xml info --json
+dis-entity-types --xml ./SISO-REF-010.xml describe 1.3.153.6.4.2.0
+dis-entity-types --standard-version 35 info --json
+dis-entity-types versions
 ```
 
-```json
-{
-  "schema_version": 1,
-  "command": "key",
-  "result": {
-    "entity": "1.2.225.7.8.7.1",
-    "fields": {
-      "kind": 1, "domain": 2, "country": 225, "category": 7,
-      "subcategory": 8, "specific": 7, "extra": 1
-    },
-    "key": "72621510476957441",
-    "unsigned_key": "72621510476957441",
-    "wire_hex": "010200e107080701"
-  }
-}
+`--standard-version` selects a bundled SISO-REF-010 edition by release number.
+The bundled default is v37. Use `--xml` for an edition that is not bundled;
+these two source options cannot be combined.
+Run `dis-entity-types versions` to list the bundled editions and default.
+
+## Exporting original XML
+
+`dump` writes the original XML bytes from the compressed pack. Send one edition
+to stdout for redirection, write one file with `--output`, or extract every
+bundled version into a directory:
+
+```sh
+dis-entity-types dump 35 > SISO-REF-010-v35.xml
+dis-entity-types dump 35 --output ./SISO-REF-010-v35.xml
+dis-entity-types dump --all --output-dir ./siso-ref-010
 ```
 
-`result` is exactly the corresponding API result's `to_dict()` for describe,
-search, list and key, or `api.info()` for info. Parse returns output path,
-source title/date and extracted counts. Pick returns an entity description.
-Search includes total/returned counts, effective limit, truncation and hits.
-The schema version protects the envelope contract. Consumers should tolerate
-additional result fields and inspect the version before handling an incompatible
-future schema. Decimal keys are strings, never approximate JSON numbers.
+The command refuses to overwrite existing files. `dump` emits raw XML, so it
+does not support JSON output mode.
 
-## stdout, stderr and process status
+JSON is an output format. The CLI does not import or export a flattened JSON
+catalog. `info` reports the source title and date parsed from the XML.
 
-| Condition | Status | stdout | stderr |
-| --- | --- | --- | --- |
-| Successful operation | 0 | result | normally empty |
-| Unknown valid entity / no search matches | 0 | fallback or `-` / empty matches | empty |
-| Invalid arguments, malformed input, file failure | 2 | empty | error |
-| Interactive cancellation (Ctrl-C/Ctrl-D) | 130 | no result | cancellation |
+Search returns at most 20 results by default. Use `--limit 0` for all matches.
+`search QUERY` is a case-insensitive text search over entity descriptions.
+`query` filters source entity records by any combination of DIS code fields and
+optional text. `--entity-kind`, `--domain`, `--country`, `--category`,
+`--subcategory`, `--specific`, and `--extra` are independent equality filters;
+they do not require preceding hierarchy fields. A filter value that falls inside
+a source range matches its range row. Country-zero rows are included when a
+nonzero country is selected because the standard uses those rows generically.
+Use `--text` to match description, hierarchy-label, or code text, and `--limit`
+plus `--offset` for pagination. `--standard-version` or `--xml` selects the
+single edition being queried.
+Add global `--warmup` before the command to build the selected edition's entity
+query index in the same process before running the command. This keeps the
+prepared cache available to that command; a separate warmup process would exit
+and discard its in-memory cache. Without `--warmup`, `query` uses a direct scan
+instead of building an index during the request. For machine output, warmup status is omitted
+from stdout so the command still emits one JSON result.
 
-In JSON mode errors have this shape on stderr:
+`inspect search QUERY` searches source descriptions and metadata. The
+`inspect entity CODE` command resolves one full code or contiguous prefix and
+explains its source path.
 
-```json
-{"schema_version": 1, "command": "describe", "error": {"type": "ValueError", "message": "..."}}
+`list COLLECTION PARENTS...` filters by the leading fields of the entity
+hierarchy, in order: kind, domain, country, category, subcategory, specific.
+For example, `list categories 1 4 153` returns categories for that exact
+kind/domain/country prefix. In `inspect values`, `--kind` selects the source
+record type (`entity_type` or `enumeration`); it does not filter on the DIS
+entity kind code.
+
+`history` reports whether an entity code or enumeration value is present and
+its description in each selected release. Enumeration table history omits
+`--value`; add it to track one table member. Versions default to every bundled
+edition.
+
+`inspect` examines one selected edition. Choose it with global `--standard-version`
+or `--xml` before the command. `inspect summary` counts tables, value/path
+records, ranges, UUID identities, hierarchy references, and hierarchy levels.
+`inspect report` gives a concise edition overview with the source XML hash,
+selected edition number, installed package version, validation scopes, grouped
+diagnostics, and structured edition-backed examples without Python snippets.
+The report JSON includes `report_schema_version`; the outer CLI result envelope
+has a separate `schema_version`. It shows which semantic checks ran and whether repeated identities
+come from hierarchy expansion, duplicate source identifiers, or conflicting
+source rows. It labels XSD validation as `not_run` and publisher provenance as
+`unverified`; bundled checksum verification does not authenticate the publisher.
+XML well-formedness is `passed` only when successful parsing was recorded; it
+is independent of whether a source hash is available. The offline
+`tools.check_standards_xsd` command is a separate validation run and does not
+change the runtime report's XSD status.
+The default is readable terminal output. Add `--format markdown` or
+`--format json` to select a report renderer. Add `--audit` to include the full
+enumeration-table inventory and individual diagnostic findings; the audit is
+not a record-by-record dump of all values and entity paths.
+`inspect diagnostics` groups unresolved references, duplicate identifiers,
+overlapping values, and missing row metadata by severity, diagnostic code, and
+source table. Add `--details` to list individual findings; use `--code`,
+`--table-uid`, and `--severity` to filter groups and detailed rows. Missing
+descriptions are informational because some may be intentionally unspecified.
+`inspect tables` lists table declarations, declared width in bits, applicability,
+and annotations; `--query` filters names and applicability.
+`inspect values` lists source rows and accepts `--kind`, `--table-uid`, `--status`,
+`--deprecated`, and `--not-deprecated` filters. `inspect value UID CODE` resolves
+an exact value or reports the range containing it. `inspect search QUERY` searches
+descriptions and source metadata in deterministic order; use `--offset` and
+`--limit` for pages. Hits include the matched fields. `inspect uuid UUID` returns
+all matching records. `inspect entity CODE` accepts a dotted full code or shorter
+prefix and shows a human-readable outcome such as `Resolved prefix`, matched
+hierarchy, trailing fields not supplied, explicitly unspecified fields, and
+unknown supplied components. Value and search result
+limits default to 100; `--limit 0` returns all. JSON results include the edition
+identity and total/returned/truncated counts where applicable.
+
+`compare FROM TO` prints a human-readable summary by default. The summary
+highlights newly deprecated records, table-size changes, release-status
+cleanups, and inherited path-label changes. Use `--detail concise` for useful
+identifiers and changed field values, or `--detail audit --json` for complete
+before/after snapshots. JSON defaults to the audit view; `--detail summary`
+selects the aggregate summary. `--material-only` hides changes assessed as
+non-material across all dimensions. Detailed output is capped at 100 records by
+default; use `--limit 0` for all results. Review-queue pages accept
+`--offset`, `--priority`, `--wire-encoding` (with `--compatibility` as an alias),
+`--identifier-resolution`, `--semantic-meaning`, `--application-migration`,
+`--action`, and `--category`; `--limit 0` returns the remaining filtered queue.
+Unique UUIDs identify recodes and moves. Code fallback must be unique in both
+editions; duplicate codes are reported as ambiguous additions/removals.
+Comparison schema version 5 includes an `assessment` object, reason and
+recommendation codes, causal references, source hashes, and `generator_version`,
+the installed package version. The schema version is independent from the
+package version. Projection contracts are documented in [the diff schema
+reference](siso-diff-schema.md).
+
+The default review queue orders wire-encoding risks first, then high-priority
+changes, identifier-resolution risks, other unassessed changes, and
+medium-priority changes. Low-priority and no-priority changes remain available
+through explicit filters. Assessments separate encoded representation,
+identifier resolution, source meaning, and application migration;
+`not_assessed` is not treated as `unchanged`. Each queue record includes
+reason codes and recommendations that explain its review priority. For
+enumeration `size` changes, the XSD defines the field as a width in bits; the
+report flags potential wire impact and recommends checking the consumer
+protocol field before asserting a packet-layout change.
+
+From the repository root, package adjacent and direct comparison reports in a
+clean, deterministic ZIP with a README, schema reference, and test-evidence
+manifest:
+
+```sh
+python -m tools.build_diff_reports
+python -m tools.package_diff_reports --output .local/siso_diff_v4.zip
 ```
 
-Argument-parser failures can report `command: null`. In `pick --json`, interactive
-choices and prompts go to stderr, leaving stdout as one JSON document on success.
-If selection fails or is cancelled, stderr can contain those preceding prompts
-as well as the final error record. Noninteractive command errors contain only
-one JSON error document. Search truncation notices in text/legacy modes go to
-stderr; JSON mode carries the truncation flag in its result instead.
+List parent order and JSON result fields are documented in the
+[Python API reference](api.md).
 
-The CLI is a local adapter over the importable API. It is not an HTTP service or
-a replacement for the upstream Vue graphical application.
+## Errors and exit status
 
+| Result | Status | Output |
+| --- | ---: | --- |
+| Success | 0 | Result on stdout |
+| Invalid arguments, data, or files | 2 | Error on stderr |
+| Interrupted | 130 | Interruption on stderr |
 
-## Native graphical picker
-
-`dis-entity-types gui` launches the Python/Tk desktop picker. Global `--data PATH`
-also works for custom catalogs. `dis-entity-types-gui` and
-`python -m siso_entity_type.gui` launch the bundled-data picker directly.
-The GUI does not produce JSON; use the existing describe/search/list commands
-for machine output. Missing Tk or display support returns a readable error
-and exit code 2. No GUI import is needed for ordinary API/CLI use.
-See [gui.md](gui.md).
+In JSON mode, errors use a versioned JSON envelope on stderr. Package errors
+also include a stable `code` and structured `context` alongside the readable
+message.

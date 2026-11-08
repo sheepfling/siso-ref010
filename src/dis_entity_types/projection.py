@@ -1,0 +1,307 @@
+"""Pure transformations from the parsed standard to lookup data."""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
+from typing import TypeAlias
+
+from .codes import (
+    CategoryCode,
+    CountryCode,
+    DomainCode,
+    EntityFieldCode,
+    EntityKey,
+    ExtraCode,
+    KindCode,
+    SpecificCode,
+    SubcategoryCode,
+)
+from .errors import EntityTypeValueError
+from .model import create_key
+from .reference import EntityTypeStandard, EnumerationTable, ReferenceEntry
+
+
+@dataclass(frozen=True, slots=True)
+class CatalogRow:
+    """One expanded hierarchy entry and the entity fields that contain it."""
+
+    parents: tuple[int, ...]
+    value: int
+    description: str
+
+
+@dataclass(frozen=True, slots=True)
+class CatalogChild:
+    """A selectable child value and its source order beneath one entity prefix."""
+
+    value: EntityFieldCode
+    description: str
+    source_order: int
+
+
+ChildrenByPrefix: TypeAlias = Mapping[tuple[EntityFieldCode, ...], tuple[CatalogChild, ...]]
+
+
+@dataclass(frozen=True, slots=True, weakref_slot=True)
+class CatalogData:
+    """Immutable lookup projection derived from one parsed SISO standard."""
+
+    standard: EntityTypeStandard | None
+    countries: Mapping[CountryCode, str]
+    domains: Mapping[tuple[KindCode, DomainCode], str]
+    kinds: Mapping[KindCode, str]
+    categories: Mapping[EntityKey, str]
+    subcategories: Mapping[EntityKey, str]
+    children_by_prefix: ChildrenByPrefix
+
+
+def _field_values(expression: str) -> tuple[KindCode, ...]:
+    values: list[KindCode] = []
+    for part in expression.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        bounds: list[int] = []
+        for bound in part.split("-"):
+            bound = bound.strip()
+            if bound.upper() == "X":
+                bounds.append(0)
+            elif re.fullmatch(r"[0-9]+", bound):
+                bounds.append(int(bound))
+            else:
+                raise EntityTypeValueError(
+                    f"Unsupported SISO applicability value: {bound!r}",
+                    code="unsupported_applicability_value",
+                    context={"value": bound},
+                )
+        if len(bounds) == 1:
+            values.append(KindCode(bounds[0]))
+            continue
+        minimum, maximum = bounds[:2]
+        if minimum > maximum:
+            raise EntityTypeValueError(
+                f"Invalid SISO applicability range: {part!r}",
+                code="invalid_applicability_range",
+                context={"range": part, "minimum": minimum, "maximum": maximum},
+            )
+        values.extend(KindCode(value) for value in range(minimum, maximum + 1))
+    return tuple(values)
+
+
+def _applicability_values(value: str | None, field_index: int) -> tuple[KindCode, ...]:
+    if not value:
+        return ()
+    result: list[KindCode] = []
+    for expression in value.split(";"):
+        fields = expression.strip().split(".")
+        if field_index >= len(fields):
+            if field_index != 0 or len(fields) != 1:
+                continue
+            field = fields[0]
+        else:
+            field = fields[field_index]
+        result.extend(_field_values(field))
+    return tuple(dict.fromkeys(result))
+
+
+def _entry_values(entry: ReferenceEntry) -> tuple[int, ...]:
+    if entry.value is not None:
+        return (entry.value,)
+    if entry.value_min is not None and entry.value_max is not None:
+        return tuple(range(entry.value_min, entry.value_max + 1))
+    return ()
+
+
+def _key_for_fields(fields: tuple[int, ...]) -> EntityKey:
+    return create_key(
+        kind=KindCode(fields[0]),
+        domain=DomainCode(fields[1]),
+        country=CountryCode(fields[2]),
+        category=CategoryCode(fields[3]),
+        subcategory=SubcategoryCode(fields[4]),
+        specific=SpecificCode(fields[5]),
+        extra=ExtraCode(fields[6]),
+    )
+
+
+def _prefix_codes(values: tuple[int, ...]) -> tuple[EntityFieldCode, ...]:
+    constructors = (
+        KindCode,
+        DomainCode,
+        CountryCode,
+        CategoryCode,
+        SubcategoryCode,
+        SpecificCode,
+        ExtraCode,
+    )
+    return tuple(constructors[index](value) for index, value in enumerate(values))
+
+
+def _child_code(parent_count: int, value: int) -> EntityFieldCode:
+    match parent_count:
+        case 3:
+            return CategoryCode(value)
+        case 4:
+            return SubcategoryCode(value)
+        case 5:
+            return SpecificCode(value)
+        case 6:
+            return ExtraCode(value)
+        case _:
+            raise ValueError(f"unsupported entity hierarchy depth: {parent_count}")
+
+
+def _referenced_table(
+    xref: str | None, enumerations_by_uid: Mapping[int, EnumerationTable]
+) -> EnumerationTable:
+    try:
+        table = enumerations_by_uid.get(int(xref)) if xref is not None else None
+    except ValueError:
+        table = None
+    if table is None:
+        raise EntityTypeValueError(
+            f"Unresolved SISO enumeration cross-reference: {xref!r}",
+            code="unresolved_enumeration_reference",
+            context={"xref": xref},
+        )
+    return table
+
+
+def _walk_entry(
+    entry: ReferenceEntry,
+    parents: tuple[int, ...],
+    enumerations_by_uid: Mapping[int, EnumerationTable],
+) -> Iterator[CatalogRow]:
+    if entry.tag == "subcategory_xref":
+        table = _referenced_table(entry.source.get("xref"), enumerations_by_uid)
+        for row in table.entries:
+            if row.description is None:
+                continue
+            for value in _entry_values(row):
+                yield CatalogRow(parents, value, row.description)
+                next_parents = (*parents, value)
+                for child in entry.children:
+                    yield from _walk_entry(child, next_parents, enumerations_by_uid)
+        return
+
+    if entry.description is None:
+        return
+    for value in _entry_values(entry):
+        yield CatalogRow(parents, value, entry.description)
+        next_parents = (*parents, value)
+        for child in entry.children:
+            yield from _walk_entry(child, next_parents, enumerations_by_uid)
+
+
+def _build_enumeration_indexes(
+    standard: EntityTypeStandard,
+) -> tuple[
+    dict[CountryCode, str],
+    dict[tuple[KindCode, DomainCode], str],
+    dict[KindCode, str],
+]:
+    countries: dict[CountryCode, str] = {}
+    domains: dict[tuple[KindCode, DomainCode], str] = {}
+    kinds: dict[KindCode, str] = {}
+    for table in standard.enumerations:
+        if table.name == "Entity Kind":
+            for row in table.entries:
+                if row.value is not None and row.description is not None:
+                    kinds[KindCode(row.value)] = row.description
+            continue
+        if table.name == "Country":
+            for row in table.entries:
+                if row.value is not None and row.description is not None:
+                    countries[CountryCode(row.value)] = row.description
+            continue
+        if table.name.endswith("Domain"):
+            parent_kinds = _applicability_values(table.applicability, 0)
+            for row in table.entries:
+                if row.value is None or row.description is None:
+                    continue
+                for kind in parent_kinds:
+                    domains[(kind, DomainCode(row.value))] = row.description
+            continue
+    return countries, domains, kinds
+
+
+def _build_hierarchy_indexes(
+    standard: EntityTypeStandard,
+) -> tuple[
+    dict[EntityKey, str],
+    dict[EntityKey, str],
+    dict[tuple[EntityFieldCode, ...], dict[EntityFieldCode, CatalogChild]],
+]:
+    categories: dict[EntityKey, str] = {}
+    subcategories: dict[EntityKey, str] = {}
+    children_by_prefix: dict[tuple[EntityFieldCode, ...], dict[EntityFieldCode, CatalogChild]] = {}
+    enumerations_by_uid = {table.uid: table for table in standard.enumerations}
+    rows = (
+        row
+        for branch in standard.entity_types
+        for category in branch.categories
+        for row in _walk_entry(category, (branch.kind, branch.domain, branch.country), enumerations_by_uid)
+    )
+
+    for ordinal, row in enumerate(rows):
+        fields = (*row.parents, row.value)
+        padded = (*fields, *((0,) * (7 - len(fields))))
+        key = _key_for_fields(padded)
+        target = categories if len(row.parents) == 3 else subcategories
+        target[key] = row.description
+        prefix = _prefix_codes(row.parents)
+        code = _child_code(len(row.parents), row.value)
+        children_by_prefix.setdefault(prefix, {})[code] = CatalogChild(
+            value=code,
+            description=row.description,
+            source_order=ordinal,
+        )
+    return categories, subcategories, children_by_prefix
+
+
+def _freeze_children(
+    children_by_prefix: Mapping[tuple[EntityFieldCode, ...], Mapping[EntityFieldCode, CatalogChild]],
+) -> ChildrenByPrefix:
+    return MappingProxyType(
+        {parents: tuple(children.values()) for parents, children in children_by_prefix.items()}
+    )
+
+
+def _validated_standard(value: object) -> EntityTypeStandard | None:
+    if value is None or isinstance(value, EntityTypeStandard):
+        return value
+    raise EntityTypeValueError(
+        "catalog data must be parsed from SISO-REF-010 XML",
+        code="invalid_catalog_source",
+        context={"received_type": type(value).__name__},
+    )
+
+
+def build_catalog_data(standard: EntityTypeStandard | None) -> CatalogData:
+    """Project a parsed standard into immutable indexes without mutating the input."""
+    standard = _validated_standard(standard)
+    if standard is None:
+        return CatalogData(
+            standard=None,
+            countries=MappingProxyType({}),
+            domains=MappingProxyType({}),
+            kinds=MappingProxyType({}),
+            categories=MappingProxyType({}),
+            subcategories=MappingProxyType({}),
+            children_by_prefix=MappingProxyType({}),
+        )
+
+    countries, domains, kinds = _build_enumeration_indexes(standard)
+    categories, subcategories, children_by_prefix = _build_hierarchy_indexes(standard)
+    return CatalogData(
+        standard=standard,
+        countries=MappingProxyType(countries),
+        domains=MappingProxyType(domains),
+        kinds=MappingProxyType(kinds),
+        categories=MappingProxyType(categories),
+        subcategories=MappingProxyType(subcategories),
+        children_by_prefix=_freeze_children(children_by_prefix),
+    )

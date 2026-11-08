@@ -5,9 +5,14 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-node_modules/
-_oracle-build/
 .coverage
 htmlcov/
 
 .mypy_cache/
+*.whl
+*.zip
+*.xz
+.local/
+.idea/
+vendor/
+.DS_Store

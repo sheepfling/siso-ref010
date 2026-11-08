@@ -1,0 +1,251 @@
+"""Read-only lookup operations over a projected SISO-REF-010 catalog."""
+
+from __future__ import annotations
+
+from itertools import chain
+from threading import RLock
+from typing import cast
+from weakref import WeakValueDictionary
+
+from .codes import (
+    CategoryCode,
+    CountryCode,
+    DomainCode,
+    EntityFieldCode,
+    EntityKey,
+    ExtraCode,
+    KindCode,
+    SpecificCode,
+    SubcategoryCode,
+)
+from .errors import EntityTypeValueError
+from .model import EntityType
+from .parser import EntityTypeXmlParser
+from .paths import PathInput, normalize_path
+from .projection import CatalogData, ChildrenByPrefix, build_catalog_data
+from .reference import EntityTypeStandard
+from .sources import BUNDLED_STANDARD_SOURCE, BundledStandardSource, StandardSource
+
+BUNDLED_STANDARD_VERSIONS = BUNDLED_STANDARD_SOURCE.versions
+BUNDLED_STANDARD_VERSION = max(BUNDLED_STANDARD_VERSIONS)
+
+
+_BUNDLED_CATALOG_DATA_CACHE: WeakValueDictionary[int, CatalogData] = WeakValueDictionary()
+_BUNDLED_CATALOG_DATA_CACHE_LOCK = RLock()
+
+
+def _bundled_catalog_data(version: int) -> CatalogData:
+    """Share projections while API instances reference them, without pinning old editions."""
+    with _BUNDLED_CATALOG_DATA_CACHE_LOCK:
+        cached = _BUNDLED_CATALOG_DATA_CACHE.get(version)
+        if cached is not None:
+            return cached
+        standard = EntityTypeXmlParser.from_bytes(BUNDLED_STANDARD_SOURCE.read_xml(version))
+        data = build_catalog_data(standard)
+        _BUNDLED_CATALOG_DATA_CACHE[version] = data
+        return data
+
+
+def _children_for(
+    children_by_prefix: ChildrenByPrefix,
+    parents: tuple[EntityFieldCode, ...],
+) -> dict[EntityFieldCode, str]:
+    """Return ordered children, overlaying generic-country rows in source order."""
+    rows = list(children_by_prefix.get(parents, ()))
+    if parents[2] != 0:
+        generic = (*parents[:2], CountryCode(0), *parents[3:])
+        rows.extend(children_by_prefix.get(generic, ()))
+        rows.sort(key=lambda row: row.source_order)
+    return {row.value: row.description for row in rows}
+
+
+def _description_for(data: CatalogData, entity: EntityType) -> str:
+    key = entity.to_key(signed=False)
+    for source, masked in (
+        (data.subcategories, key),
+        (data.subcategories, key & 0xFFFF0000FFFFFFFF),
+        (data.subcategories, key & 0xFFFFFFFFFFFFFF00),
+        (data.subcategories, key & 0xFFFF0000FFFFFF00),
+        (data.subcategories, key & 0xFFFFFFFFFFFF0000),
+        (data.subcategories, key & 0xFFFF0000FFFF0000),
+        (data.categories, key & 0xFFFFFFFFFF000000),
+        (data.categories, key & 0xFFFFFFFF00000000),
+        (data.categories, key & 0xFFFF0000FF000000),
+        (data.categories, key & 0xFFFF000000000000),
+    ):
+        description = source.get(EntityKey(masked))
+        if description is not None:
+            return description
+    return "-"
+
+
+def _search_descriptions(data: CatalogData, query: str) -> dict[str, str]:
+    normalized = query.casefold()
+    return {
+        str(EntityType.from_key(key)): text
+        for key, text in chain(data.categories.items(), data.subcategories.items())
+        if normalized in text.casefold()
+    }
+
+
+class EntityTypeCatalog:
+    """Lookup facade over immutable ``CatalogData`` with small query caches."""
+
+    def __init__(self, standard: EntityTypeStandard | None = None) -> None:
+        self._data = build_catalog_data(standard)
+        self._children_cache: dict[tuple[EntityFieldCode, ...], dict[EntityFieldCode, str]] = {}
+        self._qualified_cache: dict[EntityKey, str] = {}
+
+    @classmethod
+    def bundled(cls, version: int = BUNDLED_STANDARD_VERSION) -> EntityTypeCatalog:
+        return cls.from_source(BUNDLED_STANDARD_SOURCE, version)
+
+    @classmethod
+    def from_source(cls, source: StandardSource, version: int) -> EntityTypeCatalog:
+        """Retrieve and parse one edition from a versioned standard source."""
+        available = source.versions
+        if type(version) is not int or version not in available:
+            bundled = isinstance(source, BundledStandardSource)
+            raise EntityTypeValueError(
+                f"SISO-REF-010 version {version!r} is unavailable from this source",
+                code="unavailable_bundled_version" if bundled else "unavailable_source_version",
+                context={"version": version, "available": available},
+            )
+        if type(source) is BundledStandardSource:
+            return cls._from_data(_bundled_catalog_data(version))
+        xml = source.read_xml(version)
+        standard = EntityTypeXmlParser.from_bytes(xml)
+        return cls(standard)
+
+    @classmethod
+    def _from_data(cls, data: CatalogData) -> EntityTypeCatalog:
+        """Create a catalog with shared immutable data and per-instance caches."""
+        catalog = cls.__new__(cls)
+        catalog._data = data
+        catalog._children_cache = {}
+        catalog._qualified_cache = {}
+        return catalog
+
+    @classmethod
+    def from_xml(cls, path: PathInput) -> EntityTypeCatalog:
+        source = normalize_path(path)
+        return cls(EntityTypeXmlParser.from_file(source))
+
+    @property
+    def data(self) -> CatalogData:
+        """Return the immutable source and index projection used by this catalog."""
+        return self._data
+
+    @property
+    def standard(self) -> EntityTypeStandard | None:
+        """Parsed standard retained as the source for the lookup projection."""
+        return self._data.standard
+
+    def initialize(self, standard: EntityTypeStandard) -> None:
+        """Replace the projection atomically after successfully building new data."""
+        updated = build_catalog_data(standard)
+        self._data = updated
+        self._children_cache.clear()
+        self._qualified_cache.clear()
+
+    @property
+    def country_count(self) -> int:
+        return len(self._data.countries)
+
+    @property
+    def kind_count(self) -> int:
+        return len(self._data.kinds)
+
+    @property
+    def domain_count(self) -> int:
+        return len(self._data.domains)
+
+    @property
+    def category_count(self) -> int:
+        return len(self._data.categories)
+
+    @property
+    def subcategory_count(self) -> int:
+        return len(self._data.subcategories)
+
+    def get_all_countries(self) -> dict[CountryCode, str]:
+        return dict(self._data.countries)
+
+    def get_all_domains(self) -> dict[tuple[KindCode, DomainCode], str]:
+        """Return each domain with its kind, preserving kind-specific code spaces."""
+        return dict(self._data.domains)
+
+    def get_all_kinds(self) -> dict[KindCode, str]:
+        return dict(self._data.kinds)
+
+    def get_all_domains_of(self, kind: KindCode) -> dict[DomainCode, str]:
+        return {
+            domain: text for (parent_kind, domain), text in self._data.domains.items() if parent_kind == kind
+        }
+
+    def _children(self, parents: tuple[EntityFieldCode, ...]) -> dict[EntityFieldCode, str]:
+        if parents not in self._children_cache:
+            self._children_cache[parents] = _children_for(self._data.children_by_prefix, parents)
+        return dict(self._children_cache[parents])
+
+    def get_all_categories_of(self, entity: EntityType) -> dict[CategoryCode, str]:
+        return cast(dict[CategoryCode, str], self._children(entity.as_tuple()[:3]))
+
+    def get_all_subcategories_of(self, entity: EntityType) -> dict[SubcategoryCode, str]:
+        return cast(dict[SubcategoryCode, str], self._children(entity.as_tuple()[:4]))
+
+    def get_all_specifics_of(self, entity: EntityType) -> dict[SpecificCode, str]:
+        return cast(dict[SpecificCode, str], self._children(entity.as_tuple()[:5]))
+
+    def get_all_extras_of(self, entity: EntityType) -> dict[ExtraCode, str]:
+        return cast(dict[ExtraCode, str], self._children(entity.as_tuple()[:6]))
+
+    def get_country_name(self, country: CountryCode) -> str:
+        return self._data.countries.get(country) or f"Unknown country {country}"
+
+    def get_kind_name(self, kind: KindCode) -> str:
+        return self._data.kinds.get(kind) or f"Unknown kind {kind}"
+
+    def get_domain_name(self, entity: EntityType) -> str:
+        return self.get_all_domains_of(entity.kind).get(entity.domain) or f"Unknown domain {entity.domain}"
+
+    def get_category_name(self, entity: EntityType) -> str:
+        return (
+            self._children(entity.as_tuple()[:3]).get(entity.category)
+            or f"Unknown category {entity.category}"
+        )
+
+    def get_subcategory_name(self, entity: EntityType) -> str:
+        return (
+            self._children(entity.as_tuple()[:4]).get(entity.subcategory)
+            or f"Unknown subcategory {entity.subcategory}"
+        )
+
+    def get_specific_name(self, entity: EntityType) -> str:
+        return (
+            self._children(entity.as_tuple()[:5]).get(entity.specific)
+            or f"Unknown specific {entity.specific}"
+        )
+
+    def get_extra_name(self, entity: EntityType) -> str:
+        return self._children(entity.as_tuple()[:6]).get(entity.extra) or f"Unknown extra {entity.extra}"
+
+    def get_description_of(self, entity: EntityType, fully_qualified: bool = False) -> str:
+        if not fully_qualified:
+            return _description_for(self._data, entity)
+        key = entity.to_key(signed=False)
+        if key not in self._qualified_cache:
+            parts = (
+                self.get_category_name(entity),
+                self.get_subcategory_name(entity),
+                self.get_specific_name(entity),
+                self.get_extra_name(entity),
+            )
+            self._qualified_cache[key] = " / ".join(
+                part for index, part in enumerate(parts) if index == 0 or part != parts[index - 1]
+            )
+        return self._qualified_cache[key]
+
+    def search_description(self, query: str) -> dict[str, str]:
+        """Search all entity hierarchy descriptions, from categories through extras."""
+        return _search_descriptions(self._data, query)
