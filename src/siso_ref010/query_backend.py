@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from typing import NamedTuple, Protocol
 
 from .inspection import (
     EditionInspector,
@@ -26,8 +26,7 @@ EntityFieldFilters = tuple[
 ]
 
 
-@dataclass(frozen=True, slots=True)
-class EntityQueryRequest:
+class EntityQueryRequest(NamedTuple):
     """Backend-neutral entity query fields and page selection."""
 
     entity_kind: int | None

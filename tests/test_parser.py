@@ -1,4 +1,5 @@
 import hashlib
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -33,7 +34,7 @@ def test_v37_xml_metadata_and_counts(parsed):
         catalog.subcategory_count,
     ) == (279, 11, 68, 1889, 25473)
     assert parsed.title == "SISO-REF-010-v37"
-    assert parsed.date == "2026-05-25"
+    assert parsed.date == date(2026, 5, 25)
 
 
 @pytest.mark.parametrize(
@@ -120,7 +121,7 @@ def test_load_file_and_preserve_metadata(tmp_path):
     source.write_text(MINI)
     parsed = EntityTypeXmlParser.from_file(source)
     assert parsed.title == "Test"
-    assert parsed.date == "2026-01-01"
+    assert parsed.date == date(2026, 1, 1)
     assert EntityTypeCatalog(parsed).get_country_name(CountryCode(153)) == "Netherlands"
 
 

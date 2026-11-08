@@ -8,8 +8,8 @@ from hashlib import sha256
 
 from pydantic import ValidationError
 
+from ._paths import PathInput, normalize_path
 from .errors import EntityTypeValueError
-from .paths import PathInput, normalize_path
 from .reference import (
     ChangeRequest,
     EntityBranch,
@@ -172,6 +172,7 @@ class EntityTypeXmlParser:
             standard = EntityTypeStandard.model_validate(
                 {
                     "source": _source_info(root),
+                    "date": root.get("date") or None,
                     "namespace": root.tag[1:].split("}", 1)[0] if root.tag.startswith("{") else None,
                     "revisions": tuple(
                         _source_info(row)

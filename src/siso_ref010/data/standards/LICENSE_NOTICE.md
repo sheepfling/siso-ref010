@@ -1,8 +1,7 @@
-# SISO historical XML: source notices and redistribution
+# SISO historical XML: copyright and redistribution
 
-This recovery bundle contains unchanged XML copies of previously acquired SISO-REF-010 editions. SISO Inc. retains applicable copyright in the data. A link or public code repository does not, on its own, grant unrestricted redistribution rights. Before republishing the XML or bundling it in a Python wheel, check each edition's distribution terms; do not assume terms for the XML, XSD, and documentation are identical.
+This package contains unchanged SISO-REF-010 XML editions. SISO Inc. retains applicable copyright in the data. A source link or repository does not grant unrestricted redistribution rights. Confirm the terms for each artifact before redistributing XML, XSD, or documentation.
 
-The ESI release notes carry the attribution: "Reprinted with permission from SISO Inc."
+The source attribution is: “Reprinted with permission from SISO Inc.”
 
-See the publisher's reference page: https://www.sisostandards.org/page/ReferenceDocuments
-See the source-tracked v36 release notes: https://sourceforge.net/p/esitools/code/3834/tree//Release_Information/Release_DRAFT/SISO-REF-010-v36/README.txt
+Edition source locations, hashes, and byte-verification results are recorded in `PROVENANCE.json`.

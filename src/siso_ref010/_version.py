@@ -1,8 +1,9 @@
-"""Package release and bundled SISO data version."""
+"""Package version reported by the installed distribution metadata."""
 
-# Keep this static so editable and archive builds do not depend on source-control
-# metadata. Update it alongside [project].version in pyproject.toml.
-__version__ = "0.0.1"
+from importlib.metadata import PackageNotFoundError, version
 
-DATA_VERSION = "SISO-REF-010-v37"
-DATA_DATE = "2026-05-25"
+try:
+    __version__ = version("siso-ref010")
+except PackageNotFoundError:
+    # A source checkout without an editable install has no distribution metadata.
+    __version__ = "0+unknown"

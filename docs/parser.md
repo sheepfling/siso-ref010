@@ -29,7 +29,9 @@ rejected.
 ## Structured source model
 
 - `EntityTypeStandard` contains root attributes, namespace, revision records,
-  copyright text, every `<enum>` table, and the Entity Types CET.
+  copyright text, every `<enum>` table, and the Entity Types CET. Its `date`
+  field is a `datetime.date | None`; the source attributes retain the original
+  string.
 - `EnumerationTable` retains its UID, name, applicability, declared size,
   source attributes, `<enumrow>` or `<enumrow_range>` entries, and table-level
   description/header annotations.

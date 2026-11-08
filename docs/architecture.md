@@ -23,7 +23,7 @@ flowchart LR
   edition's XML bytes on demand.
 - `reference.py` defines immutable Pydantic models for the standard's XML data.
 - `parser.py` converts XML into an `EntityTypeStandard` and reports source errors.
-- `paths.py` defines the shared path input type and normalizes file inputs.
+- `_paths.py` privately normalizes file inputs for parser and catalog methods.
 - `projection.py` contains the transformations from a standard to lookup indexes.
   `build_catalog_data()` returns a frozen `CatalogData` with read-only mappings
   and typed `CatalogChild` records keyed by entity prefix.

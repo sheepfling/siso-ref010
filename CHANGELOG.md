@@ -2,7 +2,7 @@
 
 - Add entity and enumeration value histories and pairwise edition diffs with JSON/text CLI output, filters, and UUID-based move/recode recognition.
 - Retain enumeration table description/header annotations for inspection and comparison.
-- Start this independent v37-focused package at version 0.0.1.
+- Derive the package version from Git tags with setuptools-scm; expose the source edition on each selected API instance.
 - Use Pydantic v2 for bounded entity fields, validated source records, and automatic model serialization.
 - Use Pydantic `model_dump()` directly for API and CLI JSON output, including nested seven-field entity values.
 - Use named keyword arguments for low-level `create_key()` calls and expose the info result as `CatalogInfo`.

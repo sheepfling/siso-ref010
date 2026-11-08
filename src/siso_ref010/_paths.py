@@ -1,4 +1,4 @@
-"""Shared path types and normalization for file-backed APIs."""
+"""Private path normalization for file-backed APIs."""
 
 from __future__ import annotations
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date as Date
 from typing import Annotated, Any, Self
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
@@ -117,16 +118,13 @@ class EntityTypeStandard(ReferenceModel):
     enumerations: tuple[EnumerationTable, ...]
     entity_table: SourceInfo | None
     entity_types: tuple[EntityBranch, ...]
+    date: Date | None = Field(default=None, exclude=True)
     source_sha256: str | None = None
     xml_parse_succeeded: bool | None = Field(default=None, exclude=True)
 
     @property
     def title(self) -> str:
         return self.source.get("title") or ""
-
-    @property
-    def date(self) -> str:
-        return self.source.get("date") or ""
 
     def enumeration(self, name: str) -> EnumerationTable | None:
         return next((table for table in self.enumerations if table.name == name), None)

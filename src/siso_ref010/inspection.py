@@ -715,7 +715,7 @@ class EditionInspector:
 
     @property
     def date(self) -> str:
-        return self.standard.date
+        return self.standard.date.isoformat() if self.standard.date is not None else ""
 
     def enumeration_tables(self, query: str | None = None) -> tuple[EnumerationTableInfo, ...]:
         """List tables, optionally matching their names or applicability text."""

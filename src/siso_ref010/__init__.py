@@ -1,6 +1,6 @@
 """Typed access to SISO-REF-010 DIS entity types."""
 
-from ._version import DATA_DATE, DATA_VERSION, __version__
+from ._version import __version__
 from .api import (
     BundledStandards,
     CatalogCounts,
@@ -102,7 +102,6 @@ from .inspection import (
 )
 from .model import EntityDomain, EntityKind, EntityType, EntityTypePrefix
 from .parser import EntityTypeXmlParser, ParseError
-from .paths import PathInput
 from .projection import CatalogChild, CatalogData
 from .reference import (
     ChangeRequest,
@@ -119,8 +118,6 @@ from .sources import BUNDLED_STANDARD_SOURCE, BundledStandardSource, StandardSou
 __all__ = [
     "AddedByScope",
     "ApplicationMigration",
-    "DATA_DATE",
-    "DATA_VERSION",
     "Choice",
     "Choices",
     "CatalogCounts",
@@ -215,7 +212,6 @@ __all__ = [
     "EnumerationTable",
     "EnumerationTableInfo",
     "ParseError",
-    "PathInput",
     "KindCode",
     "HistoryPoint",
     "IdentityDiagnosticCode",

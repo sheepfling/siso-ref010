@@ -1,10 +1,8 @@
 """Exercise an installed wheel or source distribution in a fresh environment.
 
 Run from the repository root after building and downloading dependencies:
-    python -m tools.check_installed dist/siso_ref010-0.0.1-py3-none-any.whl \
-        --wheelhouse .wheelhouse
-    python -m tools.check_installed dist/siso_ref010-0.0.1.tar.gz \
-        --wheelhouse .wheelhouse
+    python -m tools.check_installed dist --kind wheel --wheelhouse .wheelhouse
+    python -m tools.check_installed dist --kind sdist --wheelhouse .wheelhouse
 """
 
 from __future__ import annotations
@@ -36,20 +34,33 @@ def _check_standard_files(members: tuple[str, ...]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("distribution", type=Path, help="Built wheel or source distribution")
+    parser.add_argument("distribution", type=Path, help="Built distribution file or its output directory")
+    parser.add_argument("--kind", choices=("wheel", "sdist"), help="Select an artifact from a directory")
     parser.add_argument("--wheelhouse", type=Path, required=True)
     args = parser.parse_args()
     distribution = args.distribution.resolve()
     wheelhouse = args.wheelhouse.resolve()
-    if not distribution.is_file():
+    if distribution.is_dir():
+        if args.kind is None:
+            parser.error("--kind is required when distribution is a directory")
+        pattern = "siso_ref010-*.whl" if args.kind == "wheel" else "siso_ref010-*.tar.gz"
+        candidates = tuple(distribution.glob(pattern))
+        if len(candidates) != 1:
+            parser.error(f"Expected one {args.kind} matching {pattern}, found {len(candidates)}")
+        distribution = candidates[0].resolve()
+    elif not distribution.is_file():
         parser.error(f"Distribution not found: {distribution}")
     if not wheelhouse.is_dir():
         parser.error(f"Wheelhouse not found: {wheelhouse}")
     if distribution.name.endswith(".tar.gz"):
+        if args.kind not in (None, "sdist"):
+            parser.error("--kind wheel does not match a source distribution file")
         with tarfile.open(distribution, "r:gz") as archive:
             members = tuple(member.name for member in archive.getmembers() if member.isfile())
         _check_standard_files(members)
     elif distribution.suffix == ".whl":
+        if args.kind not in (None, "wheel"):
+            parser.error("--kind sdist does not match a wheel file")
         with ZipFile(distribution) as archive:
             _check_standard_files(tuple(archive.namelist()))
     else:
@@ -83,7 +94,13 @@ def main() -> None:
             str(wheelhouse),
             str(distribution),
         )
-        imported = run(str(python), "-I", "-c", "import siso_ref010; import siso_ref010.api")
+        imported = run(
+            str(python),
+            "-I",
+            "-c",
+            "from importlib.metadata import version; import siso_ref010; import siso_ref010.api; "
+            "assert siso_ref010.__version__ == version('siso-ref010')",
+        )
         assert imported.stdout == imported.stderr == ""
         api = run(
             str(python),

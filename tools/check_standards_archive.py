@@ -30,7 +30,8 @@ def check_archive(path: Path) -> int:
                 standard = EntityTypeXmlParser.from_string(xml.decode("utf-8-sig"))
                 if standard.title != entry["title"]:
                     raise ValueError(f"title mismatch: {standard.title!r}")
-                if standard.date != entry["edition_date"]:
+                edition_date = standard.date.isoformat() if standard.date is not None else ""
+                if edition_date != entry["edition_date"]:
                     raise ValueError(f"date mismatch: {standard.date!r}")
                 catalog = EntityTypeCatalog(standard)
             except Exception as exc:
@@ -39,7 +40,7 @@ def check_archive(path: Path) -> int:
                 continue
 
             print(
-                f"OK v{version} {standard.date}: countries={catalog.country_count} "
+                f"OK v{version} {edition_date}: countries={catalog.country_count} "
                 f"kinds={catalog.kind_count} domains={catalog.domain_count} "
                 f"categories={catalog.category_count} subcategories={catalog.subcategory_count}"
             )

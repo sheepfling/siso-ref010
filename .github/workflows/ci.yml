@@ -39,12 +39,12 @@ jobs:
         run: python -m build
       - run: python -m twine check --strict dist/*
       - name: Prepare dependency and build-backend wheels for offline consumer validation
-        run: python -m pip download --only-binary=:all: --dest .wheelhouse 'pydantic>=2.7,<3' 'setuptools>=77'
+        run: python -m pip download --only-binary=:all: --dest .wheelhouse 'pydantic>=2.7,<3' 'setuptools>=77' 'setuptools-scm>=10,<11'
       - name: Verify the built wheel in a fresh offline consumer environment
-        run: python -m tools.check_installed dist/siso_ref010-0.0.1-py3-none-any.whl --wheelhouse .wheelhouse
+        run: python -m tools.check_installed dist --kind wheel --wheelhouse .wheelhouse
       - name: Install the source distribution in an isolated offline environment
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
-        run: python -m tools.check_installed dist/siso_ref010-0.0.1.tar.gz --wheelhouse .wheelhouse
+        run: python -m tools.check_installed dist --kind sdist --wheelhouse .wheelhouse
 
   quality:
     runs-on: ubuntu-latest

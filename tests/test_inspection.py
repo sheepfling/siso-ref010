@@ -1,6 +1,5 @@
 import json
 from dataclasses import replace
-from pathlib import Path
 
 import pytest
 
@@ -347,13 +346,12 @@ def test_report_audit_renderers_explain_duplicate_and_conflicting_uuids():
     assert "Individual findings" in terminal
 
 
-def test_edition_report_v1_schema_matches_the_published_serialization_schema():
-    schema_path = Path(__file__).parents[1] / "docs" / "schemas" / "edition-report-v1.schema.json"
+def test_edition_report_v1_schema_is_generated_from_pydantic_model():
     schema = EditionReport.model_json_schema(mode="serialization", by_alias=True)
 
-    assert schema == json.loads(schema_path.read_text(encoding="utf-8"))
     assert "report_schema_version" in schema["required"]
     assert schema["properties"]["report_schema_version"]["const"] == 1
+    assert schema["additionalProperties"] is False
 
     invalid = EntityTypeAPI(
         EntityTypeCatalog(

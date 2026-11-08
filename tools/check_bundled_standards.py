@@ -135,10 +135,11 @@ def _check_version(version: int, entry: Mapping[str, object]) -> None:
     standard = EntityTypeXmlParser.from_file(path)
     catalog = EntityTypeCatalog(standard)
     api = EntityTypeAPI.bundled(version)
-    if standard.title != entry["title"] or standard.date != entry["edition_date"]:
+    edition_date = standard.date.isoformat() if standard.date is not None else ""
+    if standard.title != entry["title"] or edition_date != entry["edition_date"]:
         raise ValueError(f"{path.name}: embedded edition metadata disagrees with provenance")
     info = api.info()
-    if info.data_version != standard.title or info.data_date != standard.date:
+    if info.data_version != standard.title or info.data_date != edition_date:
         raise ValueError(f"{path.name}: API info does not reflect the selected edition")
     if (
         info.counts.countries != catalog.country_count
@@ -186,7 +187,7 @@ def _check_version(version: int, entry: Mapping[str, object]) -> None:
         entity
     ) or description.qualified_description != catalog.get_description_of(entity, True):
         raise ValueError(f"{path.name}: describe query disagrees with catalog projection")
-    print(f"OK v{version} {standard.date}: choices={queried} search/describe=OK")
+    print(f"OK v{version} {edition_date}: choices={queried} search/describe=OK")
 
 
 def _check_artifacts(manifest: Mapping[str, object]) -> None:

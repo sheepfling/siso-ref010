@@ -7,6 +7,7 @@ from threading import RLock
 from typing import cast
 from weakref import WeakValueDictionary
 
+from ._paths import PathInput, normalize_path
 from .codes import (
     CategoryCode,
     CountryCode,
@@ -21,7 +22,6 @@ from .codes import (
 from .errors import EntityTypeValueError
 from .model import EntityType
 from .parser import EntityTypeXmlParser
-from .paths import PathInput, normalize_path
 from .projection import CatalogData, ChildrenByPrefix, build_catalog_data
 from .reference import EntityTypeStandard
 from .sources import BUNDLED_STANDARD_SOURCE, BundledStandardSource, StandardSource

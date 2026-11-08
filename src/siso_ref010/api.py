@@ -14,6 +14,7 @@ from typing import Final, cast
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from ._paths import PathInput, normalize_path
 from ._version import __version__
 from .catalog import BUNDLED_STANDARD_VERSION, BUNDLED_STANDARD_VERSIONS, EntityTypeCatalog
 from .codes import EntityFieldCode
@@ -41,7 +42,6 @@ from .inspection import (
     EnumerationValueResolution,
 )
 from .model import EntityType, EntityTypePrefix
-from .paths import PathInput, normalize_path
 from .query_backend import (
     EntityQueryBackend,
     EntityQueryPage,
@@ -645,7 +645,7 @@ class EntityTypeAPI:
         )
         return EntityQueryResults(
             title=standard.title,
-            date=standard.date,
+            date=standard.date.isoformat() if standard.date is not None else "",
             entity_kind=entity_kind,
             domain=domain,
             country=country,
@@ -704,7 +704,7 @@ class EntityTypeAPI:
             version=__version__,
             data_source=self._source,
             data_version=(standard.title or None) if standard is not None else None,
-            data_date=(standard.date or None) if standard is not None else None,
+            data_date=standard.date.isoformat() if standard is not None and standard.date else None,
             attribution="Reprinted with permission from SISO Inc.",
             counts=CatalogCounts(
                 countries=catalog.country_count,
