@@ -1,38 +1,39 @@
 # Command line
 
-Install the package, then use `dis-entity-types` or the equivalent
-`python -m dis_entity_types` entry point.
+Install the package, then use `siso-ref010` or the equivalent
+`python -m siso_ref010` entry point.
 
 ```sh
-dis-entity-types --help
-dis-entity-types describe 1.3.153.6.4.2.0 --qualified
-dis-entity-types search 'F803 Tromp'
-dis-entity-types query --country 153 --text Tromp --limit 20
-dis-entity-types --standard-version 35 --warmup query --entity-kind 1 --country 153 --offset 20 --limit 20 --json
-dis-entity-types list categories 1 4 153
-dis-entity-types key 1.2.225.7.8.7.1
-dis-entity-types key --decode 72621510476957441
-dis-entity-types info
-dis-entity-types history --entity 1.3.153.6.4.2.0 --versions 35 36 37
-dis-entity-types history --enum-uid 7 --value 1
-dis-entity-types compare 35 37
-dis-entity-types compare 35 37 --material-only
-dis-entity-types compare 35 37 --scope enumerations --enum-uid 7 --detail concise --json
-dis-entity-types compare 35 37 --detail audit --json
-dis-entity-types compare 35 37 --detail review-queue --priority high --limit 25 --json
-dis-entity-types compare 35 37 --detail review-queue --priority low --category raw_metadata --json
-dis-entity-types compare 35 37 --detail review-queue --wire-encoding potentially_breaking --json
-dis-entity-types compare 35 37 --detail review-queue --application-migration recommended --json
-dis-entity-types --standard-version 37 inspect summary
-dis-entity-types --standard-version 37 inspect report --json
-dis-entity-types --standard-version 37 inspect diagnostics
-dis-entity-types --standard-version 37 inspect diagnostics --details --limit 100
-dis-entity-types inspect tables --query country --json
-dis-entity-types inspect values --kind enumeration --table-uid 7 --limit 25
-dis-entity-types inspect value 3 93 --json
-dis-entity-types inspect search 'reserved values' --limit 25 --offset 0
-dis-entity-types inspect uuid a-source-uuid --json
-dis-entity-types inspect entity 1.3.153.6.4.2.0
+siso-ref010 --help
+siso-ref010 describe 1.3.153.6.4.2.0 --qualified
+siso-ref010 search 'F803 Tromp'
+siso-ref010 query --country 153 --text Tromp --limit 20
+siso-ref010 --standard-version 35 --warmup query --entity-kind 1 --country 153 --offset 20 --limit 20 --json
+siso-ref010 list categories 1 4 153
+siso-ref010 key 1.2.225.7.8.7.1
+siso-ref010 key --decode 72621510476957441
+siso-ref010 info
+siso-ref010 history --entity 1.3.153.6.4.2.0 --versions 35 36 37
+siso-ref010 history --enum-uid 7 --value 1
+siso-ref010 compare 35 37
+siso-ref010 compare 35 37 --material-only
+siso-ref010 compare 35 37 --scope enumerations --enum-uid 7 --detail concise --json
+siso-ref010 compare 35 37 --detail audit --json
+siso-ref010 compare 35 37 --detail review-queue --priority high --limit 25 --json
+siso-ref010 compare 35 37 --detail review-queue --priority low --category raw_metadata --json
+siso-ref010 compare 35 37 --detail review-queue --wire-encoding potentially_breaking --json
+siso-ref010 compare 35 37 --detail review-queue --application-migration recommended --json
+siso-ref010 --standard-version 37 inspect summary
+siso-ref010 --standard-version 37 inspect report --json
+siso-ref010 --standard-version 37 inspect diagnostics
+siso-ref010 --standard-version 37 inspect diagnostics --details --limit 100
+siso-ref010 inspect tables --query country --json
+siso-ref010 inspect values --kind enumeration --table-uid 7 --limit 25
+siso-ref010 inspect value 3 93 --json
+siso-ref010 inspect resolve 'DIS-PDU Type' 1 --json
+siso-ref010 inspect search 'reserved values' --limit 25 --offset 0
+siso-ref010 inspect uuid a-source-uuid --json
+siso-ref010 inspect entity 1.3.153.6.4.2.0
 ```
 
 Human-readable output is the default. Add `--json` for a versioned JSON result
@@ -44,16 +45,16 @@ The bundled XML is used by default. Supply another SISO-REF-010 XML file with
 global `--xml PATH` before the command:
 
 ```sh
-dis-entity-types --xml ./SISO-REF-010.xml info --json
-dis-entity-types --xml ./SISO-REF-010.xml describe 1.3.153.6.4.2.0
-dis-entity-types --standard-version 35 info --json
-dis-entity-types versions
+siso-ref010 --xml ./SISO-REF-010.xml info --json
+siso-ref010 --xml ./SISO-REF-010.xml describe 1.3.153.6.4.2.0
+siso-ref010 --standard-version 35 info --json
+siso-ref010 versions
 ```
 
 `--standard-version` selects a bundled SISO-REF-010 edition by release number.
 The bundled default is v37. Use `--xml` for an edition that is not bundled;
 these two source options cannot be combined.
-Run `dis-entity-types versions` to list the bundled editions and default.
+Run `siso-ref010 versions` to list the bundled editions and default.
 
 ## Exporting original XML
 
@@ -62,9 +63,9 @@ to stdout for redirection, write one file with `--output`, or extract every
 bundled version into a directory:
 
 ```sh
-dis-entity-types dump 35 > SISO-REF-010-v35.xml
-dis-entity-types dump 35 --output ./SISO-REF-010-v35.xml
-dis-entity-types dump --all --output-dir ./siso-ref-010
+siso-ref010 dump 35 > SISO-REF-010-v35.xml
+siso-ref010 dump 35 --output ./SISO-REF-010-v35.xml
+siso-ref010 dump --all --output-dir ./siso-ref-010
 ```
 
 The command refuses to overwrite existing files. `dump` emits raw XML, so it
@@ -144,6 +145,10 @@ hierarchy, trailing fields not supplied, explicitly unspecified fields, and
 unknown supplied components. Value and search result
 limits default to 100; `--limit 0` returns all. JSON results include the edition
 identity and total/returned/truncated counts where applicable.
+`inspect resolve NAME VALUE` resolves against an exact enumeration table name,
+ignoring case and outer whitespace. It reports all candidates when names or
+table identities are ambiguous rather than selecting one implicitly. Use
+`inspect value UID VALUE` when the UID is already known.
 
 `compare FROM TO` prints a human-readable summary by default. The summary
 highlights newly deprecated records, table-size changes, release-status

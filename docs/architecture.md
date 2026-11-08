@@ -75,6 +75,14 @@ the requested API-backed command; the in-memory cache does not persist between
 separate CLI invocations. Without warmup, the mapping backend scans source rows
 for a query instead of paying index construction during that request.
 
+Measure cold compressed-snapshot retrieval and API construction for selected
+editions with `python -m tools.benchmark_snapshot_loading`. Each sample runs in
+a fresh process so the edition cache cannot make later samples appear cold.
+The bundled archive is one solid XZ stream: offsets identify edition bytes in
+the uncompressed stream, so seeking to an older release can decompress earlier
+editions first. The [measured run and method](contributing/snapshot-loading.md)
+are local observations, not performance guarantees.
+
 `comparison.py` flattens source-backed entity and enumeration values into
 versioned records. It matches unique UUIDs first, then code paths or
 table/value keys, and reports changes without mutating the parsed source or

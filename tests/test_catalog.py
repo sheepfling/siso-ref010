@@ -1,6 +1,6 @@
 import pytest
 
-from dis_entity_types import (
+from siso_ref010 import (
     CountryCode,
     EntityType,
     EntityTypeCatalog,

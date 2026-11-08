@@ -4,7 +4,7 @@ The library API returns typed Python values and performs no printing or process
 exit. The command-line tool is a separate adapter over the same operations.
 
 ```python
-from dis_entity_types import (
+from siso_ref010 import (
     Collection,
     EntityType,
     EntityTypeAPI,
@@ -56,7 +56,7 @@ To save an exact bundled XML edition from Python, use the public byte source:
 ```python
 from pathlib import Path
 
-from dis_entity_types import BUNDLED_STANDARD_SOURCE
+from siso_ref010 import BUNDLED_STANDARD_SOURCE
 
 Path("SISO-REF-010-v35.xml").write_bytes(BUNDLED_STANDARD_SOURCE.read_xml(35))
 ```
@@ -65,7 +65,7 @@ Path("SISO-REF-010-v35.xml").write_bytes(BUNDLED_STANDARD_SOURCE.read_xml(35))
 edition only as the iteration reaches it:
 
 ```python
-from dis_entity_types import EntityTypeAPI
+from siso_ref010 import EntityTypeAPI
 
 search_by_release = {
     version: api.search("F803") for version, api in EntityTypeAPI.iter_editions(versions=(35, 36, 37))
@@ -160,6 +160,8 @@ order is explicit.
 | `api.choices(collection, prefix=None)` | `Choices` | Returns choices beneath a validated `EntityTypePrefix`. |
 | `api.explain_entity(entity)` | `EntityExplanation` | Returns the resolved description and source rows for a full code or prefix. |
 | `api.resolve_entity(entity)` | `EntityResolution` | Resolves a typed entity/prefix or a dotted string containing one through seven fields. |
+| `api.find_enumeration_tables(name)` | `tuple[EnumerationTableInfo, ...]` | Finds all tables with an exact case-insensitive name. |
+| `api.resolve_enumeration(name, value)` | `EnumerationNameResolution` | Resolves by exact table name and reports ambiguity, exact values, ranges, or unknown values. |
 | `api.inspector` | `EditionInspector` | Queries enumeration and entity values with their metadata. |
 | `api.info()` | `CatalogInfo` | Reports package/source versions, attribution, and `CatalogCounts`. |
 | `encode_entity(entity)` | `EntityEncoding` | Encodes an entity without loading the catalog. |
@@ -214,7 +216,7 @@ not precompute every qualified description or hierarchy-choice cache.
 code domains separate in typed mappings and function signatures.
 
 ```python
-from dis_entity_types import CountryCode, EntityTypeCatalog, KindCode
+from siso_ref010 import CountryCode, EntityTypeCatalog, KindCode
 
 catalog = EntityTypeCatalog.bundled()
 countries: dict[CountryCode, str] = catalog.get_all_countries()
@@ -230,9 +232,10 @@ each XML file's own title and date after selection.
 
 `EntityType` fields already carry their matching code types, so a decoded
 entity can be passed directly to the corresponding lookup.
-`dis_entity_types.model.create_key()` accepts named, field-specific code types.
+`siso_ref010.model.create_key()` accepts named, field-specific code types.
 Constructing a `NewType` from an integer marks its meaning for the type
-checker; runtime bounds validation is provided by `EntityType`.
+checker. `EntityType` and `create_key()` both validate each field against its
+DIS wire width before producing a key.
 
 Domains depend on entity kind. `get_all_domains()` therefore returns a mapping
 keyed by `(KindCode, DomainCode)` pairs, while `get_all_domains_of(kind)` returns
@@ -290,7 +293,7 @@ offending field, value, and expected bounds or type where applicable.
 
 The source attribution recorded in the recovery materials is
 `Reprinted with permission from SISO Inc.`. See the
-[SISO source and redistribution notice](../src/dis_entity_types/data/standards/LICENSE_NOTICE.md)
+[SISO source and redistribution notice](../src/siso_ref010/data/standards/LICENSE_NOTICE.md)
 before redistributing bundled standard data; the notice does not itself grant
 redistribution rights.
 
@@ -312,6 +315,8 @@ country = inspector.enumeration_table(29)
 afghanistan = inspector.enumeration_rows(29, value=1)[0]
 
 protocol_93 = inspector.resolve_enumeration_value(3, 93)
+named_tables = api.find_enumeration_tables("DIS-PDU Type")
+pdu_type = api.resolve_enumeration("DIS-PDU Type", 1)
 matches = inspector.search("Netherlands", limit=10, offset=0)
 uuid_matches = inspector.lookup_uuid("a-source-row-uuid")
 entity = api.explain_entity("1.3.153.6.4.2.0")
@@ -321,7 +326,7 @@ resolution = api.resolve_entity("1.3.153.6.4.2.0")
 Render a report without introducing presentation code into the data model:
 
 ```python
-from dis_entity_types.reporting import render_markdown
+from siso_ref010.reporting import render_markdown
 
 report_markdown = render_markdown(inspector.report())
 audit_markdown = render_markdown(inspector.report(audit=True))
@@ -355,22 +360,25 @@ unverified bundled integrity. Bundled reports identify the local
 `data/standards/PROVENANCE.json` source-evidence registry; that registry records
 byte comparisons and source references, not publisher authentication.
 From the repository root, `python -m tools.check_standards_xsd` is a separate
-offline validation operation. It runs `xmllint --nonet` only when an edition's
-namespace matches a packaged schema. The current schema is namespace 2.7:
-v30–v37 are validated, while v20–v29 are not run because their matching schemas
-are not bundled. This build/evaluation check is not embedded into an
+offline validation operation. It validates v20–v29 against version-matched
+historical schemas under `tools/standards-xsds/` and v30–v37 against the
+packaged namespace 2.7 schema. These maintainer schemas are not included in the
+runtime wheel. This build/evaluation check is not embedded into an
 `EditionReport`; that report describes only validation performed or evidence
 available to its own inspection call. The evaluation record includes the
-validator, schema hash, source hashes, and execution environment.
+validator, schema hashes, source hashes, and execution environment.
 
-The report's serialized data has its own `report_schema_version`, currently
-`1`, independent of the installed package version, source edition number, and
-the CLI JSON envelope's `schema_version`. Within report schema version 1,
-consumers should tolerate additional fields. Renamed or removed fields, changed
-field types or meanings, and incompatible status values require a new report
-schema version. The CLI envelope version describes the outer command/result
-wrapper; it does not replace the report's version.
-The report model is independent of presentation. `dis_entity_types.reporting`
+The report's serialized data has its own required `report_schema_version`,
+currently `1`, independent of the installed package version, source edition
+number, and the CLI JSON envelope's `schema_version`. The machine-readable
+[EditionReport v1 JSON Schema](schemas/edition-report-v1.schema.json) is
+generated from `EditionReport.model_json_schema(mode="serialization")` and
+pinned by a test. Version 1 is closed (`additionalProperties` is false): any
+change to its serialized shape or meaning, including adding a field or status,
+requires a new report schema version and schema document. Consumers should
+check the version before validating; the CLI envelope version describes the
+outer command/result wrapper and does not replace the report's version.
+The report model is independent of presentation. `siso_ref010.reporting`
 provides `render_terminal(report)`, `render_markdown(report)`, and
 `render_json(report)`. Pass `audit=True` to `inspector.report()` to include an
 `EditionAudit` with every enumeration-table definition and individual
@@ -378,8 +386,11 @@ diagnostic finding; it does not dump every value or entity path. Executable
 Python examples belong in a separate tutorial or showcase.
 `EditionInspector.diagnostics()` checks
 unresolved enumeration references, repeated table UIDs and source IDs,
-duplicate UUIDs, overlapping values/ranges, and missing row descriptions or
-UUIDs. It returns aggregate groups by severity, code, and source table, along
+duplicate UUIDs, overlapping values/ranges, likely aliases, and missing row
+descriptions or UUIDs. `possible_value_alias` is an informational hint for
+distinct UUID rows with reciprocal `(aka ...)` labels; it does not establish
+equivalence, and `resolve_enumeration_value()` continues to return `ambiguous`.
+It returns aggregate groups by severity, code, and source table, along
 with a bounded page of individual findings. The groups and counts cover the
 full filtered set; pagination applies only to `findings`. `limit=0` requests no
 individual findings, while `limit=None` requests all of them. Use `code`,
@@ -402,6 +413,13 @@ not match: library keys include the record kind, so one UUID may map to more
 than one library key across enumeration and entity contexts.
 
 `enumeration_tables()` optionally filters table names and applicability text.
+`EntityTypeAPI.find_enumeration_tables(name)` matches an exact table name after
+trimming outer whitespace and ignoring case. `resolve_enumeration(name, value)`
+resolves by that name without requiring callers to know the table UID first. Its
+status distinguishes a missing name, duplicate or ambiguous table identity,
+exact value, range membership, unknown value, and overlapping value rows.
+Duplicate table names return all candidates; the resolver does not choose one
+arbitrarily.
 `EnumerationTableInfo.declared_size_bits` is the source-declared bit width,
 not the row count. `enumeration_table(uid)` returns a table only when its UID
 is unique; `enumeration_tables_by_uid(uid)` exposes all definitions when a

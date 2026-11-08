@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from xml.etree import ElementTree
 
-from dis_entity_types import (
+from siso_ref010 import (
     BUNDLED_STANDARD_VERSIONS,
     Collection,
     EntityType,
@@ -19,9 +19,9 @@ from dis_entity_types import (
     EntityTypeXmlParser,
     KindCode,
 )
-from dis_entity_types.snapshots import read_snapshot_bytes
+from siso_ref010.snapshots import read_snapshot_bytes
 
-PACKAGE = Path("src/dis_entity_types")
+PACKAGE = Path("src/siso_ref010")
 STANDARDS = PACKAGE / "data/standards"
 ARTIFACT_FIELDS = {
     "kind",

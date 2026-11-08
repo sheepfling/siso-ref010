@@ -1,7 +1,9 @@
-"""Exercise an installed wheel without network access outside the source tree.
+"""Exercise an installed wheel or source distribution in a fresh environment.
 
 Run from the repository root after building and downloading dependencies:
-    python -m tools.check_installed dist/dis_entity_types-0.0.1-py3-none-any.whl \
+    python -m tools.check_installed dist/siso_ref010-0.0.1-py3-none-any.whl \
+        --wheelhouse .wheelhouse
+    python -m tools.check_installed dist/siso_ref010-0.0.1.tar.gz \
         --wheelhouse .wheelhouse
 """
 
@@ -10,35 +12,59 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
+import tarfile
 import tempfile
 import venv
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from zipfile import ZipFile
+
+
+def _check_standard_files(members: tuple[str, ...]) -> None:
+    assert any(name.endswith("data/standards/editions.xz") for name in members)
+    root_names = {PurePosixPath(name).name for name in members}
+    assert "LICENSE" in root_names, "Apache-2.0 code license missing from distribution"
+    assert "SISO-DATA-NOTICE.txt" in root_names, "SISO data notice missing from distribution"
+    raw_xml = tuple(
+        name
+        for name in members
+        if "/data/standards/" in f"/{name}" and re.fullmatch(r"v\d+\.xml", PurePosixPath(name).name)
+    )
+    assert not raw_xml, f"Uncompressed edition XML leaked into distribution: {raw_xml}"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("wheel", type=Path)
+    parser.add_argument("distribution", type=Path, help="Built wheel or source distribution")
     parser.add_argument("--wheelhouse", type=Path, required=True)
     args = parser.parse_args()
-    wheel = args.wheel.resolve()
+    distribution = args.distribution.resolve()
     wheelhouse = args.wheelhouse.resolve()
-    if not wheel.is_file():
-        parser.error(f"Wheel not found: {wheel}")
+    if not distribution.is_file():
+        parser.error(f"Distribution not found: {distribution}")
     if not wheelhouse.is_dir():
         parser.error(f"Wheelhouse not found: {wheelhouse}")
+    if distribution.name.endswith(".tar.gz"):
+        with tarfile.open(distribution, "r:gz") as archive:
+            members = tuple(member.name for member in archive.getmembers() if member.isfile())
+        _check_standard_files(members)
+    elif distribution.suffix == ".whl":
+        with ZipFile(distribution) as archive:
+            _check_standard_files(tuple(archive.namelist()))
+    else:
+        parser.error("Distribution must be a .whl or .tar.gz file")
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
     environment.pop("PYTHONHOME", None)
-    with tempfile.TemporaryDirectory(prefix="dis-entity-types-consumer-") as directory:
+    with tempfile.TemporaryDirectory(prefix="siso-ref010-consumer-") as directory:
         root = Path(directory)
         venv.EnvBuilder(with_pip=True).create(root / "venv")
         binary = root / "venv" / ("Scripts" if os.name == "nt" else "bin")
-        # Consumer execution has only the fresh Python environment on PATH.
         # The consumer has only its fresh Python environment on PATH.
         environment["PATH"] = str(binary)
         python = binary / ("python.exe" if os.name == "nt" else "python")
-        console = binary / ("dis-entity-types.exe" if os.name == "nt" else "dis-entity-types")
+        console = binary / ("siso-ref010.exe" if os.name == "nt" else "siso-ref010")
 
         def run(*arguments: str, code: int = 0) -> subprocess.CompletedProcess[str]:
             result = subprocess.run(arguments, cwd=root, env=environment, text=True, capture_output=True)
@@ -55,9 +81,9 @@ def main() -> None:
             "--no-index",
             "--find-links",
             str(wheelhouse),
-            str(wheel),
+            str(distribution),
         )
-        imported = run(str(python), "-I", "-c", "import dis_entity_types; import dis_entity_types.api")
+        imported = run(str(python), "-I", "-c", "import siso_ref010; import siso_ref010.api")
         assert imported.stdout == imported.stderr == ""
         api = run(
             str(python),
@@ -66,9 +92,9 @@ def main() -> None:
             """
 import json
 from importlib.resources import files
-from dis_entity_types.api import EntityTypeAPI, decode_key, encode_entity
-from dis_entity_types import BUNDLED_STANDARD_VERSIONS, render_json, render_markdown
-standards = files("dis_entity_types").joinpath("data/standards")
+from siso_ref010.api import EntityTypeAPI, decode_key, encode_entity
+from siso_ref010 import BUNDLED_STANDARD_VERSIONS, render_json, render_markdown
+standards = files("siso_ref010").joinpath("data/standards")
 registry = json.loads(standards.joinpath("PROVENANCE.json").read_text())
 assert len(registry["entries"]) == 18
 source_fields = {"provider", "repository", "reference", "path", "url", "verification"}
@@ -113,11 +139,11 @@ for boundary in (64, 127):
     assert (resolved.matches[0].value_min, resolved.matches[0].value_max) == (64, 127)
 assert api.inspector.resolve_enumeration_value(3, 1_000_000).status.value == "unknown"
 assert api.info().counts.subcategories == 25473
-assert files("dis_entity_types").joinpath("py.typed").is_file()
-assert files("dis_entity_types").joinpath("data/standards/editions.xz").is_file()
-assert files("dis_entity_types").joinpath("data/standards/index.json").is_file()
-assert not files("dis_entity_types").joinpath("data/standards/v37.xml").is_file()
-assert files("dis_entity_types").joinpath("data/SISO-REF-010.xsd").is_file()
+assert files("siso_ref010").joinpath("py.typed").is_file()
+assert files("siso_ref010").joinpath("data/standards/editions.xz").is_file()
+assert files("siso_ref010").joinpath("data/standards/index.json").is_file()
+assert not files("siso_ref010").joinpath("data/standards/v37.xml").is_file()
+assert files("siso_ref010").joinpath("data/SISO-REF-010.xsd").is_file()
 assert EntityTypeAPI.bundled(35).info().data_version == "SISO-REF-010-v35"
 assert len(BUNDLED_STANDARD_VERSIONS) == 18
 assert decode_key(encode_entity(item.entity).key).entity == item.entity
@@ -192,13 +218,13 @@ print(json.dumps({
             """
 import sys
 from pathlib import Path
-from dis_entity_types import BUNDLED_STANDARD_SOURCE
+from siso_ref010 import BUNDLED_STANDARD_SOURCE
 assert Path(sys.argv[1]).read_bytes() == BUNDLED_STANDARD_SOURCE.read_xml(35)
 """,
             str(exported_xml),
         )
         assert verified_export.stdout == verified_export.stderr == ""
-        module = run(str(python), "-I", "-m", "dis_entity_types", "search", "F803", "--json")
+        module = run(str(python), "-I", "-m", "siso_ref010", "search", "F803", "--json")
         assert json.loads(module.stdout)["result"]["hits"][0]["description"] == "F803 Tromp"
         failure = run(str(console), "describe", "bad", "--json", code=2)
         assert failure.stdout == ""
@@ -214,8 +240,8 @@ assert Path(sys.argv[1]).read_bytes() == BUNDLED_STANDARD_SOURCE.read_xml(35)
 from hashlib import sha256
 import json
 from importlib.resources import files
-from dis_entity_types import BUNDLED_STANDARD_SOURCE, BUNDLED_STANDARD_VERSIONS, EntityTypeAPI
-standards = files("dis_entity_types").joinpath("data/standards")
+from siso_ref010 import BUNDLED_STANDARD_SOURCE, BUNDLED_STANDARD_VERSIONS, EntityTypeAPI
+standards = files("siso_ref010").joinpath("data/standards")
 registry = json.loads(standards.joinpath("PROVENANCE.json").read_text())
 entries = {row["version"]: row for row in registry["entries"]}
 for version in BUNDLED_STANDARD_VERSIONS:
@@ -253,7 +279,7 @@ print(f"Installed edition inspection passed for {len(BUNDLED_STANDARD_VERSIONS)}
                 str(python),
                 "-I",
                 "-c",
-                "import sys; from dis_entity_types import EntityTypeAPI, render_markdown; "
+                "import sys; from siso_ref010 import EntityTypeAPI, render_markdown; "
                 "print(render_markdown(EntityTypeAPI.bundled(int(sys.argv[1])).inspector.report()), end='')",
                 str(version),
             )
@@ -271,7 +297,7 @@ print(f"Installed edition inspection passed for {len(BUNDLED_STANDARD_VERSIONS)}
             str(python),
             "-I",
             "-c",
-            "from dis_entity_types import EntityTypeAPI, render_markdown; "
+            "from siso_ref010 import EntityTypeAPI, render_markdown; "
             "print(render_markdown(EntityTypeAPI.bundled(37).inspector.report(audit=True)), end='')",
         )
         cli_audit_markdown = run(

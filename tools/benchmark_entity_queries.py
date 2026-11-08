@@ -6,7 +6,7 @@ import argparse
 from statistics import median
 from time import perf_counter
 
-from dis_entity_types import EditionValue, EntityTypeAPI
+from siso_ref010 import EditionValue, EntityTypeAPI
 
 _FIELD_NAMES = ("entity_kind", "domain", "country", "category", "subcategory", "specific", "extra")
 

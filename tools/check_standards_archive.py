@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from zipfile import ZipFile
 
-from dis_entity_types import EntityTypeCatalog, EntityTypeXmlParser
+from siso_ref010 import EntityTypeCatalog, EntityTypeXmlParser
 
 
 def check_archive(path: Path) -> int:

@@ -3,9 +3,9 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from dis_entity_types import EntityType, EntityTypeAPI, EntityTypeCatalog, EntityTypePrefix
-from dis_entity_types.api import Collection, decode_key, encode_entity
-from dis_entity_types.cli import main
+from siso_ref010 import EntityType, EntityTypeAPI, EntityTypeCatalog, EntityTypePrefix
+from siso_ref010.api import Collection, decode_key, encode_entity
+from siso_ref010.cli import main
 
 
 @pytest.fixture(scope="module")
@@ -92,6 +92,33 @@ def test_encoding_contract():
     assert encoded.model_dump(mode="json", by_alias=True)["unsigned_key"] == "18446744073709551615"
 
 
+def test_enumerations_resolve_by_exact_human_name(api):
+    tables = api.find_enumeration_tables("  dis-pdu type ")
+    assert [(table.uid, table.name) for table in tables] == [(4, "DIS-PDU Type")]
+    result = api.resolve_enumeration("DIS-PDU Type", 1)
+    assert result.status.value == "exact"
+    assert result.matches[0].matches[0].description == "Entity State"
+    assert api.resolve_enumeration_value(4, 1) == result.matches[0]
+    assert api.resolve_enumeration("DIS-PDU Type", 1_000_000).status.value == "unknown"
+
+    ranged = api.resolve_enumeration("DIS-Protocol Version", 64)
+    assert ranged.status.value == "range"
+    assert ranged.matches[0].matches[0].value_min == 64
+    assert api.resolve_enumeration_value(3, 64).status.value == "range"
+    assert api.resolve_enumeration("No Such Table", 1).status.value == "table_not_found"
+    assert api.resolve_enumeration("TCAS/ACAS Type", 0).status.value == "ambiguous_table"
+
+    with pytest.raises(TypeError):
+        api.resolve_enumeration("DIS-PDU Type", True)
+    with pytest.raises(ValueError):
+        api.resolve_enumeration("DIS-PDU Type", -1)
+
+    with pytest.raises(TypeError):
+        api.find_enumeration_tables(7)
+    with pytest.raises(ValueError):
+        api.find_enumeration_tables("  ")
+
+
 def test_bad_types(api):
     with pytest.raises(TypeError):
         encode_entity(123)
@@ -99,6 +126,28 @@ def test_bad_types(api):
         decode_key(1.5)
     with pytest.raises(TypeError):
         api.search(123)
+
+
+def test_resolve_entity_and_entity_queries_reject_invalid_api_inputs(api):
+    exact = EntityType.from_string("1.3.153.6.4.2.0")
+    assert api.resolve_entity(exact).matched_depth >= 3
+    with pytest.raises(TypeError, match="entity must be"):
+        api.resolve_entity(123)
+
+    with pytest.raises(ValueError, match="entity_kind must be"):
+        api.query_entities(entity_kind=256)
+    with pytest.raises(ValueError, match="country must be an integer"):
+        api.query_entities(country=True)
+    with pytest.raises(TypeError, match="text must be a string"):
+        api.query_entities(text=1)
+    with pytest.raises(ValueError, match="limit must be a nonnegative integer"):
+        api.query_entities(limit=True)
+    with pytest.raises(ValueError, match="offset must be a nonnegative integer"):
+        api.query_entities(offset=False)
+
+    empty = api.query_entities(entity_kind=255, limit=1)
+    assert empty.total == 0
+    assert empty.values == ()
 
 
 def test_metadata_and_custom_xml(api, tmp_path):
@@ -158,6 +207,22 @@ def test_cli_api_json_parity(api, capsys, args, method):
         assert captured.err == ""
         output = json.loads(captured.out)
         assert output == {"schema_version": 1, "command": args[0], "result": method(api)}
+
+
+def test_cli_resolves_enumeration_by_name(api, capsys):
+    assert main(["inspect", "resolve", "DIS-PDU Type", "1", "--json"]) == 0
+    captured = capsys.readouterr()
+    output = json.loads(captured.out)
+    assert output["result"] == api.resolve_enumeration("DIS-PDU Type", 1).model_dump(
+        mode="json", by_alias=True
+    )
+    assert captured.err == ""
+
+    assert main(["inspect", "resolve", "DIS-PDU Type", "1"]) == 0
+    captured = capsys.readouterr()
+    assert "DIS-PDU Type, value 1: exact" in captured.out
+    assert "Entity State" in captured.out
+    assert captured.err == ""
 
 
 @pytest.mark.parametrize(

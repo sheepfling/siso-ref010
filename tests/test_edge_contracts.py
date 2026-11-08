@@ -5,7 +5,7 @@ import sys
 import pytest
 from pydantic import ValidationError
 
-from dis_entity_types import (
+from siso_ref010 import (
     EntityType,
     EntityTypeAPI,
     EntityTypeCatalog,
@@ -14,14 +14,14 @@ from dis_entity_types import (
     EntityTypeValueError,
     EntityTypeXmlParser,
 )
-from dis_entity_types.cli import _error_type, main
-from dis_entity_types.model import (
+from siso_ref010.cli import _error_type, main
+from siso_ref010.model import (
     create_entity_domain_from_number,
     create_entity_kind_from_number,
     get_entity_domain_description,
     get_entity_kind_description,
 )
-from dis_entity_types.projection import (
+from siso_ref010.projection import (
     _applicability_values,
     _child_code,
     _entry_values,
@@ -29,7 +29,7 @@ from dis_entity_types.projection import (
     _referenced_table,
     _walk_entry,
 )
-from dis_entity_types.reference import ChangeRequest, ReferenceEntry, SourceInfo, _unsigned_integer
+from siso_ref010.reference import ChangeRequest, ReferenceEntry, SourceInfo, _unsigned_integer
 
 
 def test_pydantic_and_integer_boundary_edges():
@@ -125,7 +125,7 @@ def test_public_catalog_and_cli_error_edges(tmp_path, monkeypatch, capsys):
     assert exit_code.value.code == 2
     capsys.readouterr()
 
-    import dis_entity_types.cli as cli
+    import siso_ref010.cli as cli
 
     def interrupt(_value):
         raise KeyboardInterrupt
@@ -138,7 +138,7 @@ def test_public_catalog_and_cli_error_edges(tmp_path, monkeypatch, capsys):
 
 
 def test_module_entry_point(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["dis-entity-types", "--version"])
+    monkeypatch.setattr(sys, "argv", ["siso-ref010", "--version"])
     with pytest.raises(SystemExit) as exit_code:
-        runpy.run_module("dis_entity_types", run_name="__main__")
+        runpy.run_module("siso_ref010", run_name="__main__")
     assert exit_code.value.code == 0

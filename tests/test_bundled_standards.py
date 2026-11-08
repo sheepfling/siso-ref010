@@ -4,7 +4,7 @@ from weakref import ref
 
 import pytest
 
-from dis_entity_types import (
+from siso_ref010 import (
     BUNDLED_STANDARD_VERSIONS,
     BundledStandardSource,
     EntityTypeAPI,
@@ -13,8 +13,8 @@ from dis_entity_types import (
     EntityTypeValueError,
     render_markdown,
 )
-from dis_entity_types.catalog import _BUNDLED_CATALOG_DATA_CACHE, _BUNDLED_CATALOG_DATA_CACHE_LOCK
-from dis_entity_types.cli import main
+from siso_ref010.catalog import _BUNDLED_CATALOG_DATA_CACHE, _BUNDLED_CATALOG_DATA_CACHE_LOCK
+from siso_ref010.cli import main
 
 
 def test_bundled_projection_cache_shares_live_data_without_retaining_released_editions():
@@ -29,6 +29,27 @@ def test_bundled_projection_cache_shares_live_data_without_retaining_released_ed
     del data, first, second
     gc.collect()
     assert data_reference() is None
+
+
+def test_sequential_bundled_reports_release_each_edition_projection():
+    with _BUNDLED_CATALOG_DATA_CACHE_LOCK:
+        _BUNDLED_CATALOG_DATA_CACHE.clear()
+
+    for version in BUNDLED_STANDARD_VERSIONS:
+        api = EntityTypeAPI.bundled(version)
+        api_reference = ref(api)
+        data_reference = ref(api._catalog.data)
+        report = api.inspector.report()
+        assert report.report_schema_version == 1
+        assert report.identity.edition_number == version
+        assert report.summary is not None
+
+        del report, api
+        gc.collect()
+        assert api_reference() is None
+        assert data_reference() is None
+        with _BUNDLED_CATALOG_DATA_CACHE_LOCK:
+            assert len(_BUNDLED_CATALOG_DATA_CACHE) == 0
 
 
 @pytest.mark.parametrize("version", BUNDLED_STANDARD_VERSIONS)
@@ -262,6 +283,23 @@ def test_v22_duplicate_uuid_diagnostic_keeps_all_matching_records():
     finding = detailed.findings[0]
     uuid = finding.message.split("UUID '", 1)[1].split("'", 1)[0]
     assert len(inspector.lookup_uuid(uuid)) >= 2
+
+
+def test_v20_country_alias_is_flagged_without_resolving_duplicate_code():
+    inspector = EntityTypeAPI.bundled(20).inspector
+    resolution = inspector.resolve_enumeration_value(29, 107)
+    aliases = inspector.diagnostics(code="possible_value_alias", table_uid=29, limit=None)
+
+    assert resolution.status.value == "ambiguous"
+    assert {match.description for match in resolution.matches} == {
+        "Cote D'Ivoire (aka Ivory Coast)",
+        "Ivory Coast (aka Cote D'Ivoire)",
+    }
+    assert len({match.uuid for match in resolution.matches}) == 2
+    assert aliases.total == 1
+    assert "Scalar code 107" in aliases.findings[0].message
+    assert "lookup remains ambiguous" in aliases.findings[0].message
+    assert aliases.groups[0].severity.value == "info"
 
 
 @pytest.mark.parametrize(

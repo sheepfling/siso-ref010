@@ -1,7 +1,8 @@
 # Preserve line endings across platforms, including files checked by Git blob hash.
 * text=auto eol=lf
-/src/dis_entity_types/data/SISO-REF-010.xml -text
-/src/dis_entity_types/data/SISO-REF-010.xsd -text -whitespace
-/src/dis_entity_types/data/standards/*.xml -text -whitespace
+/src/siso_ref010/data/SISO-REF-010.xml -text
+/src/siso_ref010/data/SISO-REF-010.xsd -text -whitespace
+/src/siso_ref010/data/standards/*.xml -text -whitespace
+/tools/standards-xsds/*.xsd -text -whitespace
 # Preserve the source notice's original whitespace.
 /SISO-DATA-NOTICE.txt -whitespace

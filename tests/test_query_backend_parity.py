@@ -1,4 +1,4 @@
-from dis_entity_types import EntityTypeAPI, EntityTypeCatalog, EntityTypeXmlParser
+from siso_ref010 import EntityTypeAPI, EntityTypeCatalog, EntityTypeXmlParser
 
 
 def test_cold_and_warmed_queries_match_for_source_records() -> None:

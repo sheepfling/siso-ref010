@@ -1,7 +1,7 @@
 """Run after installing: python examples/api_usage.py"""
 
-from dis_entity_types import EntityTypePrefix
-from dis_entity_types.api import Collection, EntityTypeAPI, decode_key, encode_entity
+from siso_ref010 import EntityTypePrefix
+from siso_ref010.api import Collection, EntityTypeAPI, decode_key, encode_entity
 
 
 def main() -> None:

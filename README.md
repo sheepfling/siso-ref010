@@ -1,4 +1,4 @@
-# dis-entity-types
+# siso-ref010
 
 A typed Python toolkit for SISO-REF-010. It bundles verified XML editions v20–v37
 in a compact compressed archive, loads the selected edition on demand, parses it
@@ -12,7 +12,11 @@ countries, 11 entity kinds, 68 kind/domain pairs, 1,889 categories, and 25,473
 deeper entries, including values supplied through XML cross-references.
 
 See [source provenance and hashes](docs/provenance.md) and the
-[SISO source and redistribution notice](src/dis_entity_types/data/standards/LICENSE_NOTICE.md).
+[SISO source and redistribution notice](src/siso_ref010/data/standards/LICENSE_NOTICE.md).
+The library code is under Apache-2.0 ([LICENSE](LICENSE)); this does not grant
+redistribution rights for the separately sourced SISO data.
+The current implementation checks and remaining public-release gates are in
+[MVP release readiness](docs/release-readiness.md).
 
 ## Install locally
 
@@ -48,7 +52,7 @@ alternate catalog input format.
 ## Use the Python API
 
 ```python
-from dis_entity_types import EntityType, EntityTypeAPI, EntityTypeCatalog
+from siso_ref010 import EntityType, EntityTypeAPI, EntityTypeCatalog
 
 api = EntityTypeAPI()
 result = api.describe("1.3.153.6.4.2.0")
@@ -72,7 +76,7 @@ See the [Python API reference](docs/api.md).
 ## Read the standard as structured data
 
 ```python
-from dis_entity_types import EntityTypeCatalog, EntityTypeXmlParser
+from siso_ref010 import EntityTypeCatalog, EntityTypeXmlParser
 
 standard = EntityTypeXmlParser.from_file("SISO-REF-010.xml")
 print(standard.title, standard.date)
@@ -95,51 +99,52 @@ source model. See the [XML parser guide](docs/parser.md).
 ## Command line
 
 ```sh
-dis-entity-types describe 1.3.153.6.4.2.0 --qualified
-dis-entity-types search 'F803 Tromp'
-dis-entity-types list categories 1 4 153
-dis-entity-types key 1.2.225.7.8.7.1
-dis-entity-types key --decode 72621510476957441
-dis-entity-types info
+siso-ref010 describe 1.3.153.6.4.2.0 --qualified
+siso-ref010 search 'F803 Tromp'
+siso-ref010 list categories 1 4 153
+siso-ref010 key 1.2.225.7.8.7.1
+siso-ref010 key --decode 72621510476957441
+siso-ref010 info
 ```
 
 Use `--json` for versioned machine output. To use a different standard file,
 put `--xml PATH` before the command, for example:
 
 ```sh
-dis-entity-types --xml ./SISO-REF-010.xml info --json
-dis-entity-types --xml ./SISO-REF-010.xml search 'Tromp'
+siso-ref010 --xml ./SISO-REF-010.xml info --json
+siso-ref010 --xml ./SISO-REF-010.xml search 'Tromp'
 ```
 
 The package bundles historical editions v20 through v37. Select one by release
 number with `--standard-version 35`; v37 remains the default. See
-`dis-entity-types versions` for available editions and the default.
+`siso-ref010 versions` for available editions and the default.
 
 See the [command-line reference](docs/cli.md).
 
 ## Develop
 
-The edition XML files are tracked verbatim in Git. Build the ignored XZ runtime
-bundle before running the package, tests, or build commands:
+The edition XML files are tracked verbatim in Git. Source and editable installs
+generate the ignored XZ runtime bundle automatically; the index is checked in
+so CI can detect source or pack drift. To rebuild the bundle explicitly:
 
 ```sh
 python -m tools.build_standards_pack
-git diff --exit-code -- src/dis_entity_types/data/standards/index.json
-ruff check .
-ruff format --check .
-pyright
-for xml in src/dis_entity_types/data/standards/v3[0-7].xml; do
-  xmllint --nonet --noout --schema src/dis_entity_types/data/SISO-REF-010.xsd "$xml" || exit 1
-done
+git diff --exit-code -- src/siso_ref010/data/standards/index.json
+python -m pip install -e '.[dev]'
+python -m ruff check .
+python -m ruff format --check .
+python -m pyright
+python -m tools.check_standards_xsd
 python -m tools.check_bundled_standards
 python -m pytest -q
 python -m build
 ```
 
-The bundled-edition check parses every XML, verifies its provenance, and
+The bundled-edition check parses every XML, verifies its bundled hashes, and
 compares API queries with the source projection for every available hierarchy
-prefix. The included v2.7 XSD also validates editions v30 through v37, which
-use that schema namespace. Historical editions use older namespaces and are
-validated by the parser because their XSD files are not bundled. CI also
-checks the installed distribution. See the [code layout](docs/architecture.md)
+prefix. The offline XSD check validates v20–v29 against version-matched
+maintainer schemas and v30–v37 against the packaged namespace 2.7 schema. The
+runtime wheel contains only the current schema. CI also checks installed wheels
+across the supported Python and operating-system matrix. See the [code
+layout](docs/architecture.md)
 and [CHANGELOG.md](CHANGELOG.md) for the current rework.

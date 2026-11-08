@@ -1,9 +1,11 @@
 import json
+from io import StringIO
 
 import pytest
 
-from dis_entity_types.cli import main
-from dis_entity_types.sources import BUNDLED_STANDARD_SOURCE
+from siso_ref010 import EntityTypeAPI
+from siso_ref010.cli import main, render_diff_summary
+from siso_ref010.sources import BUNDLED_STANDARD_SOURCE
 
 
 def test_describe(capsys):
@@ -135,6 +137,26 @@ def test_inspect_entity_accepts_a_dotted_prefix(capsys):
     assert "F803 Tromp" in output
 
 
+def test_inspect_entity_reports_ambiguous_and_unknown_source_paths(capsys, tmp_path):
+    source = tmp_path / "ambiguous.xml"
+    source.write_text(
+        '<ebv title="Fixture">'
+        '<enum uid="29" name="Country"><enumrow value="1" description="Country"/></enum>'
+        '<enum uid="30" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
+        '<cet><entity kind="1" domain="1" country="1">'
+        '<category value="2" description="First"/>'
+        '<category value="2" description="Second"/>'
+        "</entity></cet></ebv>"
+    )
+    assert main(["--xml", str(source), "inspect", "entity", "1.1.1.2.0.0.0"]) == 0
+    ambiguous = capsys.readouterr().out
+    assert "Ambiguous source candidates: 2" in ambiguous
+
+    assert main(["--xml", str(source), "inspect", "entity", "1.1.1.2.99"]) == 0
+    unknown = capsys.readouterr().out
+    assert "Unknown supplied components: category, subcategory" in unknown
+
+
 def test_dump_writes_original_xml_bytes(capsysbinary, tmp_path):
     expected = BUNDLED_STANDARD_SOURCE.read_xml(35)
     assert main(["dump", "35"]) == 0
@@ -154,7 +176,7 @@ def test_dump_writes_original_xml_bytes(capsysbinary, tmp_path):
 
 
 def test_dump_all_uses_versioned_filenames_and_prevents_partial_overwrite(monkeypatch, capsys, tmp_path):
-    import dis_entity_types.cli as cli
+    import siso_ref010.cli as cli
 
     class MemorySource:
         @property
@@ -179,3 +201,245 @@ def test_dump_all_uses_versioned_filenames_and_prevents_partial_overwrite(monkey
     assert error.value.code == 2
     assert (output_dir / "v7.xml").read_bytes() == b"keep"
     assert not (output_dir / "v8.xml").exists()
+
+
+def test_inspect_text_commands_cover_each_result_shape(capsys):
+    api = EntityTypeAPI.bundled(37)
+    table = api.inspector.enumeration_table(3)
+    assert table is not None
+    row = api.inspector.enumeration_rows(3)[0]
+    assert row.uuid is not None
+
+    commands = (
+        (["inspect", "summary"], "value/path records="),
+        (["inspect", "tables", "--query", table.name], table.name),
+        (["inspect", "values", "--table-uid", "3", "--limit", "1"], "table 3:"),
+        (["inspect", "values", "--deprecated", "--limit", "1"], "deprecated"),
+        (["inspect", "search", "F803", "--limit", "1"], "matches for 'F803'"),
+        (["inspect", "value", "3", "95"], "table 3, value 95: range"),
+        (["inspect", "value", "99999", "1"], "Enumeration table not found."),
+        (["inspect", "resolve", table.name, "95"], f"{table.name}, value 95:"),
+        (["inspect", "resolve", "No such table", "1"], "No enumeration table has that exact name."),
+        (["inspect", "uuid", row.uuid], f"UUID {row.uuid}"),
+        (["inspect", "entity", "1.3.153.6.4.2"], "Resolved prefix — 6 of 7 components"),
+    )
+    for command, expected in commands:
+        assert main(["--standard-version", "37", *command]) == 0
+        assert expected in capsys.readouterr().out
+
+    annotated_table = next(item for item in api.inspector.standard.enumerations if item.annotations)
+    assert main(["inspect", "tables", "--query", annotated_table.name]) == 0
+    assert annotated_table.annotations[0].text in capsys.readouterr().out
+
+    applicable_table = next(item for item in api.inspector.enumeration_tables() if item.applicability)
+    assert main(["inspect", "tables", "--query", applicable_table.name]) == 0
+    assert "applies=" in capsys.readouterr().out
+
+
+def test_history_and_comparison_text_renderers(capsys, monkeypatch):
+    import siso_ref010.cli as cli
+
+    assert main(["history", "--entity", "1.3.153.6.4.2.0", "--versions", "36", "37"]) == 0
+    history_output = capsys.readouterr().out
+    assert "entity history:" in history_output
+    assert "v37:" in history_output
+
+    assert main(["history", "--enum-uid", "3", "--value", "95", "--versions", "36", "37"]) == 0
+    assert "enumeration history:" in capsys.readouterr().out
+
+    diff = EntityTypeAPI.compare_editions(35, 37, limit=None)
+    small_diff = diff.model_copy(update={"changes": diff.changes[:8], "truncated": True})
+    monkeypatch.setattr(cli, "_compare_result", lambda args: diff)
+
+    assert main(["compare", "35", "37", "--detail", "summary"]) == 0
+    summary = capsys.readouterr().out
+    assert "SISO-REF-010 · Edition comparison" in summary
+    assert "v35 -> v37:" in summary
+
+    monkeypatch.setattr(cli, "_compare_result", lambda args: small_diff)
+
+    assert main(["compare", "35", "37", "--detail", "audit"]) == 0
+    audit = capsys.readouterr().out
+    assert "changes (" in audit
+
+    assert main(["compare", "35", "37", "--detail", "concise"]) == 0
+    concise = capsys.readouterr().out
+    assert "added:" in concise or "high:" in concise or "medium:" in concise
+
+    monkeypatch.setattr(cli, "_compare_result", lambda args: diff)
+    assert main(["compare", "35", "37", "--detail", "review-queue", "--limit", "3"]) == 0
+    assert "Review queue v35 -> v37:" in capsys.readouterr().out
+
+    assert (
+        main(
+            [
+                "compare",
+                "35",
+                "37",
+                "--detail",
+                "review-queue",
+                "--limit",
+                "0",
+                "--priority",
+                "low",
+                "--category",
+                "raw_metadata",
+            ]
+        )
+        == 0
+    )
+    assert "Review queue v35 -> v37:" in capsys.readouterr().out
+
+
+def test_query_warmup_json_outputs_and_machine_errors(capsys):
+    assert main(["--warmup", "query", "--text", "F803 Tromp", "--limit", "1"]) == 0
+    warmed_output = capsys.readouterr()
+    assert "F803 Tromp" in warmed_output.out
+    assert "Warmed" in warmed_output.err
+
+    assert main(["--warmup", "query", "--text", "F803 Tromp", "--limit", "1", "--json"]) == 0
+    warmed = json.loads(capsys.readouterr().out)
+    assert warmed["result"]["total"] == 1
+
+    assert main(["query", "--text", "F803 Tromp", "--limit", "1", "--offset", "0", "--json"]) == 0
+    result = json.loads(capsys.readouterr().out)["result"]
+    assert result["values"][0]["description"] == "F803 Tromp"
+
+    assert main(["info", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["result"]["data_version"] == "SISO-REF-010-v37"
+    assert main(["list", "countries", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["result"]["choices"]
+
+    with pytest.raises(SystemExit) as error:
+        main(["--json", "query", "--offset", "-1"])
+    assert error.value.code == 2
+    payload = json.loads(capsys.readouterr().err)
+    assert payload["error"]["type"] == "ValueError"
+
+
+def test_inspect_and_dump_runtime_validation_errors(capsys, monkeypatch, tmp_path):
+    invalid_commands = (
+        ["inspect", "diagnostics", "--offset", "1"],
+        ["inspect", "diagnostics", "--limit", "-1"],
+        ["inspect", "values", "--table-uid", "-1"],
+        ["inspect", "values", "--limit", "-1"],
+        ["inspect", "search", "text", "--offset", "-1"],
+        ["inspect", "value", "-1", "1"],
+        ["inspect", "value", "3", "-1"],
+    )
+    for command in invalid_commands:
+        with pytest.raises(SystemExit) as error:
+            main(command)
+        assert error.value.code == 2
+        assert "error:" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as error:
+        main(["dump"])
+    assert error.value.code == 2
+    assert "dump requires an edition number" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as error:
+        main(["dump", "35", "--output-dir", str(tmp_path)])
+    assert error.value.code == 2
+    assert "--output-dir can only be used" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as error:
+        main(["dump", "--all", "35", "--output-dir", str(tmp_path)])
+    assert error.value.code == 2
+    assert "dump --all requires --output-dir" in capsys.readouterr().err
+
+    import siso_ref010.cli as cli
+
+    monkeypatch.setattr(cli.sys, "stdout", StringIO())
+    with pytest.raises(SystemExit) as error:
+        main(["dump", "35"])
+    assert error.value.code == 2
+    assert "stdout does not support binary output" in capsys.readouterr().err
+
+
+def test_cli_rejects_incompatible_commands_and_filters_as_structured_errors(capsys):
+    invalid = (
+        (["--warmup", "versions"], "--warmup applies only"),
+        (["history", "--entity", "1.1.1", "--value", "1"], "history --value requires --enum-uid"),
+        (["compare", "35", "37", "--entity-prefix", "1.2"], "3 through 7"),
+        (["compare", "35", "37", "--entity-prefix", "1.no.3"], "dotted decimal fields"),
+        (["compare", "35", "37", "--entity-prefix", "1.2.3.-1"], "nonnegative dotted fields"),
+        (["--standard-version", "37", "compare", "35", "37"], "uses the bundled version source"),
+        (["--standard-version", "37", "dump", "35"], "dump reads bundled editions"),
+        (["--xml", "unused.xml", "history", "--entity", "1.1.1"], "history uses the bundled version source"),
+    )
+    for args, message in invalid:
+        with pytest.raises(SystemExit) as error:
+            main(args)
+        assert error.value.code == 2
+        assert message in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as error:
+        main(["--json", "dump", "35"])
+    assert error.value.code == 2
+    assert json.loads(capsys.readouterr().err)["error"]["type"] == "ValueError"
+
+
+def test_cli_summary_and_concise_output_explain_removed_and_recoded_values(capsys, monkeypatch):
+    import siso_ref010.cli as cli
+
+    class MemorySource:
+        def __init__(self, versions):
+            self.data = versions
+
+        @property
+        def versions(self):
+            return tuple(self.data)
+
+        def read_xml(self, version):
+            return self.data[version].encode()
+
+    before = (
+        '<ebv><enum uid="7" name="Example" size="8">'
+        '<enumrow value="1" description="Stable identity" uuid="stable"/>'
+        '<enumrow value="2" description="Removed value" uuid="removed"/>'
+        "</enum></ebv>"
+    )
+    after = (
+        '<ebv><enum uid="7" name="Example" size="16">'
+        '<enumrow value="3" description="Stable identity" uuid="stable"/>'
+        "</enum></ebv>"
+    )
+    diff = EntityTypeAPI.compare_editions(
+        1,
+        2,
+        source=MemorySource({1: before, 2: after}),
+        scope="enumerations",
+        limit=None,
+    )
+    assert diff.counts.removed == 1
+    assert diff.counts.recoded == 1
+    monkeypatch.setattr(cli, "_compare_result", lambda _args: diff)
+
+    assert main(["compare", "1", "2", "--detail", "summary"]) == 0
+    summary = capsys.readouterr().out
+    assert "Removed: 1" in summary and "recoded: 1" in summary
+    assert render_diff_summary(diff) == summary
+
+    assert main(["compare", "1", "2", "--detail", "concise", "--limit", "0"]) == 0
+    concise = capsys.readouterr().out
+    assert "removed: enumeration_value" in concise
+    assert "Stable identity [value: 1 -> 3]" in concise
+
+    assert main(["compare", "1", "2", "--detail", "audit", "--limit", "0"]) == 0
+    audit = capsys.readouterr().out
+    assert "table 7" in audit
+    assert "table 7:1" in audit
+
+    promoted_changes = tuple(
+        change.model_copy(update={"review_priority": "high"}) if change.action == "recoded" else change
+        for change in diff.changes
+    )
+    promoted = diff.model_copy(update={"changes": promoted_changes})
+    promoted_summary = render_diff_summary(promoted)
+    assert "Stable identity: value" in promoted_summary
+
+    assert main(["compare", "1", "2", "--detail", "concise", "--material-only", "--limit", "1"]) == 0
+    assert "v1 -> v2" in capsys.readouterr().out
+    assert main(["compare", "1", "2", "--detail", "summary", "--material-only"]) == 0
+    assert "total changes" in capsys.readouterr().out

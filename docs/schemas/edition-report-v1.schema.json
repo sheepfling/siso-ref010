@@ -1,0 +1,1459 @@
+{
+  "$defs": {
+    "ChangeRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum": {
+          "ge": 0,
+          "title": "Minimum",
+          "type": "integer"
+        },
+        "maximum": {
+          "ge": 0,
+          "title": "Maximum",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum"
+      ],
+      "title": "ChangeRequest",
+      "type": "object"
+    },
+    "DiagnosticSeverity": {
+      "enum": [
+        "error",
+        "warning",
+        "info"
+      ],
+      "title": "DiagnosticSeverity",
+      "type": "string"
+    },
+    "EditionAudit": {
+      "additionalProperties": false,
+      "description": "Optional full table inventory and individual diagnostic findings.",
+      "properties": {
+        "enumeration_tables": {
+          "items": {
+            "$ref": "#/$defs/EnumerationTableInfo"
+          },
+          "title": "Enumeration Tables",
+          "type": "array"
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/EditionDiagnostics"
+        }
+      },
+      "required": [
+        "enumeration_tables",
+        "diagnostics"
+      ],
+      "title": "EditionAudit",
+      "type": "object"
+    },
+    "EditionDiagnostic": {
+      "additionalProperties": false,
+      "description": "One source-integrity or metadata observation.",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "location": {
+          "title": "Location",
+          "type": "string"
+        },
+        "table_uid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Table Uid"
+        },
+        "table_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Table Name"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "message",
+        "location"
+      ],
+      "title": "EditionDiagnostic",
+      "type": "object"
+    },
+    "EditionDiagnosticGroup": {
+      "additionalProperties": false,
+      "description": "Compact aggregate for one severity, diagnostic code, and source table.",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "table_uid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Table Uid"
+        },
+        "table_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Table Name"
+        },
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "sample_locations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sample Locations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "table_uid",
+        "table_name",
+        "count",
+        "message",
+        "sample_locations"
+      ],
+      "title": "EditionDiagnosticGroup",
+      "type": "object"
+    },
+    "EditionDiagnostics": {
+      "additionalProperties": false,
+      "description": "Edition diagnostics with aggregate counts and a bounded finding page.",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        },
+        "counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Counts",
+          "type": "object"
+        },
+        "severity_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Severity Counts",
+          "type": "object"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/EditionDiagnosticGroup"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/EditionDiagnostic"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Limit"
+        },
+        "offset": {
+          "title": "Offset",
+          "type": "integer"
+        },
+        "returned": {
+          "readOnly": true,
+          "title": "Returned",
+          "type": "integer"
+        },
+        "truncated": {
+          "readOnly": true,
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "title",
+        "date",
+        "total",
+        "counts",
+        "severity_counts",
+        "groups",
+        "findings",
+        "limit",
+        "offset",
+        "returned",
+        "truncated"
+      ],
+      "title": "EditionDiagnostics",
+      "type": "object"
+    },
+    "EditionExampleKind": {
+      "enum": [
+        "enumeration_table",
+        "enumeration_value",
+        "entity_resolution"
+      ],
+      "title": "EditionExampleKind",
+      "type": "string"
+    },
+    "EditionIdentity": {
+      "additionalProperties": false,
+      "description": "Source identity and integrity metadata for one parsed edition.",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "namespace": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Namespace"
+        },
+        "source_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Sha256"
+        },
+        "source_evidence_registry": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Evidence Registry"
+        },
+        "provenance_status": {
+          "$ref": "#/$defs/ProvenanceStatus"
+        },
+        "edition_number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edition Number"
+        },
+        "package_version": {
+          "title": "Package Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "date",
+        "namespace",
+        "source_sha256",
+        "provenance_status",
+        "package_version"
+      ],
+      "title": "EditionIdentity",
+      "type": "object"
+    },
+    "EditionIdentityDiagnostics": {
+      "additionalProperties": false,
+      "description": "Counts and grouped evidence for repeated UUID and library identities.",
+      "properties": {
+        "checked": {
+          "title": "Checked",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        },
+        "inspected_records": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Inspected Records"
+        },
+        "records_with_uuid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Records With Uuid"
+        },
+        "distinct_uuid_values": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Distinct Uuid Values"
+        },
+        "repeated_uuid_occurrences": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Repeated Uuid Occurrences"
+        },
+        "repeated_uuid_groups": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Repeated Uuid Groups"
+        },
+        "distinct_value_identity_keys": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Distinct Value Identity Keys"
+        },
+        "repeated_identity_key_occurrences": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Repeated Identity Key Occurrences"
+        },
+        "source_record_reuse_groups": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Record Reuse Groups"
+        },
+        "duplicate_source_identifier_groups": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duplicate Source Identifier Groups"
+        },
+        "conflicting_source_record_groups": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Conflicting Source Record Groups"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/EditionIdentityGroup"
+          },
+          "title": "Groups",
+          "type": "array"
+        }
+      },
+      "required": [
+        "checked",
+        "error",
+        "inspected_records",
+        "records_with_uuid",
+        "distinct_uuid_values",
+        "repeated_uuid_occurrences",
+        "repeated_uuid_groups",
+        "distinct_value_identity_keys",
+        "repeated_identity_key_occurrences",
+        "source_record_reuse_groups",
+        "duplicate_source_identifier_groups",
+        "conflicting_source_record_groups",
+        "groups"
+      ],
+      "title": "EditionIdentityDiagnostics",
+      "type": "object"
+    },
+    "EditionIdentityGroup": {
+      "additionalProperties": false,
+      "description": "Repeated value identity with source-row and hierarchy-context evidence.",
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "uuid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Uuid"
+        },
+        "identity_keys": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Identity Keys",
+          "type": "array"
+        },
+        "classification": {
+          "$ref": "#/$defs/IdentityClassification"
+        },
+        "occurrences": {
+          "title": "Occurrences",
+          "type": "integer"
+        },
+        "repeated_uuid_occurrences": {
+          "title": "Repeated Uuid Occurrences",
+          "type": "integer"
+        },
+        "repeated_identity_key_occurrences": {
+          "title": "Repeated Identity Key Occurrences",
+          "type": "integer"
+        },
+        "source_record_count": {
+          "title": "Source Record Count",
+          "type": "integer"
+        },
+        "reference_context_occurrences": {
+          "title": "Reference Context Occurrences",
+          "type": "integer"
+        },
+        "conflict_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflict Fields",
+          "type": "array"
+        },
+        "sample_contexts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sample Contexts",
+          "type": "array"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "uuid",
+        "identity_keys",
+        "classification",
+        "occurrences",
+        "repeated_uuid_occurrences",
+        "repeated_identity_key_occurrences",
+        "source_record_count",
+        "reference_context_occurrences",
+        "conflict_fields",
+        "sample_contexts",
+        "message"
+      ],
+      "title": "EditionIdentityGroup",
+      "type": "object"
+    },
+    "EditionInspectionExample": {
+      "additionalProperties": false,
+      "description": "A reproducible query and its typed result for one edition report.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/EditionExampleKind"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Status"
+        },
+        "result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnumerationTableInfo"
+            },
+            {
+              "$ref": "#/$defs/EnumerationValueResolution"
+            },
+            {
+              "$ref": "#/$defs/EntityResolution"
+            }
+          ],
+          "title": "Result"
+        }
+      },
+      "required": [
+        "kind",
+        "query",
+        "label",
+        "status",
+        "result"
+      ],
+      "title": "EditionInspectionExample",
+      "type": "object"
+    },
+    "EditionSemanticCheck": {
+      "additionalProperties": false,
+      "description": "Whether a named semantic integrity check ran and how many findings it had.",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/SemanticCheckStatus"
+        },
+        "finding_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Finding Count"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "status",
+        "finding_count",
+        "description"
+      ],
+      "title": "EditionSemanticCheck",
+      "type": "object"
+    },
+    "EditionSummary": {
+      "additionalProperties": false,
+      "description": "Counts and identity for the parsed standard and its inspectable values.",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "namespace": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Namespace"
+        },
+        "enumeration_tables": {
+          "title": "Enumeration Tables",
+          "type": "integer"
+        },
+        "enumeration_values": {
+          "title": "Enumeration Values",
+          "type": "integer"
+        },
+        "enumeration_ranges": {
+          "title": "Enumeration Ranges",
+          "type": "integer"
+        },
+        "entity_values": {
+          "title": "Entity Values",
+          "type": "integer"
+        },
+        "entity_levels": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Entity Levels",
+          "type": "object"
+        },
+        "unclassified_entity_rows": {
+          "title": "Unclassified Entity Rows",
+          "type": "integer"
+        },
+        "deprecated_values": {
+          "title": "Deprecated Values",
+          "type": "integer"
+        },
+        "records_with_uuid": {
+          "title": "Records With Uuid",
+          "type": "integer"
+        },
+        "distinct_uuid_values": {
+          "title": "Distinct Uuid Values",
+          "type": "integer"
+        },
+        "distinct_value_identities": {
+          "title": "Distinct Value Identities",
+          "type": "integer"
+        },
+        "attached_reference_records": {
+          "title": "Attached Reference Records",
+          "type": "integer"
+        },
+        "change_request_entries": {
+          "title": "Change Request Entries",
+          "type": "integer"
+        },
+        "value_path_records": {
+          "description": "Enumeration and entity inspection records, including expanded paths.",
+          "readOnly": true,
+          "title": "Value Path Records",
+          "type": "integer"
+        },
+        "repeated_uuid_occurrences": {
+          "description": "Excess UUID-bearing value/path occurrences beyond distinct UUIDs.",
+          "readOnly": true,
+          "title": "Repeated Uuid Occurrences",
+          "type": "integer"
+        },
+        "repeated_identity_key_occurrences": {
+          "description": "Excess inspected records beyond distinct library identity keys.",
+          "readOnly": true,
+          "title": "Repeated Identity Key Occurrences",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "title",
+        "date",
+        "namespace",
+        "enumeration_tables",
+        "enumeration_values",
+        "enumeration_ranges",
+        "entity_values",
+        "entity_levels",
+        "unclassified_entity_rows",
+        "deprecated_values",
+        "records_with_uuid",
+        "distinct_uuid_values",
+        "distinct_value_identities",
+        "attached_reference_records",
+        "change_request_entries",
+        "value_path_records",
+        "repeated_uuid_occurrences",
+        "repeated_identity_key_occurrences"
+      ],
+      "title": "EditionSummary",
+      "type": "object"
+    },
+    "EditionValidation": {
+      "additionalProperties": false,
+      "description": "Scope-labeled validation and provenance results for one parsed source.",
+      "properties": {
+        "xml_well_formedness": {
+          "$ref": "#/$defs/ValidationStatus"
+        },
+        "typed_model_validation": {
+          "$ref": "#/$defs/ValidationStatus"
+        },
+        "xsd_validation": {
+          "$ref": "#/$defs/ValidationStatus"
+        },
+        "bundled_integrity": {
+          "$ref": "#/$defs/ProvenanceStatus"
+        },
+        "publisher_provenance": {
+          "$ref": "#/$defs/ValidationStatus"
+        },
+        "typed_model_scope": {
+          "title": "Typed Model Scope",
+          "type": "string"
+        },
+        "semantic_checks": {
+          "items": {
+            "$ref": "#/$defs/EditionSemanticCheck"
+          },
+          "title": "Semantic Checks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "xml_well_formedness",
+        "typed_model_validation",
+        "xsd_validation",
+        "bundled_integrity",
+        "publisher_provenance",
+        "typed_model_scope",
+        "semantic_checks"
+      ],
+      "title": "EditionValidation",
+      "type": "object"
+    },
+    "EditionValue": {
+      "additionalProperties": false,
+      "description": "One source value with its edition, table, hierarchy, and XML metadata.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/EditionValueKind"
+        },
+        "tag": {
+          "title": "Tag",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "value_min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value Min"
+        },
+        "value_max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value Max"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "table_uid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Table Uid"
+        },
+        "table_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Table Name"
+        },
+        "applicability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Applicability"
+        },
+        "hierarchy_codes": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Hierarchy Codes",
+          "type": "array"
+        },
+        "path": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Path",
+          "type": "array"
+        },
+        "uuid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Uuid"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Status"
+        },
+        "deprecated": {
+          "title": "Deprecated",
+          "type": "boolean"
+        },
+        "footnote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Footnote"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceInfo"
+        },
+        "table_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "table_annotations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TableAnnotation"
+          },
+          "title": "Table Annotations",
+          "type": "array"
+        },
+        "reference_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "kind",
+        "tag",
+        "value",
+        "value_min",
+        "value_max",
+        "description",
+        "table_uid",
+        "table_name",
+        "applicability",
+        "hierarchy_codes",
+        "path",
+        "uuid",
+        "status",
+        "deprecated",
+        "footnote",
+        "source"
+      ],
+      "title": "EditionValue",
+      "type": "object"
+    },
+    "EditionValueKind": {
+      "enum": [
+        "enumeration",
+        "entity_type"
+      ],
+      "title": "EditionValueKind",
+      "type": "string"
+    },
+    "EntityResolution": {
+      "additionalProperties": false,
+      "description": "Resolution outcome for a full entity code or contiguous field prefix.",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ResolutionStatus"
+        },
+        "requested_depth": {
+          "title": "Requested Depth",
+          "type": "integer"
+        },
+        "matched_depth": {
+          "title": "Matched Depth",
+          "type": "integer"
+        },
+        "is_prefix": {
+          "title": "Is Prefix",
+          "type": "boolean"
+        },
+        "resolution_description": {
+          "title": "Resolution Description",
+          "type": "string"
+        },
+        "matched_path": {
+          "items": {
+            "$ref": "#/$defs/EditionValue"
+          },
+          "title": "Matched Path",
+          "type": "array"
+        },
+        "match_modes": {
+          "items": {
+            "$ref": "#/$defs/ResolutionMatchMode"
+          },
+          "title": "Match Modes",
+          "type": "array"
+        },
+        "unspecified_components": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Unspecified Components",
+          "type": "array"
+        },
+        "unresolved_components": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Unresolved Components",
+          "type": "array"
+        },
+        "ambiguous_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EditionValue"
+          },
+          "title": "Ambiguous Candidates",
+          "type": "array"
+        },
+        "human_outcome": {
+          "description": "Human-facing result label while preserving the stable status enum.",
+          "readOnly": true,
+          "title": "Human Outcome",
+          "type": "string"
+        },
+        "not_supplied_components": {
+          "description": "Trailing DIS fields omitted by the caller, regardless of match outcome.",
+          "items": {
+            "type": "string"
+          },
+          "readOnly": true,
+          "title": "Not Supplied Components",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "status",
+        "requested_depth",
+        "matched_depth",
+        "is_prefix",
+        "resolution_description",
+        "matched_path",
+        "match_modes",
+        "unspecified_components",
+        "unresolved_components",
+        "human_outcome",
+        "not_supplied_components"
+      ],
+      "title": "EntityResolution",
+      "type": "object"
+    },
+    "EnumerationTableInfo": {
+      "additionalProperties": false,
+      "description": "Summary for one source enumeration table.",
+      "properties": {
+        "uid": {
+          "title": "Uid",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "applicability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Applicability"
+        },
+        "declared_size_bits": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Declared Size Bits"
+        },
+        "entry_count": {
+          "title": "Entry Count",
+          "type": "integer"
+        },
+        "range_count": {
+          "title": "Range Count",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceInfo"
+        },
+        "annotations": {
+          "items": {
+            "$ref": "#/$defs/TableAnnotation"
+          },
+          "title": "Annotations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "uid",
+        "name",
+        "applicability",
+        "declared_size_bits",
+        "entry_count",
+        "range_count",
+        "source",
+        "annotations"
+      ],
+      "title": "EnumerationTableInfo",
+      "type": "object"
+    },
+    "EnumerationValueResolution": {
+      "additionalProperties": false,
+      "description": "Exact, ranged, ambiguous, or missing result for one table code.",
+      "properties": {
+        "table_uid": {
+          "title": "Table Uid",
+          "type": "integer"
+        },
+        "value": {
+          "title": "Value",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/EnumerationValueStatus"
+        },
+        "table": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnumerationTableInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tables": {
+          "items": {
+            "$ref": "#/$defs/EnumerationTableInfo"
+          },
+          "title": "Tables",
+          "type": "array"
+        },
+        "matches": {
+          "items": {
+            "$ref": "#/$defs/EditionValue"
+          },
+          "title": "Matches",
+          "type": "array"
+        }
+      },
+      "required": [
+        "table_uid",
+        "value",
+        "status",
+        "table",
+        "tables",
+        "matches"
+      ],
+      "title": "EnumerationValueResolution",
+      "type": "object"
+    },
+    "EnumerationValueStatus": {
+      "enum": [
+        "exact",
+        "range",
+        "ambiguous",
+        "unknown"
+      ],
+      "title": "EnumerationValueStatus",
+      "type": "string"
+    },
+    "IdentityClassification": {
+      "enum": [
+        "source_record_reuse",
+        "duplicate_source_identifier",
+        "conflicting_source_records",
+        "library_identity_collision"
+      ],
+      "title": "IdentityClassification",
+      "type": "string"
+    },
+    "ProvenanceStatus": {
+      "enum": [
+        "bundled_checksum_verified",
+        "unverified"
+      ],
+      "title": "ProvenanceStatus",
+      "type": "string"
+    },
+    "ResolutionMatchMode": {
+      "enum": [
+        "direct",
+        "generic_country",
+        "range",
+        "xref"
+      ],
+      "title": "ResolutionMatchMode",
+      "type": "string"
+    },
+    "ResolutionStatus": {
+      "enum": [
+        "exact",
+        "unspecified",
+        "partial",
+        "unknown",
+        "ambiguous"
+      ],
+      "title": "ResolutionStatus",
+      "type": "string"
+    },
+    "SemanticCheckStatus": {
+      "enum": [
+        "checked",
+        "not_run"
+      ],
+      "title": "SemanticCheckStatus",
+      "type": "string"
+    },
+    "SourceInfo": {
+      "additionalProperties": false,
+      "description": "Attributes and annotations retained from one source XML element.",
+      "properties": {
+        "attributes": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Attributes",
+          "type": "array"
+        },
+        "metadata": {
+          "default": [],
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Metadata",
+          "type": "array"
+        },
+        "change_requests": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ChangeRequest"
+          },
+          "title": "Change Requests",
+          "type": "array"
+        }
+      },
+      "required": [
+        "attributes"
+      ],
+      "title": "SourceInfo",
+      "type": "object"
+    },
+    "TableAnnotation": {
+      "additionalProperties": false,
+      "description": "Textual description or header attached to an enumeration table.",
+      "properties": {
+        "tag": {
+          "title": "Tag",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceInfo"
+        }
+      },
+      "required": [
+        "tag",
+        "text",
+        "source"
+      ],
+      "title": "TableAnnotation",
+      "type": "object"
+    },
+    "ValidationStatus": {
+      "enum": [
+        "passed",
+        "not_run",
+        "unverified"
+      ],
+      "title": "ValidationStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Concise, typed overview of one edition and its diagnostics.",
+  "properties": {
+    "identity": {
+      "$ref": "#/$defs/EditionIdentity"
+    },
+    "validation": {
+      "$ref": "#/$defs/EditionValidation"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EditionSummary"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "summary_error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Summary Error"
+    },
+    "diagnostics": {
+      "$ref": "#/$defs/EditionDiagnostics"
+    },
+    "identity_diagnostics": {
+      "$ref": "#/$defs/EditionIdentityDiagnostics"
+    },
+    "examples": {
+      "items": {
+        "$ref": "#/$defs/EditionInspectionExample"
+      },
+      "title": "Examples",
+      "type": "array"
+    },
+    "audit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EditionAudit"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "report_schema_version": {
+      "const": 1,
+      "title": "Report Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "identity",
+    "validation",
+    "summary",
+    "summary_error",
+    "diagnostics",
+    "identity_diagnostics",
+    "examples",
+    "report_schema_version"
+  ],
+  "title": "EditionReport",
+  "type": "object"
+}

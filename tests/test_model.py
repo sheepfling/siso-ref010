@@ -2,25 +2,28 @@ import random
 
 import pytest
 
-from dis_entity_types import (
+from siso_ref010 import (
     CategoryCode,
     CountryCode,
     DomainCode,
     EntityDomain,
     EntityKind,
     EntityType,
+    EntityTypeValueError,
     ExtraCode,
     KindCode,
     SpecificCode,
     SubcategoryCode,
 )
-from dis_entity_types.model import (
+from siso_ref010.model import (
     create_entity_domain_from_number,
     create_entity_domain_from_string,
     create_entity_kind_from_number,
     create_entity_kind_from_string,
     create_key,
 )
+from siso_ref010.parser import EntityTypeXmlParser
+from siso_ref010.reference import ReferenceEntry, SourceInfo
 
 
 @pytest.mark.parametrize(
@@ -53,6 +56,16 @@ def test_wire_fixtures(fields, key):
         )
         == key
     )
+
+
+def test_wire_bytes_match_independent_dis_entity_type_vector():
+    # OpenDIS serializes uint8, uint8, uint16, then four uint8s:
+    # https://github.com/open-dis/open-dis-python/blob/master/opendis/dis7.py
+    # M1A2 code values come from the independent tutorial example:
+    # https://github.com/open-dis/dis-tutorial/blob/master/EntityStatePDUs.md
+    entity = EntityType.from_string("1.1.225.1.1.3.0")
+    assert entity.to_bytes() == bytes.fromhex("01 01 00 e1 01 01 03 00")
+    assert entity.to_key(signed=False) == 0x010100E101010300
 
 
 def test_seeded_full_width_roundtrips():
@@ -110,24 +123,38 @@ def test_reject_coercion(value):
         )
 
 
-def test_low_level_masking_and_native_methods():
-    assert create_key(
-        kind=KindCode(257),
-        domain=DomainCode(-1),
-        country=CountryCode(65536),
-        category=CategoryCode(256),
-        subcategory=SubcategoryCode(0),
-        specific=SpecificCode(0),
-        extra=ExtraCode(0),
-    ) == create_key(
-        kind=KindCode(1),
-        domain=DomainCode(255),
-        country=CountryCode(0),
-        category=CategoryCode(0),
-        subcategory=SubcategoryCode(0),
-        specific=SpecificCode(0),
-        extra=ExtraCode(0),
-    )
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("kind", -1),
+        ("kind", 256),
+        ("domain", 256),
+        ("country", -1),
+        ("country", 65536),
+        ("category", 256),
+        ("subcategory", 256),
+        ("specific", 256),
+        ("extra", 256),
+    ],
+)
+def test_create_key_rejects_out_of_range_fields(field, value):
+    values = {
+        "kind": KindCode(1),
+        "domain": DomainCode(2),
+        "country": CountryCode(225),
+        "category": CategoryCode(1),
+        "subcategory": SubcategoryCode(1),
+        "specific": SpecificCode(3),
+        "extra": ExtraCode(0),
+    }
+    values[field] = value
+    with pytest.raises(EntityTypeValueError) as error:
+        create_key(**values)
+    assert error.value.code == "field_out_of_range"
+    assert error.value.context["field"] == field
+
+
+def test_native_methods():
     entity = EntityType.from_string("1|2|3|4|5|6|7", "|")
     assert entity.to_string() == "1.2.3.4.5.6.7"
     assert EntityType.from_key(entity.to_key()) == entity
@@ -169,3 +196,36 @@ def test_domain_names():
     assert create_entity_domain_from_string(" Land") is None  # Leading whitespace is not ignored.
     assert create_entity_kind_from_number(9) is EntityKind.SENSOR_EMITTER
     assert create_entity_domain_from_number(4) is EntityDomain.SUBSURFACE
+
+
+@pytest.mark.parametrize(
+    "entry, message",
+    [
+        ({"value": 1, "value_min": 1, "value_max": 2}, "both a scalar value and a range"),
+        ({"value": None, "value_min": 3, "value_max": 2}, "minimum exceeds maximum"),
+        ({"value": None, "value_min": None, "value_max": None}, "requires a value or value range"),
+    ],
+)
+def test_reference_entries_enforce_scalar_and_range_shapes(entry, message):
+    with pytest.raises(ValueError, match=message):
+        ReferenceEntry(
+            tag="enumrow",
+            value=entry["value"],
+            value_min=entry["value_min"],
+            value_max=entry["value_max"],
+            description="fixture",
+            source=SourceInfo(attributes=()),
+        )
+
+
+def test_standard_reference_lookups_support_names_and_unique_uids():
+    standard = EntityTypeXmlParser.from_string(
+        '<ebv><enum uid="7" name="Example"><enumrow value="1"/></enum>'
+        '<enum uid="8" name="Example"><enumrow value="2"/></enum></ebv>'
+    )
+
+    assert standard.enumeration("Example").uid == 7
+    assert [table.uid for table in standard.enumerations_named("Example")] == [7, 8]
+    assert standard.enumeration_by_uid(8).name == "Example"
+    assert standard.enumeration("Missing") is None
+    assert standard.enumeration_by_uid(9) is None

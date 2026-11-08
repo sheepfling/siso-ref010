@@ -1,9 +1,12 @@
 import json
+from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
-import dis_entity_types.cli as cli
-from dis_entity_types import (
+import siso_ref010.cli as cli
+from siso_ref010 import (
+    EditionReport,
     EntityTypeAPI,
     EntityTypeCatalog,
     EntityTypePrefix,
@@ -12,7 +15,14 @@ from dis_entity_types import (
     render_markdown,
     render_terminal,
 )
-from dis_entity_types.cli import main
+from siso_ref010.cli import main
+from siso_ref010.inspection import (
+    EditionAudit,
+    EditionExampleKind,
+    _alias_description,
+    _entity_depth,
+    _SourceRecordSignature,
+)
 
 
 def _inspector_api():
@@ -247,6 +257,104 @@ def test_edition_report_and_diagnostics_expose_integrity_and_source_findings():
     assert json.loads(render_json(report)) == report.model_dump(mode="json", by_alias=True)
     assert "SISO-REF-010" in render_terminal(report)
 
+
+def test_report_renderers_handle_unavailable_sections_and_bad_example_types():
+    from siso_ref010.reporting import _render_example
+
+    report = _inspector_api().inspector.report()
+    empty_diagnostics = report.diagnostics.model_copy(
+        update={"total": 0, "counts": {}, "severity_counts": {}, "groups": (), "findings": ()}
+    )
+    unchecked_identities = report.identity_diagnostics.model_copy(
+        update={"checked": False, "error": "identity collection disabled", "groups": ()}
+    )
+    empty_audit = EditionAudit(enumeration_tables=(), diagnostics=empty_diagnostics)
+    unavailable = report.model_copy(
+        update={
+            "summary": None,
+            "summary_error": "summary collection disabled",
+            "diagnostics": empty_diagnostics,
+            "identity_diagnostics": unchecked_identities,
+            "examples": (),
+            "audit": empty_audit,
+        }
+    )
+
+    markdown = render_markdown(unavailable)
+    terminal = render_terminal(unavailable)
+    assert "Summary unavailable: summary collection disabled." in markdown
+    assert "No diagnostic findings were reported." in markdown
+    assert "No safe representative examples were available" in markdown
+    assert "Identity checks were not run" in markdown
+    assert "No individual diagnostic findings." in markdown
+    assert "Summary unavailable: summary collection disabled" in terminal
+    assert "Identity checks not run: identity collection disabled" in terminal
+    assert "Individual findings (0)" in terminal
+
+    entity_example = next(
+        example for example in report.examples if example.kind is EditionExampleKind.ENTITY_RESOLUTION
+    )
+    bad_example = entity_example.model_copy(update={"kind": EditionExampleKind.ENUMERATION_TABLE})
+    with pytest.raises(TypeError, match="Enumeration-table example"):
+        _render_example(bad_example)
+
+    table_example = next(
+        example for example in report.examples if example.kind is EditionExampleKind.ENUMERATION_TABLE
+    )
+    value_example = next(
+        example for example in report.examples if example.kind is EditionExampleKind.ENUMERATION_VALUE
+    )
+    with pytest.raises(TypeError, match="Enumeration-table example"):
+        _render_example(table_example.model_copy(update={"result": value_example.result}))
+    with pytest.raises(TypeError, match="Enumeration-value example"):
+        _render_example(value_example.model_copy(update={"result": table_example.result}))
+    with pytest.raises(TypeError, match="Entity-resolution example"):
+        _render_example(entity_example.model_copy(update={"result": table_example.result}))
+
+    ranged_value = _inspector_api().inspector.resolve_enumeration_value(7, 11)
+    ranged_example = value_example.model_copy(update={"result": ranged_value})
+    unspecified_entity = _inspector_api().resolve_entity("1.1.153.2.5.5.0")
+    unspecified_example = entity_example.model_copy(update={"result": unspecified_entity})
+    rendered_examples = report.model_copy(update={"examples": (ranged_example, unspecified_example)})
+    assert "10–11" in render_markdown(rendered_examples)
+    assert "Explicitly unspecified components: extra" in render_markdown(rendered_examples)
+
+    unknown_kind = entity_example.model_copy(update={"kind": "future_example"})
+    with pytest.raises(ValueError, match="Unsupported inspection example kind"):
+        _render_example(unknown_kind)
+
+
+def test_report_audit_renderers_explain_duplicate_and_conflicting_uuids():
+    xml = (
+        '<ebv title="Identity report" date="2026-01-02">'
+        '<enum uid="7" name="Duplicate values">'
+        '<enumrow value="1" description="Same label" uuid="duplicate"/>'
+        '<enumrow value="1" description="Same label" uuid="duplicate"/>'
+        '<enumrow value="2" description="First meaning" uuid="conflict"/>'
+        '<enumrow value="3" description="Second meaning" uuid="conflict"/>'
+        "</enum></ebv>"
+    )
+    api = EntityTypeAPI(EntityTypeCatalog(EntityTypeXmlParser.from_string(xml)))
+    report = api.inspector.report(audit=True)
+    classifications = {group.classification.value for group in report.identity_diagnostics.groups}
+    assert classifications == {"duplicate_source_identifier", "conflicting_source_records"}
+
+    markdown = render_markdown(report)
+    terminal = render_terminal(report)
+    assert "Differing fields:" in markdown
+    assert "Reference contexts" in markdown
+    assert "Enumeration table inventory" in terminal
+    assert "Individual findings" in terminal
+
+
+def test_edition_report_v1_schema_matches_the_published_serialization_schema():
+    schema_path = Path(__file__).parents[1] / "docs" / "schemas" / "edition-report-v1.schema.json"
+    schema = EditionReport.model_json_schema(mode="serialization", by_alias=True)
+
+    assert schema == json.loads(schema_path.read_text(encoding="utf-8"))
+    assert "report_schema_version" in schema["required"]
+    assert schema["properties"]["report_schema_version"]["const"] == 1
+
     invalid = EntityTypeAPI(
         EntityTypeCatalog(
             EntityTypeXmlParser.from_string(
@@ -474,3 +582,73 @@ def test_identity_diagnostics_classify_conflicting_uuidless_library_keys():
     assert "description" in conflict.conflict_fields
     assert identity.duplicate_source_identifier_groups == 0
     assert identity.conflicting_source_record_groups == 1
+
+
+def test_identity_signatures_cover_each_source_semantic_field():
+    original = _SourceRecordSignature(
+        tag="enumrow",
+        value=1,
+        value_min=None,
+        value_max=None,
+        description="before",
+        table_uid=7,
+        applicability="1.1.X.2",
+        status="old",
+        deprecated=False,
+        footnote="a",
+        attributes=(("source", "one"),),
+        metadata=(("topic", "one"),),
+        change_requests=((1, 2),),
+    )
+    changed = replace(
+        original,
+        tag="enumrow_range",
+        value=None,
+        value_min=1,
+        value_max=3,
+        description="after",
+        table_uid=8,
+        applicability="1.2.X.3",
+        status="new",
+        deprecated=True,
+        footnote="b",
+        attributes=(("source", "two"),),
+        metadata=(("topic", "two"),),
+        change_requests=((3, 4),),
+    )
+    assert set(original.differing_fields(changed)) == {
+        "tag",
+        "value",
+        "value_min",
+        "value_max",
+        "description",
+        "table_uid",
+        "applicability",
+        "status",
+        "deprecated",
+        "footnote",
+        "attributes",
+        "metadata",
+        "change_requests",
+    }
+    assert _alias_description("Plain label") is None
+    enumeration_row = _inspector_api().inspector.enumeration_rows(7)[0]
+    assert _entity_depth(enumeration_row) == len(enumeration_row.hierarchy_codes)
+
+
+def test_diagnostics_handle_non_numeric_entity_references_and_bad_filter_types():
+    api = EntityTypeAPI(
+        EntityTypeCatalog(
+            EntityTypeXmlParser.from_string(
+                '<ebv><enum uid="7" name="Example">'
+                '<enumrow value="1"><subcategory_xref xref="not-a-number"/></enumrow></enum>'
+                '<cet name="Entity Types"><entity kind="1" domain="1" country="1">'
+                '<category value="2"><subcategory_xref xref="not-a-number"/></category>'
+                "</entity></cet></ebv>"
+            )
+        )
+    )
+    findings = api.inspector.diagnostics(code="unresolved_enumeration_reference", limit=None)
+    assert findings.total == 2
+    with pytest.raises(TypeError, match="code must be a string"):
+        api.inspector.diagnostics(code=1)

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-SOURCE = Path(__file__).parents[1] / "src/dis_entity_types"
+SOURCE = Path(__file__).parents[1] / "src/siso_ref010"
 
 
 @pytest.mark.parametrize("path", sorted(SOURCE.glob("*.py")), ids=lambda path: path.name)
@@ -19,7 +19,7 @@ def test_runtime_imports_standard_library_or_pydantic(path):
             names = [node.module.split(".")[0]]
         else:
             continue
-        assert set(names) <= sys.stdlib_module_names | {"dis_entity_types", "pydantic"}
+        assert set(names) <= sys.stdlib_module_names | {"siso_ref010", "pydantic"}
         assert not set(names) & {"subprocess", "ctypes"}, (
             "Runtime must not launch or bridge a foreign runtime"
         )

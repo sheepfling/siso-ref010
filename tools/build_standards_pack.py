@@ -9,8 +9,8 @@ from hashlib import sha1, sha256
 from pathlib import Path
 from typing import TypedDict
 
-DATA = Path("src/dis_entity_types/data/standards")
-FORMAT = "dis-entity-types-snapshot-pack-1"
+DATA = Path("src/siso_ref010/data/standards")
+FORMAT = "siso-ref010-snapshot-pack-1"
 
 
 class PackedEdition(TypedDict):

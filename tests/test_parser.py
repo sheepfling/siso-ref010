@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from dis_entity_types import (
+from siso_ref010 import (
     CountryCode,
     EntityType,
     EntityTypeCatalog,
@@ -12,7 +12,7 @@ from dis_entity_types import (
     ParseError,
 )
 
-DATA_DIR = Path(__file__).parents[1] / "src/dis_entity_types/data"
+DATA_DIR = Path(__file__).parents[1] / "src/siso_ref010/data"
 FIXTURES = DATA_DIR / "standards"
 
 

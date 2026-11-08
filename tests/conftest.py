@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from dis_entity_types import EntityTypeCatalog
+from siso_ref010 import EntityTypeCatalog
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

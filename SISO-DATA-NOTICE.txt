@@ -1,10 +1,10 @@
 SISO-REF-010 SOURCE DATA NOTICE
 
 This distribution includes unchanged XML source editions of SISO-REF-010 in
-the compressed catalog at src/dis_entity_types/data/standards/editions.xz.
+the compressed catalog at src/siso_ref010/data/standards/editions.xz.
 SISO Inc. retains applicable copyright in that material. The edition-specific
 source, verification hashes, and available provenance are recorded in
-src/dis_entity_types/data/standards/PROVENANCE.json.
+src/siso_ref010/data/standards/PROVENANCE.json.
 
 
 

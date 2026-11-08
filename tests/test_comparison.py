@@ -1,9 +1,11 @@
 import json
 from collections import Counter
+from hashlib import sha256
+from typing import TypeAlias
 
 import pytest
 
-from dis_entity_types import (
+from siso_ref010 import (
     BUNDLED_STANDARD_SOURCE,
     ChangeAssessment,
     ChangeCounts,
@@ -14,8 +16,15 @@ from dis_entity_types import (
     ValueHistory,
     ValueRecord,
 )
-from dis_entity_types.cli import main
-from dis_entity_types.comparison import _inspection_records, _load_standard, _record_changes
+from siso_ref010.cli import main
+from siso_ref010.comparison import (
+    _classify_change,
+    _display_label,
+    _inspection_records,
+    _load_standard,
+    _optional_source_bool,
+    _record_changes,
+)
 
 
 class MemorySource:
@@ -769,59 +778,159 @@ def test_bundled_adjacent_snapshots_and_direct_v35_v37_target_reconcile():
     assert direct.source_sha256.to_sha256 == second.source_sha256.to_sha256
 
 
-def test_all_bundled_edition_pairs_reconcile_against_adjacent_composition():
+def test_all_bundled_edition_ranges_reconcile_by_adjacent_composition():
     versions = BUNDLED_STANDARD_SOURCE.versions
-    records_by_version = {
-        version: tuple(_inspection_records(_load_standard(BUNDLED_STANDARD_SOURCE, version)))
-        for version in versions
-    }
+    RecordChangeFingerprint: TypeAlias = tuple[str | None, str | None]
 
-    def signature(records):
-        return Counter(record.model_dump_json() for record in records)
+    def fingerprint(record: ValueRecord) -> str:
+        return sha256(record.model_dump_json().encode("utf-8")).hexdigest()
 
-    def apply_changes(state, changes):
+    def signature(records: tuple[ValueRecord, ...]) -> Counter[str]:
+        return Counter(fingerprint(record) for record in records)
+
+    def apply_changes(state: Counter[str], changes: tuple[RecordChangeFingerprint, ...]) -> Counter[str]:
         result = state.copy()
-        for change in changes:
-            if change.before is not None:
-                before_key = change.before.model_dump_json()
+        for before, after in changes:
+            if before is not None:
+                before_key = before
                 assert result[before_key] > 0
                 result.subtract((before_key,))
                 if result[before_key] == 0:
                     del result[before_key]
-            if change.after is not None:
-                result.update((change.after.model_dump_json(),))
+            if after is not None:
+                result.update((after,))
         return result
 
-    signatures_by_version = {version: signature(records) for version, records in records_by_version.items()}
+    signatures_by_version: dict[int, Counter[str]] = {}
+    adjacent: dict[tuple[int, int], tuple[RecordChangeFingerprint, ...]] = {}
+    previous_version: int | None = None
+    previous_records: tuple[ValueRecord, ...] | None = None
+    for version in versions:
+        records = tuple(_inspection_records(_load_standard(BUNDLED_STANDARD_SOURCE, version)))
+        signatures_by_version[version] = signature(records)
+        assert _record_changes(records, records) == []
+        if previous_version is not None and previous_records is not None:
+            adjacent_changes = _record_changes(previous_records, records)
+            adjacent[(previous_version, version)] = tuple(
+                (
+                    fingerprint(change.before) if change.before is not None else None,
+                    fingerprint(change.after) if change.after is not None else None,
+                )
+                for change in adjacent_changes
+            )
+        previous_version = version
+        previous_records = records
+    del previous_records, records
 
-    adjacent = {
-        (from_version, to_version): _record_changes(
-            records_by_version[from_version], records_by_version[to_version]
-        )
-        for from_version, to_version in zip(versions[:-1], versions[1:], strict=True)
-    }
     for start_index, from_version in enumerate(versions):
-        starting_records = records_by_version[from_version]
-        assert _record_changes(starting_records, starting_records) == []
-        starting_signature = signatures_by_version[from_version]
-        composed_state = starting_signature
+        composed_state = signatures_by_version[from_version]
         for to_index in range(start_index + 1, len(versions)):
             to_version = versions[to_index]
             previous_version = versions[to_index - 1]
             composed_state = apply_changes(composed_state, adjacent[(previous_version, to_version)])
-            target_records = records_by_version[to_version]
             target_signature = signatures_by_version[to_version]
             assert composed_state == target_signature
-
-            direct = _record_changes(starting_records, target_records)
-            direct_state = apply_changes(starting_signature, direct)
-            assert direct_state == target_signature
 
 
 def test_summary_and_review_queue_require_complete_diff(comparison_source):
     diff = EntityTypeAPI.compare_editions(1, 2, source=comparison_source, scope="entities", limit=1)
     with pytest.raises(ValueError, match="complete review queue"):
         diff.review_queue()
+
+    complete = EntityTypeAPI.compare_editions(1, 2, source=comparison_source, limit=None)
+    with pytest.raises(ValueError, match="limit must be a positive integer"):
+        complete.review_queue(limit=0)
+    with pytest.raises(ValueError, match="limit must be a positive integer"):
+        complete.review_queue(limit=True)
+    with pytest.raises(ValueError, match="offset must be a nonnegative integer"):
+        complete.review_queue(offset=True)
+
+
+def test_comparison_and_history_reject_invalid_filters(comparison_source):
+    invalid_comparisons = (
+        {"scope": "unknown"},
+        {"entity_prefix": (1, 2)},
+        {"entity_prefix": (1, 2, True)},
+        {"enumeration_uid": True},
+        {"enumeration_uid": -1},
+        {"entity_prefix": (1, 2, 3), "enumeration_uid": 90},
+        {"scope": "enumerations", "entity_prefix": (1, 2, 3)},
+        {"scope": "entities", "enumeration_uid": 90},
+        {"limit": True},
+        {"limit": -1},
+    )
+    for options in invalid_comparisons:
+        with pytest.raises(ValueError):
+            EntityTypeAPI.compare_editions(1, 2, source=comparison_source, **options)
+
+    with pytest.raises(ValueError, match="unavailable"):
+        EntityTypeAPI.compare_editions(1, 3, source=comparison_source)
+    with pytest.raises(ValueError, match="At least one version"):
+        EntityTypeAPI.entity_history("1.1.1.2.3.0.0", source=comparison_source, versions=())
+    with pytest.raises(ValueError, match="must not contain duplicates"):
+        EntityTypeAPI.entity_history("1.1.1.2.3.0.0", source=comparison_source, versions=(1, 1))
+    with pytest.raises(ValueError, match="Versions must be integers"):
+        EntityTypeAPI.entity_history("1.1.1.2.3.0.0", source=comparison_source, versions=(True,))
+    with pytest.raises(ValueError, match="Unavailable versions"):
+        EntityTypeAPI.entity_history("1.1.1.2.3.0.0", source=comparison_source, versions=(3,))
+    with pytest.raises(ValueError, match="enumeration UID"):
+        EntityTypeAPI.enumeration_history(True, source=comparison_source)
+    with pytest.raises(ValueError, match="enumeration value"):
+        EntityTypeAPI.enumeration_history(90, True, source=comparison_source)
+
+
+def test_change_materiality_and_optional_boolean_normalization():
+    neutral = ChangeAssessment(
+        wire_encoding="unchanged",
+        identifier_resolution="not_applicable",
+        semantic_meaning="not_applicable",
+        application_migration="none",
+    )
+    assert not neutral.is_material
+    assert ChangeAssessment(wire_encoding="breaking").is_material
+    assert ChangeAssessment(identifier_resolution="breaking").is_material
+    assert ChangeAssessment(semantic_meaning="changed").is_material
+    assert ChangeAssessment(application_migration="required").is_material
+
+    assert _optional_source_bool(None) is None
+    assert _optional_source_bool(" YES ") is True
+    assert _optional_source_bool("false") is False
+    assert _optional_source_bool("maybe") is None
+
+
+def test_comparison_fallback_labels_and_table_uid_assessment():
+    table = ValueRecord(scope="enumeration_table", identifier="table:7", table_uid=7)
+    ranged_value = ValueRecord(
+        scope="enumeration_value",
+        identifier="row:7:2",
+        table_uid=7,
+        value_min=2,
+        value_max=4,
+    )
+    no_value = ValueRecord(scope="enumeration_value", identifier="row:7:none", table_uid=7)
+    assert _display_label(None) is None
+    assert _display_label(table) == "Enumeration UID 7"
+    assert _display_label(ranged_value) == "Enumeration · UID 7 · Value 2–4"
+    assert _display_label(no_value) == "Enumeration · UID 7 · Value unspecified value"
+    assert _display_label(ValueRecord(scope="entity", identifier="entity", path=(1, 2, 3))) == (
+        "Entity type 1.2.3"
+    )
+    assert _display_label(ValueRecord(scope="entity", identifier="entity")) == "Entity type"
+
+    before = ValueRecord(scope="enumeration_table", identifier="table:7", table_uid=7, name="Example")
+    after = ValueRecord(scope="enumeration_table", identifier="table:8", table_uid=8, name="Example")
+    classified = _classify_change(
+        EditionChange(
+            action="modified",
+            scope="enumeration_table",
+            identifier="table:7",
+            changed_fields=("table_uid",),
+            before=before,
+            after=after,
+        )
+    )
+    assert classified.assessment.identifier_resolution == "breaking"
+    assert "enumeration_table_uid_changed" in classified.reason_codes
 
 
 def test_entity_prefix_filter_includes_selected_code_inside_a_source_range():

@@ -7,8 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from dis_entity_types import EntityTypeAPI
-from dis_entity_types.cli import render_diff_summary
+from siso_ref010 import EntityTypeAPI
+from siso_ref010.cli import render_diff_summary
 
 PAIRS = ((35, 36), (36, 37), (35, 37))
 

@@ -34,7 +34,7 @@ and the direct v35 to v37 comparison.
 
 This is report-bundle package revision 4 (`siso_diff_v4.zip`). Its JSON reports
 use report schema version 5. These version numbers are independent. Each JSON
-report's `generator_version` records the installed dis-entity-types package
+report's `generator_version` records the installed siso-ref010 package
 version. `SCHEMA.md` documents the report projections and pagination policy;
 `TEST-EVIDENCE.json` records report, implementation, and test hashes plus the
 checks performed. Audits are complete and source hashes identify the exact XML
