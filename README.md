@@ -119,7 +119,12 @@ See the [command-line reference](docs/cli.md).
 
 ## Develop
 
+The edition XML files are tracked verbatim in Git. Build the ignored XZ runtime
+bundle before running the package, tests, or build commands:
+
 ```sh
+python -m tools.build_standards_pack
+git diff --exit-code -- src/dis_entity_types/data/standards/index.json
 ruff check .
 ruff format --check .
 pyright
