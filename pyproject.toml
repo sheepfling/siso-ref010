@@ -28,7 +28,17 @@ Repository = "https://github.com/sheepfling/dis-entity-types"
 Issues = "https://github.com/sheepfling/dis-entity-types/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-cov>=6", "pyright>=1.1.414", "ruff>=0.14", "build>=1.2", "twine>=6"]
+dev = [
+    "build>=1.2",
+    "mdrepo>=0.0.1.post0,<0.1",
+    "pre-commit>=4.0",
+    "pyright>=1.1.414",
+    "pytest>=8",
+    "pytest-cov>=6",
+    "rumdl>=0.2.49,<0.3",
+    "ruff>=0.14",
+    "twine>=6",
+]
 
 [project.scripts]
 siso-ref010 = "siso_ref010.cli:main"
@@ -76,3 +86,22 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.rumdl]
+line-length = 110
+extend-enable = ["MD029"]
+
+[tool.rumdl.MD029]
+style = "ordered"
+
+[tool.rumdl.per-file-ignores]
+"CHANGELOG.md" = ["MD013"]
+"src/siso_ref010/data/standards/LICENSE_NOTICE.md" = ["MD013"]
+
+[tool.mdrepo.links]
+check-missing-targets = false
+check-case = true
+
+[tool.mdrepo.orphans]
+enabled = true
+roots = ["README.md"]

@@ -60,6 +60,8 @@ jobs:
       - name: Validate every edition against its version-matched XSD
         run: python -m tools.check_standards_xsd
       - run: python -m pip install -e '.[dev]'
+      - name: Check Markdown and repository links
+        run: python -m pre_commit run --all-files
       - name: Verify editable installation generated the indexed edition bundle
         run: git diff --exit-code -- src/siso_ref010/data/standards/index.json
       - run: python -m ruff check .

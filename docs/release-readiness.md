@@ -28,11 +28,17 @@ python -m tools.build_standards_pack
 python -m tools.check_bundled_standards
 python -m tools.check_standards_xsd
 python -m pytest -q
+python -m tools.check_markdown
 python -m ruff check .
 python -m ruff format --check .
 python -m pyright
 python -m build
 ```
+
+The Markdown check pairs `rumdl` document linting with `mdrepo` repository-link and reachability
+checks. Activate the development environment so the native `rumdl` command is on `PATH`, then run
+`python -m tools.check_markdown`. CI runs the same checker through the local pre-commit hook. To run
+the hook automatically before local commits, install it once with `python -m pre_commit install`.
 
 The network-backed upstream byte recheck is separate:
 
