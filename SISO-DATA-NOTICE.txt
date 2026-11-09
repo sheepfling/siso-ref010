@@ -1,0 +1,5 @@
+SISO-REF-010 SOURCE NOTICE
+
+Each included edition retains the source notices in its original XML. Consult
+that XML for the terms accompanying that edition. The source references and
+recorded hashes are in src/siso_ref010/data/standards/PROVENANCE.json.

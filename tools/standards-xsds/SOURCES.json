@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "version": 20,
+      "file": "v20.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.2",
+      "sha256": "c804d7354adabbd458652464f2da9abedc16a059da2894fa57fd1c71be396d56",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v20-0%20v2/SISO-REF-010/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    },
+    {
+      "version": 21,
+      "file": "v21.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.3.1",
+      "sha256": "c27b5e734278b31203c5d828afc724a976902bb73676bb342793d14361cc7b88",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v21-final/SISO-REF-010/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    },
+    {
+      "version": 22,
+      "file": "v22.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.3.2",
+      "sha256": "d6fbc2b9f31a7175fa648428db39a1b656b21aa0d8000976340962e2437ea6a1",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v22/SISO-REF-010/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    },
+    {
+      "version": 23,
+      "file": "v23.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.3.2",
+      "sha256": "d6fbc2b9f31a7175fa648428db39a1b656b21aa0d8000976340962e2437ea6a1",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v23_Offical_Release_Information/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    },
+    {
+      "version": 24,
+      "file": "v24.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.4",
+      "sha256": "0f8b7de97dfeef451c0863e1dcc86fd0b8f2da43eaf98226b2267f740ad0eaf8",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v24/SISO-REF-010/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    },
+    {
+      "version": 25,
+      "file": "v25.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.4",
+      "sha256": "0f8b7de97dfeef451c0863e1dcc86fd0b8f2da43eaf98226b2267f740ad0eaf8",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v25/SISO-REF-010/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    },
+    {
+      "version": 26,
+      "file": "v26.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.4",
+      "sha256": "9083166e6132b58e8859936b22999e868b5ee135e21823419d55ab8895994465",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v26/SISO-REF-010/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    },
+    {
+      "version": 27,
+      "file": "v27.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.5",
+      "sha256": "5acf29b1fe32be1a1495f427d4501f26d15cd6151639f49b4e32d81c679d4aa2",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v27-final/SISO-REF-010/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    },
+    {
+      "version": 28,
+      "file": "v28.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.6",
+      "sha256": "4e2c62a456ce0c975db01e3701b69884020e2e4d29f51e3e441dacaf3bb1cd85",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v28/SISO-REF-010/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    },
+    {
+      "version": 29,
+      "file": "v29.xsd",
+      "namespace": "http://www.sisostds.org/schemas/SISO-REF-010/2.6",
+      "sha256": "ec07a83518995a0c1779e05fb25435622a8dd15cb2d9d403091e148371aacc12",
+      "source_url": "https://svn.code.sf.net/p/esitools/code/!svn/bc/3974/tags/SISO-REF-010-v29/SISO-REF-010/SISO-REF-010.xsd",
+      "source_reference": "SISO-REF-010 release tag in the ESI Tools SourceForge repository, SVN revision 3974"
+    }
+  ]
+}

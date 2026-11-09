@@ -1,0 +1,109 @@
+[build-system]
+requires = ["setuptools>=77", "setuptools-scm>=10,<11"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "siso-ref010"
+dynamic = ["version"]
+description = "Structured multi-edition SISO-REF-010 parser and typed DIS entity API"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT AND LicenseRef-SISO-Data"
+license-files = ["LICENSE", "SISO-DATA-NOTICE.txt"]
+dependencies = ["pydantic>=2.7,<3"]
+keywords = ["DIS", "entity-type", "SISO-REF-010", "simulation", "interoperability"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Repository = "https://github.com/sheepfling/siso-ref010"
+Issues = "https://github.com/sheepfling/siso-ref010/issues"
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2",
+    "mdrepo>=0.0.1.post0,<0.1",
+    "pre-commit>=4.0",
+    "pyright>=1.1.414",
+    "pytest>=8",
+    "pytest-cov>=6",
+    "rumdl>=0.2.49,<0.3",
+    "ruff>=0.14",
+    "twine>=6",
+]
+
+[project.scripts]
+siso-ref010 = "siso_ref010.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.package-data]
+siso_ref010 = [
+    "py.typed",
+    "data/SISO-REF-010.xsd",
+    "data/standards/editions.xz",
+    "data/standards/index.json",
+    "data/standards/PROVENANCE.json",
+    "data/standards/SHA256SUMS.txt",
+]
+
+[tool.setuptools.exclude-package-data]
+siso_ref010 = [
+    "data/standards/v*.xml",
+    "data/standards/SOURCES.json",
+]
+
+[tool.setuptools_scm]
+fallback_version = "0.1.dev0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "all_editions: loads or compares every bundled SISO edition; included in the full local gate",
+]
+
+[tool.pyright]
+include = ["src", "examples"]
+typeCheckingMode = "strict"
+pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.rumdl]
+line-length = 110
+extend-enable = ["MD029"]
+
+[tool.rumdl.MD029]
+style = "ordered"
+
+[tool.rumdl.per-file-ignores]
+"CHANGELOG.md" = ["MD013"]
+
+[tool.mdrepo.links]
+check-missing-targets = false
+check-case = true
+
+[tool.mdrepo.orphans]
+enabled = true
+roots = ["README.md"]

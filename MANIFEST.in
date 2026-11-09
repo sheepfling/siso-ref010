@@ -1,0 +1,10 @@
+include .gitignore .gitattributes LICENSE
+include SISO-DATA-NOTICE.txt
+exclude src/siso_ref010/data/standards/v*.xml
+recursive-include docs *.md
+recursive-include tests *.py
+
+include CHANGELOG.md
+recursive-include examples *.py
+recursive-include tools *.py
+recursive-include tools/standards-xsds *.xsd *.json
