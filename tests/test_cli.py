@@ -95,6 +95,13 @@ def test_versions_json(capsys):
     assert result["versions"] == list(range(20, 38))
 
 
+def test_help_points_to_the_public_python_api(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--help"])
+    assert exc.value.code == 0
+    assert "from siso_ref010 import EntityTypeAPI" in capsys.readouterr().out
+
+
 def test_query_text_filter_coexists_with_json_output(capsys):
     assert main(["query", "--text", "F803 Tromp", "--limit", "1", "--json"]) == 0
     result = json.loads(capsys.readouterr().out)["result"]

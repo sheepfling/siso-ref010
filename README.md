@@ -18,16 +18,33 @@ redistribution rights for the separately sourced SISO data.
 The current implementation checks and remaining public-release gates are in
 [MVP release readiness](docs/release-readiness.md).
 
-## Install locally
+## Quick start
+
+From the repository root, install the package and try a lookup:
 
 ```sh
 python -m pip install .
-python -m pip install -e '.[dev]'
+python -m siso_ref010 versions
+python -m siso_ref010 --standard-version 37 describe 1.3.153.6.4.2.0
 ```
 
-Python 3.11 or newer is supported. Pydantic v2 is the sole runtime dependency
-and validates and serializes the structured models. Runtime use does not access
-the network.
+The same lookup in Python:
+
+```python
+from siso_ref010 import EntityTypeAPI
+
+api = EntityTypeAPI.bundled(37)
+entity = api.describe("1.3.153.6.4.2.0")
+print(entity.description)
+```
+
+For scripts and agents, add `--json` to a CLI command. Successful output has a
+versioned `result` envelope; structured errors go to stderr. Pin an edition
+with `--standard-version` so repeated runs use the same source.
+
+Python 3.11 or newer is supported. Pydantic v2 is the sole runtime dependency.
+Runtime use does not access the network. For development, install with
+`python -m pip install -e '.[dev]'`.
 
 ## What can I query?
 
@@ -49,12 +66,12 @@ The [API reference](docs/api.md) and [CLI guide](docs/cli.md) give parameter,
 filter, and output details. CLI JSON is versioned machine output; JSON is not an
 alternate catalog input format.
 
-## Use the Python API
+## More Python examples
 
 ```python
 from siso_ref010 import EntityType, EntityTypeAPI, EntityTypeCatalog
 
-api = EntityTypeAPI()
+api = EntityTypeAPI.bundled(37)
 result = api.describe("1.3.153.6.4.2.0")
 print(result.qualified_description)
 

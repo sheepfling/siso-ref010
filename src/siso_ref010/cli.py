@@ -161,9 +161,7 @@ def _output_options(
 
 
 def _parser(*, json_errors: bool = False) -> _ArgumentParser:
-    parser = _ArgumentParser(
-        description=__doc__, epilog="Python API: from siso_ref010.api import EntityTypeAPI"
-    )
+    parser = _ArgumentParser(description=__doc__, epilog="Python API: from siso_ref010 import EntityTypeAPI")
     parser.json_errors = json_errors
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     standard_source = parser.add_mutually_exclusive_group()

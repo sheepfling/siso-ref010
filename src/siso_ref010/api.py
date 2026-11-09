@@ -199,6 +199,15 @@ class EnumerationNameResolution(ResultModel):
     status: EnumerationNameStatus
     matches: tuple[EnumerationValueResolution, ...]
 
+    @property
+    def match(self) -> EditionValue | None:
+        """Return the one unambiguous exact/range row, or ``None`` otherwise."""
+        if self.status not in (EnumerationNameStatus.EXACT, EnumerationNameStatus.RANGE):
+            return None
+        if len(self.matches) != 1 or len(self.matches[0].matches) != 1:
+            return None
+        return self.matches[0].matches[0]
+
 
 class Collection(StrEnum):
     COUNTRIES = "countries"

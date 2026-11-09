@@ -5,7 +5,7 @@ The Python API returns typed values. It does not print or exit the process.
 ```python
 from siso_ref010 import EntityTypeAPI
 
-api = EntityTypeAPI()
+api = EntityTypeAPI.bundled(37)
 description = api.describe("1.3.153.6.4.2.0")
 print(description.description)
 
@@ -68,13 +68,17 @@ resolve values by table UID. To avoid requiring a table UID, resolve by its
 exact human-readable name:
 
 ```python
-tables = api.find_enumeration_tables("DIS-PDU Type")
 result = api.resolve_enumeration("DIS-PDU Type", 1)
-print(tables[0].uid, result.matches[0].matches[0].description)
+match = result.match
+if match is None:
+    print(result.status.value)
+else:
+    print(match.description)
 ```
 
 The result reports missing or duplicate table names, exact values, ranges,
-overlaps, and unknown values. Ambiguous matches are returned explicitly.
+overlaps, and unknown values. `result.match` returns the single exact or range
+row when unambiguous; otherwise it is `None`, and `result.status` explains why.
 
 `api.inspector.report()` returns a Pydantic `EditionReport` with the edition
 identity, counts, validation scopes, diagnostics, and examples. Pass

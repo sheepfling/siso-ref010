@@ -1,15 +1,24 @@
 # Command line
 
-Use `siso-ref010` or `python -m siso_ref010`:
+Use `siso-ref010` or `python -m siso_ref010`. Start with help, list the editions,
+then look up a code:
 
 ```sh
 siso-ref010 --help
 siso-ref010 versions
-siso-ref010 info
 siso-ref010 describe 1.3.153.6.4.2.0
-siso-ref010 search 'F803 Tromp'
-siso-ref010 key 1.2.225.7.8.7.1
 ```
+
+For scripts and agents, add `--json` to get a versioned result envelope. Pin
+the edition for reproducible lookups:
+
+```sh
+python -m siso_ref010 --standard-version 37 describe 1.3.153.6.4.2.0 --json
+```
+
+Successful output has `schema_version`, `command`, and `result`. Errors go to
+stderr with an `error` object containing a message and, when available, a
+stable error code and context.
 
 ## Choose an edition
 

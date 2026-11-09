@@ -97,16 +97,25 @@ def test_enumerations_resolve_by_exact_human_name(api):
     assert [(table.uid, table.name) for table in tables] == [(4, "DIS-PDU Type")]
     result = api.resolve_enumeration("DIS-PDU Type", 1)
     assert result.status.value == "exact"
-    assert result.matches[0].matches[0].description == "Entity State"
+    assert result.match is not None
+    assert result.match.description == "Entity State"
+    assert "match" not in result.model_dump()
     assert api.resolve_enumeration_value(4, 1) == result.matches[0]
-    assert api.resolve_enumeration("DIS-PDU Type", 1_000_000).status.value == "unknown"
+    unknown = api.resolve_enumeration("DIS-PDU Type", 1_000_000)
+    assert unknown.status.value == "unknown"
+    assert unknown.match is None
 
     ranged = api.resolve_enumeration("DIS-Protocol Version", 64)
     assert ranged.status.value == "range"
-    assert ranged.matches[0].matches[0].value_min == 64
+    assert ranged.match is not None
+    assert ranged.match.value_min == 64
     assert api.resolve_enumeration_value(3, 64).status.value == "range"
-    assert api.resolve_enumeration("No Such Table", 1).status.value == "table_not_found"
-    assert api.resolve_enumeration("TCAS/ACAS Type", 0).status.value == "ambiguous_table"
+    missing = api.resolve_enumeration("No Such Table", 1)
+    assert missing.status.value == "table_not_found"
+    assert missing.match is None
+    ambiguous = api.resolve_enumeration("TCAS/ACAS Type", 0)
+    assert ambiguous.status.value == "ambiguous_table"
+    assert ambiguous.match is None
 
     with pytest.raises(TypeError):
         api.resolve_enumeration("DIS-PDU Type", True)
