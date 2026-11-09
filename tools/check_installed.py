@@ -112,7 +112,7 @@ from importlib.resources import files
 from siso_ref010.api import SisoRef010API, decode_key, encode_entity
 from siso_ref010 import BUNDLED_STANDARD_VERSIONS, render_json, render_markdown
 standards = files("siso_ref010").joinpath("data/standards")
-registry = json.loads(standards.joinpath("PROVENANCE.json").read_text())
+registry = json.loads(standards.joinpath("PROVENANCE.json").read_text(encoding="utf-8"))
 assert len(registry["entries"]) == 18
 source_fields = {"provider", "repository", "reference", "path", "url", "verification"}
 assert all(set(row["primary_source"]) == source_fields for row in registry["entries"])
@@ -259,7 +259,7 @@ import json
 from importlib.resources import files
 from siso_ref010 import BUNDLED_STANDARD_SOURCE, BUNDLED_STANDARD_VERSIONS, SisoRef010API
 standards = files("siso_ref010").joinpath("data/standards")
-registry = json.loads(standards.joinpath("PROVENANCE.json").read_text())
+registry = json.loads(standards.joinpath("PROVENANCE.json").read_text(encoding="utf-8"))
 entries = {row["version"]: row for row in registry["entries"]}
 for version in BUNDLED_STANDARD_VERSIONS:
     payload = BUNDLED_STANDARD_SOURCE.read_xml(version)

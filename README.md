@@ -52,11 +52,12 @@ edition supplied as XML. Choose the surface based on the question:
 
 | Question | Python | CLI | What it searches or returns |
 | --- | --- | --- | --- |
-| What does an entity code mean? | `api.describe(code)` | `describe CODE` | Full or partial seven-field DIS entity code and its hierarchy description. |
+| What does a complete entity code mean? | `api.describe(code)` | `describe CODE` | Description for a complete seven-field DIS entity code. |
+| How does an entity-code prefix resolve? | `api.resolve_entity(prefix)`, `api.explain_entity(prefix)` | `inspect entity PREFIX` | Resolve one to seven leading fields and report matched, unspecified, or unresolved components. |
 | Which entity records fit code filters? | `api.query_entities(country=153, text="Tromp")` | `--warmup query --country 153 --text Tromp` | Combine any DIS fields independently; choose an edition, warm indexes, and page results. |
 | Which descriptions or hierarchy choices match? | `api.search(text)`, `api.choices(collection, prefix)` | `search TEXT`, `list COLLECTION PARENTS...` | Search entity descriptions, or list valid children under a contiguous hierarchy prefix. |
 | What is in the source edition? | `api.inspector` | `inspect ...` | Enumeration tables and values, ranges, UUIDs, source metadata, diagnostics, and the source rows behind an entity path. |
-| How did a value change by release? | `entity_history(...)`, `enumeration_history(...)` | `history ...` | Presence and descriptions across selected bundled editions. |
+| How did a value change by release? | `entity_history(...)`, `enumeration_history(...)` | `history ...` | Presence, resolution status, and descriptions across selected bundled editions; ambiguous matches retain their candidates. |
 | What changed between two releases? | `api.compare_editions(...)` | `compare FROM TO` | Added, removed, modified, moved, and recoded entity or enumeration records, with summary, audit, and review-queue views. |
 | Can I read or export the original XML? | `EntityTypeXmlParser`, `BUNDLED_STANDARD_SOURCE` | `--xml PATH`, `dump VERSION` | Structured source model for a supplied file, or original bundled XML bytes. |
 | How is an entity encoded on the wire? | `EntityType.to_key()`, `to_bytes()`, `encode_entity()`, `decode_key()` | `key CODE`, `key --decode KEY` | DIS entity key and byte representations. |

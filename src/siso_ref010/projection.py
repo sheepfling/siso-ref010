@@ -55,6 +55,8 @@ class CatalogData:
     kinds: Mapping[KindCode, str]
     categories: Mapping[EntityKey, str]
     subcategories: Mapping[EntityKey, str]
+    ambiguous_categories: Mapping[EntityKey, tuple[str, ...]]
+    ambiguous_subcategories: Mapping[EntityKey, tuple[str, ...]]
     children_by_prefix: ChildrenByPrefix
 
 
@@ -233,11 +235,15 @@ def _build_hierarchy_indexes(
 ) -> tuple[
     dict[EntityKey, str],
     dict[EntityKey, str],
-    dict[tuple[EntityFieldCode, ...], dict[EntityFieldCode, CatalogChild]],
+    dict[EntityKey, tuple[str, ...]],
+    dict[EntityKey, tuple[str, ...]],
+    dict[tuple[EntityFieldCode, ...], list[CatalogChild]],
 ]:
     categories: dict[EntityKey, str] = {}
     subcategories: dict[EntityKey, str] = {}
-    children_by_prefix: dict[tuple[EntityFieldCode, ...], dict[EntityFieldCode, CatalogChild]] = {}
+    ambiguous_categories: dict[EntityKey, list[str]] = {}
+    ambiguous_subcategories: dict[EntityKey, list[str]] = {}
+    children_by_prefix: dict[tuple[EntityFieldCode, ...], list[CatalogChild]] = {}
     enumerations_by_uid = {table.uid: table for table in standard.enumerations}
     rows = (
         row
@@ -251,22 +257,33 @@ def _build_hierarchy_indexes(
         padded = (*fields, *((0,) * (7 - len(fields))))
         key = _key_for_fields(padded)
         target = categories if len(row.parents) == 3 else subcategories
+        ambiguous_target = ambiguous_categories if len(row.parents) == 3 else ambiguous_subcategories
+        if key in target:
+            ambiguous_target.setdefault(key, [target[key]]).append(row.description)
         target[key] = row.description
         prefix = _prefix_codes(row.parents)
         code = _child_code(len(row.parents), row.value)
-        children_by_prefix.setdefault(prefix, {})[code] = CatalogChild(
-            value=code,
-            description=row.description,
-            source_order=ordinal,
+        children_by_prefix.setdefault(prefix, []).append(
+            CatalogChild(
+                value=code,
+                description=row.description,
+                source_order=ordinal,
+            )
         )
-    return categories, subcategories, children_by_prefix
+    return (
+        categories,
+        subcategories,
+        {key: tuple(descriptions) for key, descriptions in ambiguous_categories.items()},
+        {key: tuple(descriptions) for key, descriptions in ambiguous_subcategories.items()},
+        children_by_prefix,
+    )
 
 
 def _freeze_children(
-    children_by_prefix: Mapping[tuple[EntityFieldCode, ...], Mapping[EntityFieldCode, CatalogChild]],
+    children_by_prefix: Mapping[tuple[EntityFieldCode, ...], list[CatalogChild]],
 ) -> ChildrenByPrefix:
     return MappingProxyType(
-        {parents: tuple(children.values()) for parents, children in children_by_prefix.items()}
+        {parents: tuple(children) for parents, children in children_by_prefix.items()}
     )
 
 
@@ -291,11 +308,19 @@ def build_catalog_data(standard: EntityTypeStandard | None) -> CatalogData:
             kinds=MappingProxyType({}),
             categories=MappingProxyType({}),
             subcategories=MappingProxyType({}),
+            ambiguous_categories=MappingProxyType({}),
+            ambiguous_subcategories=MappingProxyType({}),
             children_by_prefix=MappingProxyType({}),
         )
 
     countries, domains, kinds = _build_enumeration_indexes(standard)
-    categories, subcategories, children_by_prefix = _build_hierarchy_indexes(standard)
+    (
+        categories,
+        subcategories,
+        ambiguous_categories,
+        ambiguous_subcategories,
+        children_by_prefix,
+    ) = _build_hierarchy_indexes(standard)
     return CatalogData(
         standard=standard,
         countries=MappingProxyType(countries),
@@ -303,5 +328,7 @@ def build_catalog_data(standard: EntityTypeStandard | None) -> CatalogData:
         kinds=MappingProxyType(kinds),
         categories=MappingProxyType(categories),
         subcategories=MappingProxyType(subcategories),
+        ambiguous_categories=MappingProxyType(ambiguous_categories),
+        ambiguous_subcategories=MappingProxyType(ambiguous_subcategories),
         children_by_prefix=_freeze_children(children_by_prefix),
     )

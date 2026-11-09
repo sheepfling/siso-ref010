@@ -21,12 +21,26 @@ from ..inspection import (
     EditionValueResults,
     EntityExplanation,
     EnumerationValueResolution,
+    EnumerationValueStatus,
+    ResolutionStatus,
 )
 
 
 def print_history_text(history: ValueHistory) -> None:
     print(f"{history.kind} history: {history.target}")
     for point in history.points:
+        if (
+            point.match_status in {ResolutionStatus.AMBIGUOUS, EnumerationValueStatus.AMBIGUOUS}
+            or len(point.table_candidates) > 1
+        ):
+            details: list[str] = []
+            if point.candidates:
+                details.append(f"{len(point.candidates)} matching source rows")
+            if len(point.table_candidates) > 1:
+                details.append(f"{len(point.table_candidates)} tables share the UID")
+            suffix = f" ({'; '.join(details)})" if details else ""
+            print(f"v{point.version}: ambiguous{suffix}")
+            continue
         if not point.present:
             print(f"v{point.version}: absent")
             continue

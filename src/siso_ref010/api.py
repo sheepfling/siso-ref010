@@ -240,6 +240,7 @@ _PARENT_COUNTS: Final = MappingProxyType(
 class Choice(ResultModel):
     value: EntityFieldCode
     description: str
+    ambiguous: bool = False
 
 
 class CatalogCounts(ResultModel):
@@ -686,6 +687,26 @@ class SisoRef010API:
                 },
             )
         entity = prefix.to_entity() if prefix is not None else EntityType(0, 0, 0, 0, 0, 0, 0)
+        if kind in {
+            Collection.CATEGORIES,
+            Collection.SUBCATEGORIES,
+            Collection.SPECIFICS,
+            Collection.EXTRAS,
+        }:
+            rows = self._catalog.get_choice_rows(parents)
+            counts: dict[EntityFieldCode, int] = {}
+            for row in rows:
+                counts[row.value] = counts.get(row.value, 0) + 1
+            items = tuple(
+                Choice(
+                    value=row.value,
+                    description=row.description,
+                    ambiguous=counts[row.value] > 1,
+                )
+                for row in rows
+            )
+            return Choices(collection=kind, parents=parents, items=items)
+
         match kind:
             case Collection.COUNTRIES:
                 values = self._catalog.get_all_countries()

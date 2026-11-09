@@ -39,9 +39,17 @@ a time.
 | Inspect edition tables, rows, and diagnostics | `api.inspector` |
 | Resolve an enumeration by name | `api.resolve_enumeration("PDU Type", 1)` |
 
+`describe()` requires a complete seven-field entity code. Use `resolve_entity()`
+or `explain_entity()` when you have a shorter prefix.
+
 Resolution results distinguish exact, partial, unspecified, unknown, and
 ambiguous values. An ambiguous lookup returns its candidates instead of
 choosing one.
+
+`describe()` raises `ambiguous_entity_description` when its code maps to
+multiple source rows. Use `resolve_entity()` or `explain_entity()` to inspect
+those candidates. `choices()` keeps duplicate hierarchy codes as separate
+items and marks each one with `ambiguous=True`.
 
 ## Compare editions
 
@@ -55,6 +63,10 @@ queue = diff.review_queue(limit=50)
 
 `EditionDiff` is the complete audit model. Its methods return the summary,
 concise, and pageable review-queue Pydantic models.
+
+History points include `match_status`. When a code or table UID is ambiguous,
+they retain the matching source rows in `candidates` or `table_candidates`
+instead of selecting one description or identifier.
 
 ## Serialize results
 

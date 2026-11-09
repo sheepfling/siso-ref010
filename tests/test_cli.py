@@ -70,7 +70,8 @@ def test_errors(args, capsys):
 def test_custom_xml_source(tmp_path, capsys):
     source = tmp_path / "input.xml"
     source.write_text(
-        '<ebv><enum uid="29" name="Country"><enumrow value="153" description="Netherlands"/></enum></ebv>'
+        '<ebv><enum uid="29" name="Country"><enumrow value="153" description="Netherlands"/></enum></ebv>',
+        encoding="utf-8",
     )
     assert main(["--xml", str(source), "list", "countries"]) == 0
     assert capsys.readouterr().out.strip() == "153: Netherlands"
@@ -153,7 +154,8 @@ def test_inspect_entity_reports_ambiguous_and_unknown_source_paths(capsys, tmp_p
         '<cet><entity kind="1" domain="1" country="1">'
         '<category value="2" description="First"/>'
         '<category value="2" description="Second"/>'
-        "</entity></cet></ebv>"
+        "</entity></cet></ebv>",
+        encoding="utf-8",
     )
     assert main(["--xml", str(source), "inspect", "entity", "1.1.1.2.0.0.0"]) == 0
     ambiguous = capsys.readouterr().out

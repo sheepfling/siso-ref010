@@ -335,7 +335,8 @@ def _handle_api_command(command: str, args: argparse.Namespace, machine: bool, a
             write_json_result(command, choices)
         else:
             for choice in choices.items:
-                print(f"{choice.value}: {choice.description}")
+                suffix = " (ambiguous source code)" if choice.ambiguous else ""
+                print(f"{choice.value}: {choice.description}{suffix}")
 
 
 def _handle_command(command: str, args: argparse.Namespace, machine: bool) -> None:
@@ -402,7 +403,17 @@ def _handle_command(command: str, args: argparse.Namespace, machine: bool) -> No
         _handle_api_command(command, args, machine, api)
 
 
+def _configure_cli_output_encoding() -> None:
+    """Use UTF-8 for executable CLI output on every supported Python version."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
+    if argv is None:
+        _configure_cli_output_encoding()
     arguments = list(sys.argv[1:] if argv is None else argv)
     # Resolve presentation before argparse can fail. Respect subcommand overrides
     # and stop at '--', after which these spellings are positional data.

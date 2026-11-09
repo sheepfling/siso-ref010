@@ -39,6 +39,11 @@ with `schema_version`, `command`, and `result` fields. Errors go to stderr; JSON
 errors use the same versioned envelope and include a stable error code when
 available. The JSON output is generated from the Python Pydantic result models.
 
+The executable CLI writes text and JSON to stdout/stderr as UTF-8 on all
+supported Python versions. Redirected output can therefore be decoded as UTF-8
+even on Python versions before 3.15, whose default text encoding may depend on
+the system locale.
+
 ```sh
 python -m siso_ref010 --standard-version 37 describe 1.3.153.6.4.2.0 --json
 python -m siso_ref010 compare 35 37 --detail review-queue --priority high --json

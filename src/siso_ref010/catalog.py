@@ -23,7 +23,7 @@ from .models.codes import (
 from .models.entity import EntityType
 from .models.standard import EntityTypeStandard
 from .parsing.xml import EntityTypeXmlParser
-from .projection import CatalogData, ChildrenByPrefix, build_catalog_data
+from .projection import CatalogChild, CatalogData, ChildrenByPrefix, build_catalog_data
 from .sources import BUNDLED_STANDARD_SOURCE, BundledStandardSource, StandardSource
 
 BUNDLED_STANDARD_VERSIONS = BUNDLED_STANDARD_SOURCE.versions
@@ -50,29 +50,86 @@ def _children_for(
     children_by_prefix: ChildrenByPrefix,
     parents: tuple[EntityFieldCode, ...],
 ) -> dict[EntityFieldCode, str]:
-    """Return ordered children, overlaying generic-country rows in source order."""
+    """Return unambiguous children, preferring country-specific rows to generic rows."""
+    rows = _choice_rows_for(children_by_prefix, parents)
+    grouped: dict[EntityFieldCode, list[str]] = {}
+    for row in rows:
+        grouped.setdefault(row.value, []).append(row.description)
+    for value, descriptions in grouped.items():
+        if len(descriptions) > 1:
+            raise _ambiguous_choice_error(parents, value, tuple(descriptions))
+    return {value: descriptions[0] for value, descriptions in grouped.items()}
+
+
+def _choice_rows_for(
+    children_by_prefix: ChildrenByPrefix,
+    parents: tuple[EntityFieldCode, ...],
+) -> tuple[CatalogChild, ...]:
+    """Return every source choice under a prefix, retaining duplicate codes."""
     rows = list(children_by_prefix.get(parents, ()))
     if parents[2] != 0:
         generic = (*parents[:2], CountryCode(0), *parents[3:])
-        rows.extend(children_by_prefix.get(generic, ()))
+        generic_rows = children_by_prefix.get(generic, ())
+        specific_codes = {row.value for row in rows}
+        rows.extend(row for row in generic_rows if row.value not in specific_codes)
         rows.sort(key=lambda row: row.source_order)
-    return {row.value: row.description for row in rows}
+    return tuple(rows)
+
+
+def _ambiguous_choice_error(
+    parents: tuple[EntityFieldCode, ...],
+    value: EntityFieldCode,
+    descriptions: tuple[str, ...],
+) -> SisoRef010ValueError:
+    return SisoRef010ValueError(
+        f"Entity choice {value} has multiple source descriptions",
+        code="ambiguous_entity_choice",
+        context={
+            "parents": tuple(int(parent) for parent in parents),
+            "value": int(value),
+            "candidate_descriptions": descriptions,
+        },
+    )
+
+
+def _child_description_for(
+    children_by_prefix: ChildrenByPrefix,
+    parents: tuple[EntityFieldCode, ...],
+    value: EntityFieldCode,
+) -> str | None:
+    """Look up one child without failing on ambiguity in a different code."""
+    matches = tuple(
+        row.description for row in _choice_rows_for(children_by_prefix, parents) if row.value == value
+    )
+    if len(matches) > 1:
+        raise _ambiguous_choice_error(parents, value, matches)
+    return matches[0] if matches else None
 
 
 def _description_for(data: CatalogData, entity: EntityType) -> str:
     key = entity.to_key(signed=False)
-    for source, masked in (
-        (data.subcategories, key),
-        (data.subcategories, key & 0xFFFF0000FFFFFFFF),
-        (data.subcategories, key & 0xFFFFFFFFFFFFFF00),
-        (data.subcategories, key & 0xFFFF0000FFFFFF00),
-        (data.subcategories, key & 0xFFFFFFFFFFFF0000),
-        (data.subcategories, key & 0xFFFF0000FFFF0000),
-        (data.categories, key & 0xFFFFFFFFFF000000),
-        (data.categories, key & 0xFFFFFFFF00000000),
-        (data.categories, key & 0xFFFF0000FF000000),
-        (data.categories, key & 0xFFFF000000000000),
+    for source, ambiguous, masked in (
+        (data.subcategories, data.ambiguous_subcategories, key),
+        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFF0000FFFFFFFF),
+        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFFFFFFFFFFFF00),
+        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFF0000FFFFFF00),
+        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFFFFFFFFFF0000),
+        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFF0000FFFF0000),
+        (data.categories, data.ambiguous_categories, key & 0xFFFFFFFFFF000000),
+        (data.categories, data.ambiguous_categories, key & 0xFFFFFFFF00000000),
+        (data.categories, data.ambiguous_categories, key & 0xFFFF0000FF000000),
+        (data.categories, data.ambiguous_categories, key & 0xFFFF000000000000),
     ):
+        candidates = ambiguous.get(EntityKey(masked))
+        if candidates is not None:
+            raise SisoRef010ValueError(
+                "Entity code matches multiple source descriptions",
+                code="ambiguous_entity_description",
+                context={
+                    "entity_key": int(EntityKey(masked)),
+                    "candidate_descriptions": candidates,
+                },
+            )
         description = source.get(EntityKey(masked))
         if description is not None:
             return description
@@ -188,6 +245,10 @@ class ReferenceCatalog:
             self._children_cache[parents] = _children_for(self._data.children_by_prefix, parents)
         return dict(self._children_cache[parents])
 
+    def get_choice_rows(self, parents: tuple[EntityFieldCode, ...]) -> tuple[CatalogChild, ...]:
+        """Return hierarchy choice rows without collapsing duplicate source codes."""
+        return _choice_rows_for(self._data.children_by_prefix, parents)
+
     def get_all_categories_of(self, entity: EntityType) -> dict[CategoryCode, str]:
         return cast(dict[CategoryCode, str], self._children(entity.as_tuple()[:3]))
 
@@ -211,24 +272,33 @@ class ReferenceCatalog:
 
     def get_category_name(self, entity: EntityType) -> str:
         return (
-            self._children(entity.as_tuple()[:3]).get(entity.category)
+            _child_description_for(
+                self._data.children_by_prefix, entity.as_tuple()[:3], entity.category
+            )
             or f"Unknown category {entity.category}"
         )
 
     def get_subcategory_name(self, entity: EntityType) -> str:
         return (
-            self._children(entity.as_tuple()[:4]).get(entity.subcategory)
+            _child_description_for(
+                self._data.children_by_prefix, entity.as_tuple()[:4], entity.subcategory
+            )
             or f"Unknown subcategory {entity.subcategory}"
         )
 
     def get_specific_name(self, entity: EntityType) -> str:
         return (
-            self._children(entity.as_tuple()[:5]).get(entity.specific)
+            _child_description_for(
+                self._data.children_by_prefix, entity.as_tuple()[:5], entity.specific
+            )
             or f"Unknown specific {entity.specific}"
         )
 
     def get_extra_name(self, entity: EntityType) -> str:
-        return self._children(entity.as_tuple()[:6]).get(entity.extra) or f"Unknown extra {entity.extra}"
+        return (
+            _child_description_for(self._data.children_by_prefix, entity.as_tuple()[:6], entity.extra)
+            or f"Unknown extra {entity.extra}"
+        )
 
     def get_description_of(self, entity: EntityType, fully_qualified: bool = False) -> str:
         if not fully_qualified:

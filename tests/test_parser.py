@@ -118,7 +118,7 @@ def test_legacy_comprehensive_entity_table_name_is_loaded():
 
 def test_load_file_and_preserve_metadata(tmp_path):
     source = tmp_path / "input.xml"
-    source.write_text(MINI)
+    source.write_text(MINI, encoding="utf-8")
     parsed = EntityTypeXmlParser.from_file(source)
     assert parsed.title == "Test"
     assert parsed.date == date(2026, 1, 1)

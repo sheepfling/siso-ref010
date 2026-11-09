@@ -165,7 +165,8 @@ def test_metadata_and_custom_xml(api, tmp_path):
     path = tmp_path / "custom.xml"
     path.write_text(
         '<ebv title="CUSTOM" date="2026-01-01"><enum uid="29" name="Country">'
-        '<enumrow value="1" description="Afghanistan"/></enum></ebv>'
+        '<enumrow value="1" description="Afghanistan"/></enum></ebv>',
+        encoding="utf-8",
     )
     custom_api = SisoRef010API.from_xml(path)
     assert custom_api.info().data_version == "CUSTOM"
@@ -273,7 +274,8 @@ def test_text_output(capsys, args, expected):
 def test_json_custom_xml_info(tmp_path, capsys):
     path = tmp_path / "input.xml"
     path.write_text(
-        '<ebv title="CUSTOM"><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum></ebv>'
+        '<ebv title="CUSTOM"><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum></ebv>',
+        encoding="utf-8",
     )
     assert main(["--xml", str(path), "info", "--json"]) == 0
     info = json.loads(capsys.readouterr().out)["result"]

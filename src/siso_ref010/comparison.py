@@ -10,7 +10,14 @@ from pydantic import BaseModel, ConfigDict
 
 from ._version import __version__
 from .catalog import ReferenceCatalog
-from .inspection import EditionInspector, EditionValue, EditionValueKind
+from .inspection import (
+    EditionInspector,
+    EditionValue,
+    EditionValueKind,
+    EnumerationTableInfo,
+    EnumerationValueStatus,
+    ResolutionStatus,
+)
 from .models.entity import EntityType
 from .models.standard import EntityTypeStandard, TableAnnotation
 from .parsing.xml import EntityTypeXmlParser
@@ -741,6 +748,7 @@ def _concise_record(record: ValueRecord | None) -> ConciseRecord | None:
 class HistoryPoint(ComparisonModel):
     version: int
     present: bool
+    match_status: ResolutionStatus | EnumerationValueStatus | None = None
     description: str | None = None
     qualified_description: str | None = None
     matched_path: tuple[int, ...] = ()
@@ -749,6 +757,8 @@ class HistoryPoint(ComparisonModel):
     applicability: str | None = None
     size: int | None = None
     attributes: tuple[tuple[str, str], ...] = ()
+    candidates: tuple[EditionValue, ...] = ()
+    table_candidates: tuple[EnumerationTableInfo, ...] = ()
 
 
 class ValueHistory(ComparisonModel):
@@ -1438,19 +1448,24 @@ def entity_history(
     for version in selected:
         standard = _load_standard(source, version)
         catalog = ReferenceCatalog(standard)
-        description = catalog.get_description_of(parsed)
-        qualified = catalog.get_description_of(parsed, fully_qualified=True)
-        matching = EditionInspector(standard).entity_path(values)
-        match = max(matching, key=lambda row: len(row.path), default=None)
+        resolution = EditionInspector(standard).resolve_entity(values)
+        matching = resolution.matched_path
+        ambiguous = resolution.status is ResolutionStatus.AMBIGUOUS
+        deepest_match = max(matching, key=lambda row: len(row.path), default=None)
+        match = None if ambiguous else deepest_match
+        description = catalog.get_description_of(parsed) if match is not None else None
+        qualified = catalog.get_description_of(parsed, fully_qualified=True) if match is not None else None
         points.append(
             HistoryPoint(
                 version=version,
-                present=match is not None,
-                description=description if match is not None else None,
-                qualified_description=qualified if match is not None else None,
-                matched_path=match.hierarchy_codes if match is not None else (),
+                present=match is not None or bool(resolution.ambiguous_candidates),
+                match_status=resolution.status,
+                description=description,
+                qualified_description=qualified,
+                matched_path=deepest_match.hierarchy_codes if deepest_match is not None else (),
                 stable_id=match.uuid if match is not None else None,
                 attributes=match.source.attributes if match is not None else (),
+                candidates=resolution.ambiguous_candidates,
             )
         )
     return ValueHistory(kind="entity", target="entity:" + ".".join(map(str, values)), points=tuple(points))
@@ -1473,13 +1488,22 @@ def enumeration_history(
     for version in selected:
         standard = _load_standard(source, version)
         inspector = EditionInspector(standard)
-        table = inspector.enumeration_table(uid)
-        matching = inspector.enumeration_rows(uid, value=value) if value is not None and table else ()
-        entry = matching[0] if matching else None
+        table_candidates = inspector.enumeration_tables_by_uid(uid)
+        table = table_candidates[0] if len(table_candidates) == 1 else None
+        resolution = inspector.resolve_enumeration_value(uid, value) if value is not None else None
+        matching = resolution.matches if resolution is not None else ()
+        entry = (
+            matching[0]
+            if resolution is not None
+            and resolution.status in {EnumerationValueStatus.EXACT, EnumerationValueStatus.RANGE}
+            and len(matching) == 1
+            else None
+        )
         points.append(
             HistoryPoint(
                 version=version,
-                present=table is not None if value is None else entry is not None,
+                present=bool(table_candidates) if value is None else entry is not None or bool(matching),
+                match_status=resolution.status if resolution is not None else None,
                 description=entry.description if entry is not None else None,
                 stable_id=entry.uuid if entry is not None else (table.source.get("uuid") if table else None),
                 name=table.name if table is not None else None,
@@ -1488,6 +1512,8 @@ def enumeration_history(
                 attributes=entry.source.attributes
                 if entry is not None
                 else (table.source.attributes if table else ()),
+                candidates=matching if resolution is not None and resolution.status is EnumerationValueStatus.AMBIGUOUS else (),
+                table_candidates=table_candidates if len(table_candidates) > 1 else (),
             )
         )
     target = f"enumeration:{uid}" if value is None else f"enumeration:{uid}/value:{value}"
