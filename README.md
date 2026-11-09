@@ -30,9 +30,9 @@ python -m siso_ref010 --standard-version 37 describe 1.3.153.6.4.2.0
 The same lookup in Python:
 
 ```python
-from siso_ref010 import EntityTypeAPI
+from siso_ref010 import SisoRef010API
 
-api = EntityTypeAPI.bundled(37)
+api = SisoRef010API.bundled(37)
 entity = api.describe("1.3.153.6.4.2.0")
 print(entity.description)
 ```
@@ -68,16 +68,16 @@ alternate catalog input format.
 ## More Python examples
 
 ```python
-from siso_ref010 import EntityType, EntityTypeAPI, EntityTypeCatalog
+from siso_ref010 import EntityType, ReferenceCatalog, SisoRef010API
 
-api = EntityTypeAPI.bundled(37)
+api = SisoRef010API.bundled(37)
 result = api.describe("1.3.153.6.4.2.0")
 print(result.qualified_description)
 
 for hit in api.search("F803", limit=10).hits:
     print(hit.entity, hit.description)
 
-catalog = EntityTypeCatalog.bundled()
+catalog = ReferenceCatalog.bundled()
 entity = EntityType.from_string("1.3.153.6.4.2.0")
 assert catalog.get_country_name(entity.country) == "Netherlands (NLD)"
 assert entity.to_bytes() == bytes.fromhex("0103009906040200")
@@ -92,7 +92,7 @@ See the [Python API reference](docs/api.md).
 ## Read the standard as structured data
 
 ```python
-from siso_ref010 import EntityTypeCatalog, EntityTypeXmlParser
+from siso_ref010 import EntityTypeXmlParser, ReferenceCatalog
 
 standard = EntityTypeXmlParser.from_file("SISO-REF-010.xml")
 print(standard.title, standard.date)
@@ -101,7 +101,7 @@ entity_kinds = standard.enumeration("Entity Kind")
 for row in entity_kinds.entries:
     print(row.value, row.description, row.source.get("uuid"))
 
-catalog = EntityTypeCatalog(standard)
+catalog = ReferenceCatalog(standard)
 print(catalog.search_description("F803"))
 ```
 

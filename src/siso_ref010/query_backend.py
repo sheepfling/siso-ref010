@@ -15,15 +15,17 @@ from .inspection import (
 )
 from .models.standard import EntityTypeStandard
 
-EntityFieldFilters = tuple[
-    int | None,
-    int | None,
-    int | None,
-    int | None,
-    int | None,
-    int | None,
-    int | None,
-]
+
+class EntityFieldFilters(NamedTuple):
+    """Optional entity-code filters in DIS hierarchy order."""
+
+    entity_kind: int | None
+    domain: int | None
+    country: int | None
+    category: int | None
+    subcategory: int | None
+    specific: int | None
+    extra: int | None
 
 
 class EntityQueryRequest(NamedTuple):
@@ -42,14 +44,14 @@ class EntityQueryRequest(NamedTuple):
 
     @property
     def fields(self) -> EntityFieldFilters:
-        return (
-            self.entity_kind,
-            self.domain,
-            self.country,
-            self.category,
-            self.subcategory,
-            self.specific,
-            self.extra,
+        return EntityFieldFilters(
+            entity_kind=self.entity_kind,
+            domain=self.domain,
+            country=self.country,
+            category=self.category,
+            subcategory=self.subcategory,
+            specific=self.specific,
+            extra=self.extra,
         )
 
 

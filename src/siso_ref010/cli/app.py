@@ -78,6 +78,11 @@ def _dump_bundled(args: argparse.Namespace, *, machine: bool) -> None:
         raise ValueError("dump requires an edition number or --all")
     if output_dir is not None:
         raise ValueError("--output-dir can only be used with dump --all")
+    available_versions = BUNDLED_STANDARD_SOURCE.versions
+    if type(version) is not int or version not in available_versions:
+        raise ValueError(
+            f"SISO-REF-010 version {version!r} is unavailable; available versions: {available_versions}"
+        )
     data = BUNDLED_STANDARD_SOURCE.read_xml(version)
     if output is None:
         raw_stream = getattr(sys.stdout, "buffer", None)

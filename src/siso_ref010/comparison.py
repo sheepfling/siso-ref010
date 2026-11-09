@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
-from hashlib import sha256
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -1369,6 +1368,8 @@ def compare_editions(
         raise ValueError("limit must be a nonnegative integer or None")
     old_standard = _load_standard(source, from_version)
     new_standard = _load_standard(source, to_version)
+    if old_standard.source_sha256 is None or new_standard.source_sha256 is None:
+        raise ValueError("Parsed source XML is missing its SHA-256 digest")
     all_before = tuple(_inspection_records(old_standard))
     all_after = tuple(_inspection_records(new_standard))
     before = [
@@ -1412,8 +1413,8 @@ def compare_editions(
         from_version=from_version,
         to_version=to_version,
         source_sha256=SourceHashes(
-            from_sha256=sha256(source.read_xml(from_version)).hexdigest(),
-            to_sha256=sha256(source.read_xml(to_version)).hexdigest(),
+            from_sha256=old_standard.source_sha256,
+            to_sha256=new_standard.source_sha256,
         ),
         scope=result_scope,
         changes=tuple(selected),

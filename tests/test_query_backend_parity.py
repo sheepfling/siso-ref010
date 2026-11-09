@@ -1,4 +1,36 @@
+import pytest
+
 from siso_ref010 import EntityTypeXmlParser, ReferenceCatalog, SisoRef010API
+from siso_ref010.query_backend import EntityFieldFilters, EntityQueryRequest
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        (1, 2, 225, 4, 5, 6, 7),
+        (None, 0, None, 0, None, 0, None),
+        (None, None, None, None, None, None, None),
+    ],
+)
+def test_query_fields_are_named_and_keep_tuple_behavior(values) -> None:
+    request = EntityQueryRequest(*values, text="demo", limit=3, offset=2)
+    fields = request.fields
+
+    assert isinstance(fields, EntityFieldFilters)
+    assert fields == values
+    assert tuple(fields) == values
+    assert hash(fields) == hash(values)
+    assert (
+        fields.entity_kind,
+        fields.domain,
+        fields.country,
+        fields.category,
+        fields.subcategory,
+        fields.specific,
+        fields.extra,
+    ) == values
+    with pytest.raises(AttributeError):
+        fields.country = 153
 
 
 def test_cold_and_warmed_queries_match_for_source_records() -> None:
