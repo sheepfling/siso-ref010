@@ -6,7 +6,7 @@ import argparse
 from statistics import median
 from time import perf_counter
 
-from siso_ref010 import EditionValue, EntityTypeAPI
+from siso_ref010 import EditionValue, SisoRef010API
 
 _FIELD_NAMES = ("entity_kind", "domain", "country", "category", "subcategory", "specific", "extra")
 
@@ -45,7 +45,7 @@ def _scan_total(rows: tuple[EditionValue, ...], fields: tuple[int | None, ...], 
     return sum(_matches(row, fields, text) for row in rows)
 
 
-def _indexed_total(api: EntityTypeAPI, fields: tuple[int | None, ...], text: str | None) -> int:
+def _indexed_total(api: SisoRef010API, fields: tuple[int | None, ...], text: str | None) -> int:
     return api.query_entities(
         entity_kind=fields[0],
         domain=fields[1],
@@ -68,10 +68,10 @@ def main() -> int:
         parser.error("--iterations must be positive")
 
     start = perf_counter()
-    one_off_api = EntityTypeAPI.bundled(args.version)
+    one_off_api = SisoRef010API.bundled(args.version)
     construction_ms = (perf_counter() - start) * 1000
     cached_start = perf_counter()
-    api = EntityTypeAPI.bundled(args.version)
+    api = SisoRef010API.bundled(args.version)
     cached_construction_ms = (perf_counter() - cached_start) * 1000
     one_off_start = perf_counter()
     one_off = one_off_api.query_entities(country=153, text="Tromp", limit=20)

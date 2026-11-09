@@ -11,10 +11,9 @@ SISO-REF-010-v37, dated 2026-05-25. The derived catalog currently contains 279
 countries, 11 entity kinds, 68 kind/domain pairs, 1,889 categories, and 25,473
 deeper entries, including values supplied through XML cross-references.
 
-See [source provenance and hashes](docs/provenance.md) and the
-[SISO source and redistribution notice](src/siso_ref010/data/standards/LICENSE_NOTICE.md).
-The library code is under Apache-2.0 ([LICENSE](LICENSE)); this does not grant
-redistribution rights for the separately sourced SISO data.
+The package code is MIT licensed ([LICENSE](LICENSE)). The bundled SISO XML
+editions retain their own source terms; see the [edition provenance registry](src/siso_ref010/data/standards/PROVENANCE.json)
+and [source notice](SISO-DATA-NOTICE.txt).
 The current implementation checks and remaining public-release gates are in
 [MVP release readiness](docs/release-readiness.md).
 
@@ -138,30 +137,47 @@ number with `--standard-version 35`; v37 remains the default. See
 
 See the [command-line reference](docs/cli.md).
 
+## Try the consumer example
+
+The [consumer integration example](docs/consumer-integration.md) shows how an
+application can inspect an Entity Type code with a selected edition. Run
+`python -m examples.entity_type_consumer` from this checkout.
+
 ## Develop
 
 The edition XML files are tracked verbatim in Git. Source and editable installs
 generate the ignored XZ runtime bundle automatically; the index is checked in
-so CI can detect source or pack drift. To rebuild the bundle explicitly:
+so CI can detect source or pack drift. Set up a virtual environment, activate
+it, then install the development tools and run the full local gate. From the
+repository root, create the environment:
 
 ```sh
-python -m tools.build_standards_pack
-git diff --exit-code -- src/siso_ref010/data/standards/index.json
-python -m pip install -e '.[dev]'
-python -m ruff check .
-python -m ruff format --check .
-python -m pyright
-python -m tools.check_standards_xsd
-python -m tools.check_bundled_standards
-python -m pytest -q
-python -m build
+python -m venv .venv
 ```
 
-The bundled-edition check parses every XML, verifies its bundled hashes, and
-compares API queries with the source projection for every available hierarchy
-prefix. The offline XSD check validates v20–v29 against version-matched
-maintainer schemas and v30–v37 against the packaged namespace 2.7 schema. The
-runtime wheel contains only the current schema. CI also checks installed wheels
-across the supported Python and operating-system matrix. See the [code
-layout](docs/architecture.md)
-and [CHANGELOG.md](CHANGELOG.md) for the current rework.
+Activate it in your shell:
+
+```sh
+source .venv/bin/activate
+```
+
+In Windows PowerShell, use:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Then run:
+
+```sh
+python -m pip install -e '.[dev]'
+python -m tools.ci
+```
+
+The full local gate verifies all 18 editions and applicable XSDs, runs every
+test including the exhaustive edition checks, checks Markdown and repository
+links, runs Ruff and Pyright, and builds and verifies both wheel and
+source-distribution installs. XSD validation needs `xmllint` from libxml2. See
+[MVP release readiness](docs/release-readiness.md) for prerequisites and the
+hosted CI edge profile, [code layout](docs/architecture.md), and
+[CHANGELOG.md](CHANGELOG.md) for the current rework.

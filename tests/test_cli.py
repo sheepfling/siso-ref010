@@ -3,7 +3,7 @@ from io import StringIO
 
 import pytest
 
-from siso_ref010 import EntityTypeAPI
+from siso_ref010 import SisoRef010API
 from siso_ref010.cli import main, render_diff_summary
 from siso_ref010.sources import BUNDLED_STANDARD_SOURCE
 
@@ -99,7 +99,7 @@ def test_help_points_to_the_public_python_api(capsys):
     with pytest.raises(SystemExit) as exc:
         main(["--help"])
     assert exc.value.code == 0
-    assert "from siso_ref010 import EntityTypeAPI" in capsys.readouterr().out
+    assert "from siso_ref010 import SisoRef010API" in capsys.readouterr().out
 
 
 def test_query_text_filter_coexists_with_json_output(capsys):
@@ -183,7 +183,7 @@ def test_dump_writes_original_xml_bytes(capsysbinary, tmp_path):
 
 
 def test_dump_all_uses_versioned_filenames_and_prevents_partial_overwrite(monkeypatch, capsys, tmp_path):
-    import siso_ref010.cli as cli
+    import siso_ref010.cli.app as cli
 
     class MemorySource:
         @property
@@ -211,7 +211,7 @@ def test_dump_all_uses_versioned_filenames_and_prevents_partial_overwrite(monkey
 
 
 def test_inspect_text_commands_cover_each_result_shape(capsys):
-    api = EntityTypeAPI.bundled(37)
+    api = SisoRef010API.bundled(37)
     table = api.inspector.enumeration_table(3)
     assert table is not None
     row = api.inspector.enumeration_rows(3)[0]
@@ -244,7 +244,7 @@ def test_inspect_text_commands_cover_each_result_shape(capsys):
 
 
 def test_history_and_comparison_text_renderers(capsys, monkeypatch):
-    import siso_ref010.cli as cli
+    import siso_ref010.cli.app as cli
 
     assert main(["history", "--entity", "1.3.153.6.4.2.0", "--versions", "36", "37"]) == 0
     history_output = capsys.readouterr().out
@@ -254,7 +254,7 @@ def test_history_and_comparison_text_renderers(capsys, monkeypatch):
     assert main(["history", "--enum-uid", "3", "--value", "95", "--versions", "36", "37"]) == 0
     assert "enumeration history:" in capsys.readouterr().out
 
-    diff = EntityTypeAPI.compare_editions(35, 37, limit=None)
+    diff = SisoRef010API.compare_editions(35, 37, limit=None)
     small_diff = diff.model_copy(update={"changes": diff.changes[:8], "truncated": True})
     monkeypatch.setattr(cli, "_compare_result", lambda args: diff)
 
@@ -355,7 +355,7 @@ def test_inspect_and_dump_runtime_validation_errors(capsys, monkeypatch, tmp_pat
     assert error.value.code == 2
     assert "dump --all requires --output-dir" in capsys.readouterr().err
 
-    import siso_ref010.cli as cli
+    import siso_ref010.cli.app as cli
 
     monkeypatch.setattr(cli.sys, "stdout", StringIO())
     with pytest.raises(SystemExit) as error:
@@ -388,7 +388,7 @@ def test_cli_rejects_incompatible_commands_and_filters_as_structured_errors(caps
 
 
 def test_cli_summary_and_concise_output_explain_removed_and_recoded_values(capsys, monkeypatch):
-    import siso_ref010.cli as cli
+    import siso_ref010.cli.app as cli
 
     class MemorySource:
         def __init__(self, versions):
@@ -412,7 +412,7 @@ def test_cli_summary_and_concise_output_explain_removed_and_recoded_values(capsy
         '<enumrow value="3" description="Stable identity" uuid="stable"/>'
         "</enum></ebv>"
     )
-    diff = EntityTypeAPI.compare_editions(
+    diff = SisoRef010API.compare_editions(
         1,
         2,
         source=MemorySource({1: before, 2: after}),

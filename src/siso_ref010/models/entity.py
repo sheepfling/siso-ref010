@@ -15,6 +15,7 @@ from typing import Annotated, Final, NoReturn, Self
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from ..errors import SisoRef010TypeError, SisoRef010ValueError
 from .codes import (
     CategoryCode,
     CountryCode,
@@ -26,7 +27,6 @@ from .codes import (
     SpecificCode,
     SubcategoryCode,
 )
-from .errors import EntityTypeTypeError, EntityTypeValueError
 
 
 class EntityKind(IntEnum):
@@ -173,13 +173,13 @@ def _pack_key(values: tuple[int, ...], *, signed: bool = True) -> EntityKey:
         strict=True,
     ):
         if not _is_integer(value):
-            raise EntityTypeTypeError(
+            raise SisoRef010TypeError(
                 "Entity fields must be integers, not booleans",
                 code="invalid_field_type",
                 context={"field": name, "value": value, "expected": "integer"},
             )
         if not 0 <= value <= limit:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 f"{name} must be in 0..{limit}, got {value}",
                 code="field_out_of_range",
                 context={"field": name, "value": value, "minimum": 0, "maximum": limit},
@@ -249,14 +249,14 @@ class EntityType(BaseModel):
     @classmethod
     def from_string(cls, enum_string: str, separator: str = ".") -> EntityType:
         if not separator:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 "Separator must not be empty",
                 code="empty_separator",
                 context={"separator": separator},
             )
         parts = enum_string.split(separator)
         if len(parts) != 7 or any(re.fullmatch(r"[0-9]+", part.strip()) is None for part in parts):
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 f"Expected seven unsigned decimal fields: {enum_string!r}",
                 code="invalid_entity_string",
                 context={"value": enum_string, "separator": separator, "expected_fields": 7},
@@ -266,13 +266,13 @@ class EntityType(BaseModel):
     @classmethod
     def from_key(cls, key: int) -> EntityType:
         if not _is_integer(key):
-            raise EntityTypeTypeError(
+            raise SisoRef010TypeError(
                 "Key must be an integer, not a boolean",
                 code="invalid_key_type",
                 context={"value": key, "expected": "integer"},
             )
         if not -(1 << 63) <= key <= _UINT64_MAX:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 "Key must fit a signed or unsigned 64-bit integer",
                 code="key_out_of_range",
                 context={"value": key, "minimum": -(1 << 63), "maximum": _UINT64_MAX},
@@ -282,7 +282,7 @@ class EntityType(BaseModel):
     @classmethod
     def from_bytes(cls, value: bytes) -> EntityType:
         if len(value) != 8:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 "Entity Type wire representation must contain exactly 8 bytes",
                 code="invalid_wire_length",
                 context={"length": len(value), "expected_length": 8},
@@ -342,7 +342,7 @@ class EntityTypePrefix(BaseModel):
     def from_values(cls, values: tuple[int, ...]) -> Self:
         """Build a prefix from an ordered CLI or wire-field sequence."""
         if len(values) > len(_NAMES):
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 f"an entity prefix can contain at most {len(_NAMES)} fields",
                 code="invalid_prefix_length",
                 context={"received": len(values), "maximum": len(_NAMES)},
@@ -356,14 +356,14 @@ def _raise_entity_validation_error(error: ValidationError) -> NoReturn:
     field = str(detail["loc"][0]) if detail["loc"] else "entity"
     value = detail.get("input")
     if detail["type"] == "int_type":
-        raise EntityTypeTypeError(
+        raise SisoRef010TypeError(
             f"{field} must be an integer, not a boolean",
             code="invalid_field_type",
             context={"field": field, "value": value, "expected": "integer"},
         ) from error
     if detail["type"] in {"greater_than_equal", "less_than_equal"} and field in _FIELD_LIMITS:
         maximum = _FIELD_LIMITS[field]
-        raise EntityTypeValueError(
+        raise SisoRef010ValueError(
             f"{field} must be in 0..{maximum}, got {value}",
             code="field_out_of_range",
             context={"field": field, "value": value, "minimum": 0, "maximum": maximum},

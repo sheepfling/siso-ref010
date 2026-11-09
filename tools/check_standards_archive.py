@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from zipfile import ZipFile
 
-from siso_ref010 import EntityTypeCatalog, EntityTypeXmlParser
+from siso_ref010 import EntityTypeXmlParser, ReferenceCatalog
 
 
 def check_archive(path: Path) -> int:
@@ -33,7 +33,7 @@ def check_archive(path: Path) -> int:
                 edition_date = standard.date.isoformat() if standard.date is not None else ""
                 if edition_date != entry["edition_date"]:
                     raise ValueError(f"date mismatch: {standard.date!r}")
-                catalog = EntityTypeCatalog(standard)
+                catalog = ReferenceCatalog(standard)
             except Exception as exc:
                 failures += 1
                 print(f"FAIL v{version}: {type(exc).__name__}: {exc}")

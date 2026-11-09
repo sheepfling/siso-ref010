@@ -4,7 +4,10 @@ repos:
       - id: markdown-quality
         name: Markdown lint and repository link checks
         entry: python -m tools.check_markdown
-        language: system
+        language: python
+        additional_dependencies:
+          - mdrepo>=0.0.1.post0,<0.1
+          - rumdl>=0.2.49,<0.3
         types: [markdown]
         pass_filenames: false
         always_run: true

@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Structured multi-edition SISO-REF-010 parser and typed DIS entity API"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "Apache-2.0 AND LicenseRef-SISO-Data"
+license = "MIT AND LicenseRef-SISO-Data"
 license-files = ["LICENSE", "SISO-DATA-NOTICE.txt"]
 dependencies = ["pydantic>=2.7,<3"]
 keywords = ["DIS", "entity-type", "SISO-REF-010", "simulation", "interoperability"]
@@ -57,7 +57,6 @@ siso_ref010 = [
     "data/standards/index.json",
     "data/standards/PROVENANCE.json",
     "data/standards/SHA256SUMS.txt",
-    "data/standards/LICENSE_NOTICE.md",
 ]
 
 [tool.setuptools.exclude-package-data]
@@ -72,6 +71,9 @@ fallback_version = "0.1.dev0"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "all_editions: loads or compares every bundled SISO edition; included in the full local gate",
+]
 
 [tool.pyright]
 include = ["src", "examples"]
@@ -96,7 +98,6 @@ style = "ordered"
 
 [tool.rumdl.per-file-ignores]
 "CHANGELOG.md" = ["MD013"]
-"src/siso_ref010/data/standards/LICENSE_NOTICE.md" = ["MD013"]
 
 [tool.mdrepo.links]
 check-missing-targets = false

@@ -10,11 +10,11 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from ._version import __version__
-from .catalog import EntityTypeCatalog
+from .catalog import ReferenceCatalog
 from .inspection import EditionInspector, EditionValue, EditionValueKind
-from .model import EntityType
-from .parser import EntityTypeXmlParser
-from .reference import EntityTypeStandard, TableAnnotation
+from .models.entity import EntityType
+from .models.standard import EntityTypeStandard, TableAnnotation
+from .parsing.xml import EntityTypeXmlParser
 from .sources import BUNDLED_STANDARD_SOURCE, StandardSource
 
 ComparisonScope = Literal["all", "entities", "enumerations"]
@@ -192,8 +192,10 @@ class UnassessedAssessmentCounts(ComparisonModel):
 
 
 class EditionDiff(ComparisonModel):
+    """Complete audit report; use its methods for summary, concise, or queue views."""
+
     report_type: Literal["audit"] = "audit"
-    schema_version: int = 5
+    schema_version: Literal[5] = 5
     generator_version: str = __version__
     from_version: int
     to_version: int
@@ -389,6 +391,8 @@ class EditionDiff(ComparisonModel):
 
 
 class FieldDelta(ComparisonModel):
+    """One normalized field change with its old and new values."""
+
     name: str
     before: object | None
     after: object | None
@@ -442,8 +446,10 @@ class ConciseChange(ComparisonModel):
 
 
 class ConciseEditionDiff(ComparisonModel):
+    """Normalized change records without full source snapshots."""
+
     report_type: Literal["concise"] = "concise"
-    schema_version: int
+    schema_version: Literal[5]
     generator_version: str
     from_version: int
     to_version: int
@@ -456,8 +462,10 @@ class ConciseEditionDiff(ComparisonModel):
 
 
 class EditionDiffSummary(ComparisonModel):
+    """Bounded counts, assessment totals, and a short review preview."""
+
     report_type: Literal["summary"] = "summary"
-    schema_version: int
+    schema_version: Literal[5]
     generator_version: str
     from_version: int
     to_version: int
@@ -485,8 +493,10 @@ class EditionDiffSummary(ComparisonModel):
 
 
 class ReviewQueuePage(ComparisonModel):
+    """One deterministic, pageable selection of changes for human review."""
+
     report_type: Literal["review_queue"] = "review_queue"
-    schema_version: int
+    schema_version: Literal[5]
     generator_version: str
     from_version: int
     to_version: int
@@ -1426,7 +1436,7 @@ def entity_history(
     points: list[HistoryPoint] = []
     for version in selected:
         standard = _load_standard(source, version)
-        catalog = EntityTypeCatalog(standard)
+        catalog = ReferenceCatalog(standard)
         description = catalog.get_description_of(parsed)
         qualified = catalog.get_description_of(parsed, fully_qualified=True)
         matching = EditionInspector(standard).entity_path(values)

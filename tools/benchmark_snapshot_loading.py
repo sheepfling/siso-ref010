@@ -10,7 +10,7 @@ import sys
 from statistics import median
 from time import perf_counter
 
-from siso_ref010 import EntityTypeAPI
+from siso_ref010 import SisoRef010API
 from siso_ref010.snapshots import read_snapshot_bytes
 
 
@@ -19,7 +19,7 @@ def _measure_child(operation: str, version: int) -> None:
     if operation == "snapshot":
         payload_size = len(read_snapshot_bytes(version))
     else:
-        EntityTypeAPI.bundled(version)
+        SisoRef010API.bundled(version)
         payload_size = None
     elapsed_ms = (perf_counter() - started) * 1000
     print(
@@ -67,7 +67,7 @@ def main() -> int:
     if args.iterations < 1:
         parser.error("--iterations must be positive")
 
-    available = EntityTypeAPI.bundled_versions().versions
+    available = SisoRef010API.bundled_versions().versions
     print(f"Python {platform.python_version()} · {platform.platform()}")
     print("Each sample uses a fresh process; timings exclude interpreter startup.")
     for version in args.versions:

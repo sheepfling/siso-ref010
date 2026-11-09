@@ -7,20 +7,22 @@ from pydantic import ValidationError
 
 from siso_ref010 import (
     EntityType,
-    EntityTypeAPI,
-    EntityTypeCatalog,
     EntityTypePrefix,
-    EntityTypeTypeError,
-    EntityTypeValueError,
     EntityTypeXmlParser,
+    ReferenceCatalog,
+    SisoRef010API,
+    SisoRef010TypeError,
+    SisoRef010ValueError,
 )
-from siso_ref010.cli import _error_type, main
-from siso_ref010.model import (
+from siso_ref010.cli.app import main
+from siso_ref010.cli.output import error_type as _error_type
+from siso_ref010.models.entity import (
     create_entity_domain_from_number,
     create_entity_kind_from_number,
     get_entity_domain_description,
     get_entity_kind_description,
 )
+from siso_ref010.models.standard import ChangeRequest, ReferenceEntry, SourceInfo, _unsigned_integer
 from siso_ref010.projection import (
     _applicability_values,
     _child_code,
@@ -29,7 +31,6 @@ from siso_ref010.projection import (
     _referenced_table,
     _walk_entry,
 )
-from siso_ref010.reference import ChangeRequest, ReferenceEntry, SourceInfo, _unsigned_integer
 
 
 def test_pydantic_and_integer_boundary_edges():
@@ -46,7 +47,7 @@ def test_pydantic_and_integer_boundary_edges():
         EntityType(kind=1)
     with pytest.raises(ValueError, match="contiguous"):
         EntityTypePrefix(kind=1, country=1)
-    with pytest.raises(EntityTypeValueError) as error:
+    with pytest.raises(SisoRef010ValueError) as error:
         EntityTypePrefix.from_values(tuple(range(8)))
     assert error.value.code == "invalid_prefix_length"
 
@@ -79,13 +80,13 @@ def test_projection_parser_edges():
     assert _applicability_values(None, 0) == ()
     assert _applicability_values("1", 0) == (1,)
     assert _applicability_values("1", 1) == ()
-    with pytest.raises(EntityTypeValueError):
+    with pytest.raises(SisoRef010ValueError):
         _field_values("other")
-    with pytest.raises(EntityTypeValueError):
+    with pytest.raises(SisoRef010ValueError):
         _field_values("3-1")
     with pytest.raises(ValueError):
         _child_code(2, 1)
-    with pytest.raises(EntityTypeValueError) as error:
+    with pytest.raises(SisoRef010ValueError) as error:
         _referenced_table("bad", {})
     assert error.value.code == "unresolved_enumeration_reference"
 
@@ -103,16 +104,16 @@ def test_projection_parser_edges():
     no_domain_labels = EntityTypeXmlParser.from_string(
         '<ebv><enum uid="8" name="Platform Domain" applicability="1"><enumrow value="2"/></enum></ebv>'
     )
-    assert not EntityTypeCatalog(no_domain_labels).data.domains
+    assert not ReferenceCatalog(no_domain_labels).data.domains
 
 
 def test_public_catalog_and_cli_error_edges(tmp_path, monkeypatch, capsys):
-    catalog = EntityTypeCatalog.bundled()
+    catalog = ReferenceCatalog.bundled()
     assert catalog.data is catalog.data
     assert all(isinstance(key, tuple) for key in catalog.get_all_domains())
 
-    api = EntityTypeAPI()
-    with pytest.raises(EntityTypeTypeError):
+    api = SisoRef010API()
+    with pytest.raises(SisoRef010TypeError):
         api.choices("countries", object())  # type: ignore[arg-type]
     assert _error_type(TypeError()) == "TypeError"
     assert _error_type(ValueError()) == "ValueError"
@@ -125,7 +126,7 @@ def test_public_catalog_and_cli_error_edges(tmp_path, monkeypatch, capsys):
     assert exit_code.value.code == 2
     capsys.readouterr()
 
-    import siso_ref010.cli as cli
+    import siso_ref010.cli.app as cli
 
     def interrupt(_value):
         raise KeyboardInterrupt

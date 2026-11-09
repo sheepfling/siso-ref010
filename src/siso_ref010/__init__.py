@@ -15,27 +15,16 @@ from .api import (
     EntityQueryRequest,
     EntityQueryResults,
     EntityQueryWarmup,
-    EntityTypeAPI,
     EnumerationNameResolution,
     EnumerationNameStatus,
     MappingEntityQueryBackend,
     SearchHit,
     SearchResults,
+    SisoRef010API,
     decode_key,
     encode_entity,
 )
-from .catalog import BUNDLED_STANDARD_VERSION, BUNDLED_STANDARD_VERSIONS, EntityTypeCatalog
-from .codes import (
-    CategoryCode,
-    CountryCode,
-    DomainCode,
-    EntityFieldCode,
-    EntityKey,
-    ExtraCode,
-    KindCode,
-    SpecificCode,
-    SubcategoryCode,
-)
+from .catalog import BUNDLED_STANDARD_VERSION, BUNDLED_STANDARD_VERSIONS, ReferenceCatalog
 from .comparison import (
     AddedByScope,
     ApplicationMigration,
@@ -64,7 +53,12 @@ from .comparison import (
     ValueHistory,
     ValueRecord,
 )
-from .errors import EntityTypeError, EntityTypeIndexError, EntityTypeTypeError, EntityTypeValueError
+from .errors import (
+    SisoRef010Error,
+    SisoRef010IndexError,
+    SisoRef010TypeError,
+    SisoRef010ValueError,
+)
 from .inspection import (
     DiagnosticSeverity,
     EditionAudit,
@@ -100,18 +94,30 @@ from .inspection import (
     SemanticCheckStatus,
     ValidationStatus,
 )
-from .model import EntityDomain, EntityKind, EntityType, EntityTypePrefix
-from .parser import EntityTypeXmlParser, ParseError
-from .projection import CatalogChild, CatalogData
-from .reference import (
+from .models import (
+    CategoryCode,
     ChangeRequest,
+    CountryCode,
+    DomainCode,
     EntityBranch,
+    EntityDomain,
+    EntityFieldCode,
+    EntityKey,
+    EntityKind,
+    EntityType,
+    EntityTypePrefix,
     EntityTypeStandard,
     EnumerationTable,
+    ExtraCode,
+    KindCode,
     ReferenceEntry,
     SourceInfo,
+    SpecificCode,
+    SubcategoryCode,
     TableAnnotation,
 )
+from .parsing import EntityTypeXmlParser, ParseError
+from .projection import CatalogChild, CatalogData
 from .reporting import render_json, render_json_envelope, render_markdown, render_terminal
 from .sources import BUNDLED_STANDARD_SOURCE, BundledStandardSource, StandardSource
 
@@ -160,8 +166,8 @@ __all__ = [
     "EntityKind",
     "EntityType",
     "EntityTypePrefix",
-    "EntityTypeAPI",
-    "EntityTypeCatalog",
+    "SisoRef010API",
+    "ReferenceCatalog",
     "EntityTypeStandard",
     "EditionChange",
     "EditionAudit",
@@ -202,10 +208,10 @@ __all__ = [
     "render_terminal",
     "SemanticCheckStatus",
     "ProvenanceStatus",
-    "EntityTypeError",
-    "EntityTypeIndexError",
-    "EntityTypeTypeError",
-    "EntityTypeValueError",
+    "SisoRef010Error",
+    "SisoRef010IndexError",
+    "SisoRef010TypeError",
+    "SisoRef010ValueError",
     "EntityTypeXmlParser",
     "EntityBranch",
     "ExtraCode",

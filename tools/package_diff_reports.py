@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
-PACKAGE_REVISION = 4
-SCHEMA = Path("docs/siso-diff-schema.md")
+from pydantic import TypeAdapter
+
+from siso_ref010.comparison import ConciseEditionDiff, EditionDiff, EditionDiffSummary, ReviewQueuePage
+
+PACKAGE_REVISION = 5
 EVIDENCE_FILE = "siso-diff-test-evidence.json"
 REPORTS = (
     "siso-ref-010-v35-to-v36-diff.json",
@@ -32,10 +36,10 @@ This archive contains audit, concise, summary, and separately pageable review
 queue JSON reports plus human-readable summaries for v35 to v36, v36 to v37,
 and the direct v35 to v37 comparison.
 
-This is report-bundle package revision 4 (`siso_diff_v4.zip`). Its JSON reports
+This is report-bundle package revision 5 (`siso_diff_v5.zip`). Its JSON reports
 use report schema version 5. These version numbers are independent. Each JSON
 report's `generator_version` records the installed siso-ref010 package
-version. `SCHEMA.md` documents the report projections and pagination policy;
+version. `SCHEMA.json` is generated from the report Pydantic models;
 `TEST-EVIDENCE.json` records report, implementation, and test hashes plus the
 checks performed. Audits are complete and source hashes identify the exact XML
 bytes compared. The bundled XSD defines enumeration `size` values in bits; the
@@ -54,6 +58,16 @@ def _write_entry(archive: ZipFile, name: str, content: bytes) -> None:
     archive.writestr(info, content)
 
 
+def _report_schema() -> bytes:
+    """Generate JSON Schema from the Pydantic models that produce each view."""
+    adapter = TypeAdapter(EditionDiff | ConciseEditionDiff | EditionDiffSummary | ReviewQueuePage)
+    schema = adapter.json_schema(mode="serialization", by_alias=True)
+    schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+    schema["title"] = "SISO-REF-010 Edition Diff Reports"
+    schema["description"] = "Audit, concise, summary, and pageable review queue reports."
+    return (json.dumps(schema, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+
 def package_reports(reports_dir: Path, output: Path) -> None:
     """Write a deterministic ZIP containing only named reports and evidence."""
     missing = [name for name in REPORTS if not (reports_dir / name).is_file()]
@@ -64,7 +78,7 @@ def package_reports(reports_dir: Path, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(output, "w") as archive:
         _write_entry(archive, "README.md", README.encode("utf-8"))
-        _write_entry(archive, "SCHEMA.md", SCHEMA.read_bytes())
+        _write_entry(archive, "SCHEMA.json", _report_schema())
         _write_entry(archive, "TEST-EVIDENCE.json", (reports_dir / EVIDENCE_FILE).read_bytes())
         for name in REPORTS:
             _write_entry(archive, name, (reports_dir / name).read_bytes())

@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from siso_ref010 import EntityTypeXmlParser
-from siso_ref010.reference import ChangeRequest, ReferenceEntry, SourceInfo
+from siso_ref010.models.standard import ChangeRequest, ReferenceEntry, SourceInfo
 
 
 def _entry(**updates):

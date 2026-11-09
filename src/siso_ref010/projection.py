@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TypeAlias
 
-from .codes import (
+from .errors import SisoRef010ValueError
+from .models.codes import (
     CategoryCode,
     CountryCode,
     DomainCode,
@@ -19,9 +20,8 @@ from .codes import (
     SpecificCode,
     SubcategoryCode,
 )
-from .errors import EntityTypeValueError
-from .model import create_key
-from .reference import EntityTypeStandard, EnumerationTable, ReferenceEntry
+from .models.entity import create_key
+from .models.standard import EntityTypeStandard, EnumerationTable, ReferenceEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +72,7 @@ def _field_values(expression: str) -> tuple[KindCode, ...]:
             elif re.fullmatch(r"[0-9]+", bound):
                 bounds.append(int(bound))
             else:
-                raise EntityTypeValueError(
+                raise SisoRef010ValueError(
                     f"Unsupported SISO applicability value: {bound!r}",
                     code="unsupported_applicability_value",
                     context={"value": bound},
@@ -82,7 +82,7 @@ def _field_values(expression: str) -> tuple[KindCode, ...]:
             continue
         minimum, maximum = bounds[:2]
         if minimum > maximum:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 f"Invalid SISO applicability range: {part!r}",
                 code="invalid_applicability_range",
                 context={"range": part, "minimum": minimum, "maximum": maximum},
@@ -162,7 +162,7 @@ def _referenced_table(
     except ValueError:
         table = None
     if table is None:
-        raise EntityTypeValueError(
+        raise SisoRef010ValueError(
             f"Unresolved SISO enumeration cross-reference: {xref!r}",
             code="unresolved_enumeration_reference",
             context={"xref": xref},
@@ -273,7 +273,7 @@ def _freeze_children(
 def _validated_standard(value: object) -> EntityTypeStandard | None:
     if value is None or isinstance(value, EntityTypeStandard):
         return value
-    raise EntityTypeValueError(
+    raise SisoRef010ValueError(
         "catalog data must be parsed from SISO-REF-010 XML",
         code="invalid_catalog_source",
         context={"received_type": type(value).__name__},

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from siso_ref010 import EntityTypeAPI
+from siso_ref010 import SisoRef010API
 from siso_ref010.cli import render_diff_summary
 
 PAIRS = ((35, 36), (36, 37), (35, 37))
@@ -25,7 +25,7 @@ def build_reports(output_dir: Path) -> tuple[Path, ...]:
     written: list[Path] = []
     for from_version, to_version in PAIRS:
         stem = f"siso-ref-010-v{from_version}-to-v{to_version}"
-        diff = EntityTypeAPI.compare_editions(from_version, to_version, limit=None)
+        diff = SisoRef010API.compare_editions(from_version, to_version, limit=None)
         summary = diff.summary()
         review_limit = max(summary.review_queue_count, 1)
         queue = diff.review_queue(limit=review_limit)

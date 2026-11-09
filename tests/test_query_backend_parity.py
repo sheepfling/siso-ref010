@@ -1,9 +1,9 @@
-from siso_ref010 import EntityTypeAPI, EntityTypeCatalog, EntityTypeXmlParser
+from siso_ref010 import EntityTypeXmlParser, ReferenceCatalog, SisoRef010API
 
 
 def test_cold_and_warmed_queries_match_for_source_records() -> None:
-    cold = EntityTypeAPI.bundled()
-    warm = EntityTypeAPI.bundled()
+    cold = SisoRef010API.bundled()
+    warm = SisoRef010API.bundled()
     warm.warmup()
     cases = [
         {},
@@ -28,8 +28,8 @@ def test_ranges_and_cross_references_match() -> None:
         '<subcategory_xref xref="7"/></category></entity></cet></ebv>'
     )
     standard = EntityTypeXmlParser.from_string(xml)
-    cold = EntityTypeAPI(EntityTypeCatalog(standard))
-    warm = EntityTypeAPI(EntityTypeCatalog(standard))
+    cold = SisoRef010API(ReferenceCatalog(standard))
+    warm = SisoRef010API(ReferenceCatalog(standard))
     warm.warmup()
     for case in (
         {},

@@ -1,7 +1,7 @@
 """Public application API used by both Python consumers and the command line.
 
 This module provides discoverable operations and immutable typed results with
-JSON-safe views. Use `EntityTypeCatalog` and `EntityTypeXmlParser` for lower-level access.
+JSON-safe views. Use `ReferenceCatalog` and `EntityTypeXmlParser` for lower-level access.
 """
 
 from __future__ import annotations
@@ -16,8 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from ._paths import PathInput, normalize_path
 from ._version import __version__
-from .catalog import BUNDLED_STANDARD_VERSION, BUNDLED_STANDARD_VERSIONS, EntityTypeCatalog
-from .codes import EntityFieldCode
+from .catalog import BUNDLED_STANDARD_VERSION, BUNDLED_STANDARD_VERSIONS, ReferenceCatalog
 from .comparison import (
     ComparisonScope,
     EditionDiff,
@@ -32,7 +31,7 @@ from .comparison import (
 from .comparison import (
     enumeration_history as _enumeration_history,
 )
-from .errors import EntityTypeTypeError, EntityTypeValueError
+from .errors import SisoRef010TypeError, SisoRef010ValueError
 from .inspection import (
     EditionInspector,
     EditionValue,
@@ -41,7 +40,8 @@ from .inspection import (
     EnumerationTableInfo,
     EnumerationValueResolution,
 )
-from .model import EntityType, EntityTypePrefix
+from .models.codes import EntityFieldCode
+from .models.entity import EntityType, EntityTypePrefix
 from .query_backend import (
     EntityQueryBackend,
     EntityQueryPage,
@@ -95,7 +95,7 @@ def encode_entity(entity: EntityType | str) -> EntityEncoding:
     if isinstance(entity, str):
         return EntityEncoding(entity=EntityType.from_string(entity))
     if not isinstance(cast(object, entity), EntityType):
-        raise EntityTypeTypeError(
+        raise SisoRef010TypeError(
             "entity must be a EntityType or a seven-field string",
             code="invalid_entity_type",
             context={"received_type": type(entity).__name__, "expected": "EntityType or str"},
@@ -257,11 +257,12 @@ class Choices(ResultModel):
 
 
 class CatalogInfo(ResultModel):
+    """Package and selected-edition details; source terms remain in the XML."""
+
     version: str
     data_source: str
     data_version: str | None
     data_date: str | None
-    attribution: str
     counts: CatalogCounts
 
 
@@ -275,17 +276,17 @@ class BundledStandards(ResultModel):
 def _validated_prefix(value: object) -> EntityTypePrefix | None:
     if value is None or isinstance(value, EntityTypePrefix):
         return value
-    raise EntityTypeTypeError(
+    raise SisoRef010TypeError(
         "prefix must be an EntityTypePrefix or None",
         code="invalid_entity_prefix_type",
         context={"received_type": type(value).__name__, "expected": "EntityTypePrefix or None"},
     )
 
 
-class EntityTypeAPI:
+class SisoRef010API:
     """High-level typed API. Construct with no argument for the bundled snapshot.
 
-    ``EntityTypeAPI(catalog)`` accepts an existing EntityTypeCatalog instance. Its data
+    ``SisoRef010API(catalog)`` accepts an existing ReferenceCatalog instance. Its data
     provenance is reported as supplied, never assumed to be the bundled version.
     ``from_xml`` loads another SISO-REF-010 XML source once. Pass ``query_backend``
     to replace structured query execution. No method prints or exits.
@@ -293,11 +294,11 @@ class EntityTypeAPI:
 
     def __init__(
         self,
-        catalog: EntityTypeCatalog | None = None,
+        catalog: ReferenceCatalog | None = None,
         *,
         query_backend: EntityQueryBackend | None = None,
     ) -> None:
-        self._catalog = catalog if catalog is not None else EntityTypeCatalog.bundled()
+        self._catalog = catalog if catalog is not None else ReferenceCatalog.bundled()
         self._source = "bundled" if catalog is None else "supplied"
         self._verified_standard = self._catalog.standard if catalog is None else None
         self._edition_number = BUNDLED_STANDARD_VERSION if catalog is None else None
@@ -310,9 +311,9 @@ class EntityTypeAPI:
         version: int = BUNDLED_STANDARD_VERSION,
         *,
         query_backend: EntityQueryBackend | None = None,
-    ) -> EntityTypeAPI:
+    ) -> SisoRef010API:
         """Load one of the bundled SISO-REF-010 editions by its release number."""
-        result = cls(EntityTypeCatalog.bundled(version), query_backend=query_backend)
+        result = cls(ReferenceCatalog.bundled(version), query_backend=query_backend)
         result._source = "bundled"
         result._verified_standard = result._catalog.standard
         result._edition_number = version
@@ -332,9 +333,9 @@ class EntityTypeAPI:
         path: PathInput,
         *,
         query_backend: EntityQueryBackend | None = None,
-    ) -> EntityTypeAPI:
+    ) -> SisoRef010API:
         source = normalize_path(path)
-        result = cls(EntityTypeCatalog.from_xml(source), query_backend=query_backend)
+        result = cls(ReferenceCatalog.from_xml(source), query_backend=query_backend)
         result._source = str(source)
         return result
 
@@ -345,9 +346,9 @@ class EntityTypeAPI:
         version: int,
         *,
         query_backend: EntityQueryBackend | None = None,
-    ) -> EntityTypeAPI:
+    ) -> SisoRef010API:
         """Retrieve one version from a pluggable standard source."""
-        result = cls(EntityTypeCatalog.from_source(source, version), query_backend=query_backend)
+        result = cls(ReferenceCatalog.from_source(source, version), query_backend=query_backend)
         is_bundled = type(source) is BundledStandardSource
         result._source = "bundled" if is_bundled else "supplied"
         result._verified_standard = result._catalog.standard if is_bundled else None
@@ -359,7 +360,7 @@ class EntityTypeAPI:
         cls,
         source: StandardSource | None = None,
         versions: Iterable[int] | None = None,
-    ) -> Iterator[tuple[int, EntityTypeAPI]]:
+    ) -> Iterator[tuple[int, SisoRef010API]]:
         """Yield APIs by version for the same query across multiple editions."""
         selected_source = source if source is not None else BUNDLED_STANDARD_SOURCE
         selected_versions = selected_source.versions if versions is None else tuple(versions)
@@ -420,7 +421,7 @@ class EntityTypeAPI:
         """Return a read-only inspector for the exact parsed edition in this API."""
         standard = self._catalog.standard
         if standard is None:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 "No parsed SISO-REF-010 source is available for inspection",
                 code="missing_standard_source",
                 context={"data_source": self._source},
@@ -478,7 +479,7 @@ class EntityTypeAPI:
         elif isinstance(cast(object, entity), EntityTypePrefix):
             fields = tuple(entity.values)
         else:
-            raise EntityTypeTypeError(
+            raise SisoRef010TypeError(
                 "entity must be an EntityType, EntityTypePrefix, or dotted code/prefix string",
                 code="invalid_entity_resolution_input",
                 context={"received_type": type(entity).__name__},
@@ -492,14 +493,14 @@ class EntityTypeAPI:
     def find_enumeration_tables(self, name: str) -> tuple[EnumerationTableInfo, ...]:
         """Find tables by exact, case-insensitive human-readable name."""
         if not isinstance(cast(object, name), str):
-            raise EntityTypeTypeError(
+            raise SisoRef010TypeError(
                 "enumeration name must be a string",
                 code="invalid_enumeration_name_type",
                 context={"received_type": type(name).__name__},
             )
         normalized = name.strip().casefold()
         if not normalized:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 "enumeration name must not be empty",
                 code="empty_enumeration_name",
                 context={"name": name},
@@ -517,13 +518,13 @@ class EntityTypeAPI:
         ``ambiguous_table`` instead of selecting an arbitrary UID.
         """
         if type(value) is not int:
-            raise EntityTypeTypeError(
+            raise SisoRef010TypeError(
                 "enumeration value must be an integer, not a boolean",
                 code="invalid_enumeration_value_type",
                 context={"value": value, "expected": "integer"},
             )
         if value < 0:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 "enumeration value must be nonnegative",
                 code="negative_enumeration_value",
                 context={"value": value, "minimum": 0},
@@ -558,13 +559,13 @@ class EntityTypeAPI:
         if limit is not None and (
             isinstance(limit, bool) or not isinstance(cast(object, limit), int) or limit < 0
         ):
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 "limit must be a nonnegative integer or None",
                 code="invalid_search_limit",
                 context={"value": limit, "minimum": 0},
             )
         if not isinstance(cast(object, query), str):
-            raise EntityTypeTypeError(
+            raise SisoRef010TypeError(
                 "query must be a string",
                 code="invalid_query_type",
                 context={"received_type": type(query).__name__, "expected": "str"},
@@ -608,13 +609,13 @@ class EntityTypeAPI:
                 or not isinstance(cast(object, value), int)
                 or not 0 <= value <= maximum
             ):
-                raise EntityTypeValueError(
+                raise SisoRef010ValueError(
                     f"{name} must be an integer from 0 through {maximum}",
                     code="invalid_entity_query_field",
                     context={"field": name, "value": value, "minimum": 0, "maximum": maximum},
                 )
         if text is not None and not isinstance(cast(object, text), str):
-            raise EntityTypeTypeError(
+            raise SisoRef010TypeError(
                 "text must be a string or None",
                 code="invalid_entity_query_text",
                 context={"received_type": type(text).__name__, "expected": "str or None"},
@@ -623,13 +624,13 @@ class EntityTypeAPI:
             limit is not None and (not isinstance(cast(object, limit), int) or limit < 0)
         )
         if invalid_limit:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 "limit must be a nonnegative integer or None",
                 code="invalid_entity_query_limit",
                 context={"value": limit, "minimum": 0},
             )
         if isinstance(offset, bool) or not isinstance(cast(object, offset), int) or offset < 0:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 "offset must be a nonnegative integer",
                 code="invalid_entity_query_offset",
                 context={"value": offset, "minimum": 0},
@@ -675,7 +676,7 @@ class EntityTypeAPI:
         prefix = _validated_prefix(prefix)
         parents = prefix.values if prefix is not None else ()
         if len(parents) != kind.parent_count:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 f"{kind.value} requires {kind.parent_count} parent numbers",
                 code="invalid_parent_count",
                 context={
@@ -714,7 +715,6 @@ class EntityTypeAPI:
             data_source=self._source,
             data_version=(standard.title or None) if standard is not None else None,
             data_date=standard.date.isoformat() if standard is not None and standard.date else None,
-            attribution="Reprinted with permission from SISO Inc.",
             counts=CatalogCounts(
                 countries=catalog.country_count,
                 kinds=catalog.kind_count,
@@ -726,7 +726,7 @@ class EntityTypeAPI:
 
 
 __all__ = [
-    "EntityTypeAPI",
+    "SisoRef010API",
     "EntityEncoding",
     "EntityDescription",
     "SearchHit",

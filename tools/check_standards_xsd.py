@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TypedDict, cast
 from xml.etree import ElementTree
@@ -116,7 +118,17 @@ def _load_registries() -> tuple[
     return editions, historical, xsd_artifact["schema_namespace"], xsd_artifact["sha256"]
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--versions",
+        type=int,
+        nargs="+",
+        metavar="VERSION",
+        help="validate selected bundled editions; the default validates every edition",
+    )
+    args = parser.parse_args(argv)
+
     xmllint = shutil.which("xmllint")
     if xmllint is None:
         print("xmllint is required for offline XSD validation", file=sys.stderr)
@@ -131,7 +143,27 @@ def main() -> int:
     failures = 0
     not_run = 0
     passed = 0
-    xml_files = sorted(STANDARDS.glob("v*.xml"), key=_version)
+    all_xml_files = {_version(path): path for path in STANDARDS.glob("v*.xml")}
+    if args.versions is None:
+        selected_versions = sorted(all_xml_files)
+    else:
+        selected_versions = sorted(set(args.versions))
+        unknown_versions = set(selected_versions) - editions.keys()
+        if unknown_versions:
+            print(
+                f"Unknown bundled editions: {', '.join(map(str, sorted(unknown_versions)))}",
+                file=sys.stderr,
+            )
+            return 2
+        missing_xml = set(selected_versions) - all_xml_files.keys()
+        if missing_xml:
+            print(
+                f"Missing bundled XML: {', '.join(f'v{version}' for version in sorted(missing_xml))}",
+                file=sys.stderr,
+            )
+            return 2
+
+    xml_files = tuple(all_xml_files[version] for version in selected_versions)
     for xml in xml_files:
         version = _version(xml)
         entry = editions.get(version)

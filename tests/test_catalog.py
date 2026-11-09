@@ -3,10 +3,10 @@ import pytest
 from siso_ref010 import (
     CountryCode,
     EntityType,
-    EntityTypeCatalog,
     EntityTypeStandard,
     EntityTypeXmlParser,
     KindCode,
+    ReferenceCatalog,
 )
 
 
@@ -79,7 +79,7 @@ def test_initialization_is_atomic_replacement():
     new = _catalog_xml(
         '<entity kind="1" domain="1" country="153"><category value="2" description="New"/></entity>'
     )
-    catalog = EntityTypeCatalog(old)
+    catalog = ReferenceCatalog(old)
     entity = EntityType(1, 1, 153, 2, 0, 0, 0)
     assert catalog.get_description_of(entity, True).startswith("Old")
     with pytest.raises(ValueError):
@@ -105,7 +105,7 @@ def test_country_overlay_follows_source_order():
         (specific + generic, "Generic"),
         (generic + specific, "Specific"),
     ]:
-        catalog = EntityTypeCatalog(_catalog_xml(categories))
+        catalog = ReferenceCatalog(_catalog_xml(categories))
         assert catalog.get_all_categories_of(prefix)[2] == expected
         # Description fallback prioritizes the country-specific key, independently of collection ordering.
         entity = EntityType(1, 1, 153, 2, 0, 0, 0)
@@ -113,7 +113,7 @@ def test_country_overlay_follows_source_order():
 
 
 def test_empty_catalog():
-    catalog = EntityTypeCatalog()
+    catalog = ReferenceCatalog()
     assert catalog.kind_count == 0
     assert catalog.get_kind_name(KindCode(1)) == "Unknown kind 1"
     assert catalog.get_description_of(EntityType(0, 0, 0, 0, 0, 0, 0)) == "-"

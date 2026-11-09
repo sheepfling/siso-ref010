@@ -109,7 +109,7 @@ class EntityBranch(ReferenceModel):
 
 
 class EntityTypeStandard(ReferenceModel):
-    """Parsed SISO standard data, retaining its hierarchy and source metadata."""
+    """Parsed SISO data, retaining source attributes and a typed edition date."""
 
     source: SourceInfo
     namespace: str | None
@@ -118,7 +118,11 @@ class EntityTypeStandard(ReferenceModel):
     enumerations: tuple[EnumerationTable, ...]
     entity_table: SourceInfo | None
     entity_types: tuple[EntityBranch, ...]
-    date: Date | None = Field(default=None, exclude=True)
+    date: Date | None = Field(
+        default=None,
+        exclude=True,
+        description="Source-declared calendar date, parsed by Pydantic from the XML date attribute.",
+    )
     source_sha256: str | None = None
     xml_parse_succeeded: bool | None = Field(default=None, exclude=True)
 

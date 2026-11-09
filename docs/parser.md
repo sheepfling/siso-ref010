@@ -7,7 +7,7 @@ the source into a
 JSON catalog or flatten the entity hierarchy during parsing.
 
 ```python
-from siso_ref010 import EntityTypeCatalog, EntityTypeXmlParser
+from siso_ref010 import ReferenceCatalog, EntityTypeXmlParser
 
 standard = EntityTypeXmlParser.from_file("SISO-REF-010.xml")
 print(standard.title, standard.date)
@@ -16,7 +16,7 @@ entity_kinds = standard.enumeration("Entity Kind")
 print(entity_kinds.uid, entity_kinds.applicability)
 print(entity_kinds.entries[0].description)
 
-catalog = EntityTypeCatalog(standard)  # Optional lookup projection
+catalog = ReferenceCatalog(standard)  # Optional lookup projection
 ```
 
 `from_file()` accepts a string or any `os.PathLike[str]` value. File paths are
@@ -42,7 +42,7 @@ rejected.
   to their source entries and can be followed through `EntityTypeStandard`.
 
 For example, `standard.enumeration_by_uid(21)` resolves a `subcategory_xref`
-whose source attributes contain `xref="21"`. `EntityTypeCatalog` uses this
+whose source attributes contain `xref="21"`. `ReferenceCatalog` uses this
 relationship when creating hierarchy choices.
 
 This is a structured model of standard data, not a lossless XML infoset. Unknown

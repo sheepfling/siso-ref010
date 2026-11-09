@@ -13,11 +13,11 @@ from siso_ref010 import (
     BUNDLED_STANDARD_VERSIONS,
     Collection,
     EntityType,
-    EntityTypeAPI,
-    EntityTypeCatalog,
     EntityTypePrefix,
     EntityTypeXmlParser,
     KindCode,
+    ReferenceCatalog,
+    SisoRef010API,
 )
 from siso_ref010.snapshots import read_snapshot_bytes
 
@@ -80,7 +80,7 @@ def _check_source_record(source: object, label: str) -> None:
         raise SystemExit(f"{label} has unverified source bytes")
 
 
-def _prefixes(catalog: EntityTypeCatalog, collection: Collection) -> tuple[EntityTypePrefix | None, ...]:
+def _prefixes(catalog: ReferenceCatalog, collection: Collection) -> tuple[EntityTypePrefix | None, ...]:
     if collection in {Collection.COUNTRIES, Collection.KINDS}:
         return (None,)
     if collection is Collection.DOMAINS:
@@ -95,7 +95,7 @@ def _prefixes(catalog: EntityTypeCatalog, collection: Collection) -> tuple[Entit
 
 
 def _expected_choices(
-    catalog: EntityTypeCatalog,
+    catalog: ReferenceCatalog,
     collection: Collection,
     prefix: EntityTypePrefix | None,
 ) -> dict[int, str]:
@@ -133,8 +133,8 @@ def _check_version(version: int, entry: Mapping[str, object]) -> None:
         raise ValueError(f"{path.name}: decompressed bundle bytes differ from the source XML")
 
     standard = EntityTypeXmlParser.from_file(path)
-    catalog = EntityTypeCatalog(standard)
-    api = EntityTypeAPI.bundled(version)
+    catalog = ReferenceCatalog(standard)
+    api = SisoRef010API.bundled(version)
     edition_date = standard.date.isoformat() if standard.date is not None else ""
     if standard.title != entry["title"] or edition_date != entry["edition_date"]:
         raise ValueError(f"{path.name}: embedded edition metadata disagrees with provenance")

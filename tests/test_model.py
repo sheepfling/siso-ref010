@@ -9,21 +9,21 @@ from siso_ref010 import (
     EntityDomain,
     EntityKind,
     EntityType,
-    EntityTypeValueError,
     ExtraCode,
     KindCode,
+    SisoRef010ValueError,
     SpecificCode,
     SubcategoryCode,
 )
-from siso_ref010.model import (
+from siso_ref010.models.entity import (
     create_entity_domain_from_number,
     create_entity_domain_from_string,
     create_entity_kind_from_number,
     create_entity_kind_from_string,
     create_key,
 )
-from siso_ref010.parser import EntityTypeXmlParser
-from siso_ref010.reference import ReferenceEntry, SourceInfo
+from siso_ref010.models.standard import ReferenceEntry, SourceInfo
+from siso_ref010.parsing import EntityTypeXmlParser
 
 
 @pytest.mark.parametrize(
@@ -148,7 +148,7 @@ def test_create_key_rejects_out_of_range_fields(field, value):
         "extra": ExtraCode(0),
     }
     values[field] = value
-    with pytest.raises(EntityTypeValueError) as error:
+    with pytest.raises(SisoRef010ValueError) as error:
         create_key(**values)
     assert error.value.code == "field_out_of_range"
     assert error.value.context["field"] == field

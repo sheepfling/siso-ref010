@@ -54,7 +54,7 @@ def test_report_bundle_is_clean_deterministic_and_self_documenting(tmp_path):
         )
 
     assert first.read_bytes() == second.read_bytes()
-    expected = {"README.md", "SCHEMA.md", "TEST-EVIDENCE.json", *REPORT_NAMES}
+    expected = {"README.md", "SCHEMA.json", "TEST-EVIDENCE.json", *REPORT_NAMES}
     with ZipFile(first) as archive:
         assert set(archive.namelist()) == expected
         assert len(archive.namelist()) == 18
@@ -63,4 +63,11 @@ def test_report_bundle_is_clean_deterministic_and_self_documenting(tmp_path):
             "manifest_version": 1,
             "verification": [],
         }
-        assert b"review queue" in archive.read("SCHEMA.md").lower()
+        schema = json.loads(archive.read("SCHEMA.json"))
+        assert "review queue" in schema["description"].lower()
+        assert {
+            "EditionDiff",
+            "ConciseEditionDiff",
+            "EditionDiffSummary",
+            "ReviewQueuePage",
+        } <= set(schema["$defs"])

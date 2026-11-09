@@ -7,10 +7,10 @@ import pytest
 from siso_ref010 import (
     BUNDLED_STANDARD_VERSIONS,
     BundledStandardSource,
-    EntityTypeAPI,
-    EntityTypeCatalog,
     EntityTypePrefix,
-    EntityTypeValueError,
+    ReferenceCatalog,
+    SisoRef010API,
+    SisoRef010ValueError,
     render_markdown,
 )
 from siso_ref010.catalog import _BUNDLED_CATALOG_DATA_CACHE, _BUNDLED_CATALOG_DATA_CACHE_LOCK
@@ -20,10 +20,10 @@ from siso_ref010.cli import main
 def test_bundled_projection_cache_shares_live_data_without_retaining_released_editions():
     with _BUNDLED_CATALOG_DATA_CACHE_LOCK:
         _BUNDLED_CATALOG_DATA_CACHE.clear()
-    first = EntityTypeAPI.bundled(20)
+    first = SisoRef010API.bundled(20)
     data = first._catalog.data
     data_reference = ref(data)
-    second = EntityTypeAPI.bundled(20)
+    second = SisoRef010API.bundled(20)
     assert second._catalog.data is data
 
     del data, first, second
@@ -31,12 +31,13 @@ def test_bundled_projection_cache_shares_live_data_without_retaining_released_ed
     assert data_reference() is None
 
 
+@pytest.mark.all_editions
 def test_sequential_bundled_reports_release_each_edition_projection():
     with _BUNDLED_CATALOG_DATA_CACHE_LOCK:
         _BUNDLED_CATALOG_DATA_CACHE.clear()
 
     for version in BUNDLED_STANDARD_VERSIONS:
-        api = EntityTypeAPI.bundled(version)
+        api = SisoRef010API.bundled(version)
         api_reference = ref(api)
         data_reference = ref(api._catalog.data)
         report = api.inspector.report()
@@ -53,8 +54,9 @@ def test_sequential_bundled_reports_release_each_edition_projection():
 
 
 @pytest.mark.parametrize("version", BUNDLED_STANDARD_VERSIONS)
+@pytest.mark.all_editions
 def test_each_bundled_standard_loads(version):
-    api = EntityTypeAPI.bundled(version)
+    api = SisoRef010API.bundled(version)
     assert api.info().data_version is not None
     assert f"v{version}" in api.info().data_version.lower()
     summary = api.inspector.summary()
@@ -65,8 +67,8 @@ def test_each_bundled_standard_loads(version):
 
 @pytest.mark.parametrize("version", [19, 38, 35.0, "35", True])
 def test_unavailable_bundled_standard_is_rejected(version):
-    with pytest.raises(EntityTypeValueError) as error:
-        EntityTypeCatalog.bundled(version)
+    with pytest.raises(SisoRef010ValueError) as error:
+        ReferenceCatalog.bundled(version)
     assert error.value.code == "unavailable_bundled_version"
 
 
@@ -76,7 +78,7 @@ def test_cli_can_select_bundled_standard(capsys):
 
 
 def test_full_entity_code_reports_zero_extra_as_unspecified():
-    resolution = EntityTypeAPI.bundled(37).resolve_entity("1.3.153.6.4.2.0")
+    resolution = SisoRef010API.bundled(37).resolve_entity("1.3.153.6.4.2.0")
     assert resolution.status.value == "unspecified"
     assert resolution.matched_depth == 6
     assert resolution.unspecified_components == ("extra",)
@@ -91,7 +93,7 @@ def test_full_entity_code_reports_zero_extra_as_unspecified():
 def test_bundled_source_reads_indexed_editions():
     source = BundledStandardSource()
     assert source.versions == BUNDLED_STANDARD_VERSIONS
-    api = EntityTypeAPI.from_source(source, 35)
+    api = SisoRef010API.from_source(source, 35)
     assert api.info().data_version == "SISO-REF-010-v35"
     report = api.inspector.report()
     assert report.identity.provenance_status == "bundled_checksum_verified"
@@ -100,13 +102,14 @@ def test_bundled_source_reads_indexed_editions():
     class BundledOverride(BundledStandardSource):
         pass
 
-    custom = EntityTypeAPI.from_source(BundledOverride(), 35)
+    custom = SisoRef010API.from_source(BundledOverride(), 35)
     assert custom.inspector.report().identity.provenance_status == "unverified"
 
 
 @pytest.mark.parametrize("version", BUNDLED_STANDARD_VERSIONS)
+@pytest.mark.all_editions
 def test_inspection_contract_across_representative_editions(version):
-    api = EntityTypeAPI.bundled(version)
+    api = SisoRef010API.bundled(version)
     inspector = api.inspector
     summary = inspector.summary()
     assert summary.enumeration_tables > 0
@@ -233,7 +236,7 @@ def test_inspection_contract_across_representative_editions(version):
 
 
 def test_v37_report_groups_informational_findings_by_source_table():
-    api = EntityTypeAPI.bundled(37)
+    api = SisoRef010API.bundled(37)
     report = api.inspector.report()
 
     assert report.summary is not None
@@ -260,7 +263,7 @@ def test_v37_report_groups_informational_findings_by_source_table():
 
 
 def test_v37_range_lookup_includes_both_inclusive_boundaries_and_unknown_values():
-    inspector = EntityTypeAPI.bundled(37).inspector
+    inspector = SisoRef010API.bundled(37).inspector
 
     for value in (64, 127):
         resolution = inspector.resolve_enumeration_value(3, value)
@@ -273,7 +276,7 @@ def test_v37_range_lookup_includes_both_inclusive_boundaries_and_unknown_values(
 
 
 def test_v22_duplicate_uuid_diagnostic_keeps_all_matching_records():
-    inspector = EntityTypeAPI.bundled(22).inspector
+    inspector = SisoRef010API.bundled(22).inspector
     grouped = inspector.diagnostics(code="duplicate_uuid", limit=0)
     detailed = inspector.diagnostics(code="duplicate_uuid", limit=1)
 
@@ -286,7 +289,7 @@ def test_v22_duplicate_uuid_diagnostic_keeps_all_matching_records():
 
 
 def test_v20_country_alias_is_flagged_without_resolving_duplicate_code():
-    inspector = EntityTypeAPI.bundled(20).inspector
+    inspector = SisoRef010API.bundled(20).inspector
     resolution = inspector.resolve_enumeration_value(29, 107)
     aliases = inspector.diagnostics(code="possible_value_alias", table_uid=29, limit=None)
 
@@ -309,7 +312,7 @@ def test_v20_country_alias_is_flagged_without_resolving_duplicate_code():
 def test_identity_diagnostics_explain_repeated_uuid_semantics(
     version, reuse_groups, duplicate_identifier_groups, conflict_groups
 ):
-    identity = EntityTypeAPI.bundled(version).inspector.identity_diagnostics()
+    identity = SisoRef010API.bundled(version).inspector.identity_diagnostics()
     assert identity.checked
     assert identity.repeated_uuid_occurrences == (22 if version == 37 else 8_188)
     assert identity.repeated_identity_key_occurrences == (16 if version == 37 else 8_182)
@@ -327,7 +330,7 @@ def test_identity_diagnostics_explain_repeated_uuid_semantics(
 
 
 def test_entity_resolution_rejects_malformed_input_and_reports_unknown_supplied_components():
-    api = EntityTypeAPI.bundled(37)
+    api = SisoRef010API.bundled(37)
     with pytest.raises(ValueError):
         api.resolve_entity("1.3.not-a-number")
     unknown = api.resolve_entity("1.3.153.6.255.0")
@@ -351,15 +354,15 @@ def test_injected_source_and_horizontal_queries():
                 b"</enum></ebv>"
             )
 
-    supplied = EntityTypeAPI.from_source(MemorySource(), 7)
+    supplied = SisoRef010API.from_source(MemorySource(), 7)
     assert supplied.info().data_source == "supplied"
     assert supplied.info().data_version == "CUSTOM-v7"
-    with pytest.raises(EntityTypeValueError) as error:
-        EntityTypeAPI.from_source(MemorySource(), 8)
+    with pytest.raises(SisoRef010ValueError) as error:
+        SisoRef010API.from_source(MemorySource(), 8)
     assert error.value.code == "unavailable_source_version"
 
     by_version = {
-        version: api.search("F803").total for version, api in EntityTypeAPI.iter_editions(versions=(36, 37))
+        version: api.search("F803").total for version, api in SisoRef010API.iter_editions(versions=(36, 37))
     }
     assert set(by_version) == {36, 37}
     assert all(count > 0 for count in by_version.values())

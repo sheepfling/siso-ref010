@@ -1,10 +1,10 @@
 """Run from the repository root after installing: python -m examples.api_usage"""
 
-from siso_ref010 import Collection, EntityTypeAPI, EntityTypePrefix, decode_key, encode_entity
+from siso_ref010 import Collection, EntityTypePrefix, SisoRef010API, decode_key, encode_entity
 
 
 def main() -> None:
-    api = EntityTypeAPI.bundled(37)
+    api = SisoRef010API.bundled(37)
     details = api.describe("1.3.153.6.4.2.0")
     print(details.qualified_description)
     for hit in api.search("F803", limit=10).hits:

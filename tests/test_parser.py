@@ -7,10 +7,10 @@ import pytest
 from siso_ref010 import (
     CountryCode,
     EntityType,
-    EntityTypeCatalog,
     EntityTypeXmlParser,
     KindCode,
     ParseError,
+    ReferenceCatalog,
 )
 
 DATA_DIR = Path(__file__).parents[1] / "src/siso_ref010/data"
@@ -23,7 +23,7 @@ def parsed():
 
 
 def test_v37_xml_metadata_and_counts(parsed):
-    catalog = EntityTypeCatalog(parsed)
+    catalog = ReferenceCatalog(parsed)
     assert len(parsed.enumerations) == 535
     assert len(parsed.entity_types) == 451
     assert (
@@ -50,7 +50,7 @@ def test_pinned_fixture_hashes(path, blob):
 
 
 def test_v37_reference_examples(parsed):
-    catalog = EntityTypeCatalog(parsed)
+    catalog = ReferenceCatalog(parsed)
     assert catalog.get_country_name(CountryCode(153)) == "Netherlands (NLD)"
     assert catalog.get_kind_name(KindCode(1)) == "Platform"
     assert catalog.get_domain_name(EntityType(1, 1, 0, 0, 0, 0, 0)) == "Land"
@@ -96,7 +96,7 @@ MINI = """<ebv xmlns="urn:test" title="Test" date="2026-01-01">
 
 def test_singletons_namespace_qualification_and_deprecated():
     parsed = EntityTypeXmlParser.from_string(MINI)
-    catalog = EntityTypeCatalog(parsed)
+    catalog = ReferenceCatalog(parsed)
     assert catalog.country_count == 1
     assert catalog.domain_count == 4
     key = EntityType(1, 1, 153, 2, 3, 4, 5).to_key()
@@ -113,7 +113,7 @@ def test_legacy_comprehensive_entity_table_name_is_loaded():
     )
     assert parsed.entity_table is not None
     assert parsed.entity_table.get("name") == "Comprehensive Entity Types"
-    assert EntityTypeCatalog(parsed).get_category_name(EntityType(1, 1, 225, 2, 0, 0, 0)) == "Legacy category"
+    assert ReferenceCatalog(parsed).get_category_name(EntityType(1, 1, 225, 2, 0, 0, 0)) == "Legacy category"
 
 
 def test_load_file_and_preserve_metadata(tmp_path):
@@ -122,7 +122,7 @@ def test_load_file_and_preserve_metadata(tmp_path):
     parsed = EntityTypeXmlParser.from_file(source)
     assert parsed.title == "Test"
     assert parsed.date == date(2026, 1, 1)
-    assert EntityTypeCatalog(parsed).get_country_name(CountryCode(153)) == "Netherlands"
+    assert ReferenceCatalog(parsed).get_country_name(CountryCode(153)) == "Netherlands"
 
 
 def test_empty_and_missing_description():
@@ -137,11 +137,11 @@ def test_missing_and_wildcard_applicability():
     no_applicability = (
         '<ebv><enum uid="8" name="Platform Domain"><enumrow value="1" description="A"/></enum></ebv>'
     )
-    assert EntityTypeCatalog(EntityTypeXmlParser.from_string(no_applicability)).domain_count == 0
+    assert ReferenceCatalog(EntityTypeXmlParser.from_string(no_applicability)).domain_count == 0
     wildcard = (
         '<ebv><cet name="Entity Types"><entity kind="3" domain="0" country="0">'
         '<category value="2" description="A"/></entity></cet></ebv>'
     )
     parsed = EntityTypeXmlParser.from_string(wildcard)
-    catalog = EntityTypeCatalog(parsed)
+    catalog = ReferenceCatalog(parsed)
     assert catalog.get_category_name(EntityType(3, 0, 0, 2, 0, 0, 0)) == "A"

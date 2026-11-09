@@ -13,7 +13,7 @@ from .inspection import (
     _edition_value,  # pyright: ignore[reportPrivateUsage]
     _walk_entity_records,  # pyright: ignore[reportPrivateUsage]
 )
-from .reference import EntityTypeStandard
+from .models.standard import EntityTypeStandard
 
 EntityFieldFilters = tuple[
     int | None,

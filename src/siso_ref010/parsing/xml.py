@@ -8,9 +8,9 @@ from hashlib import sha256
 
 from pydantic import ValidationError
 
-from ._paths import PathInput, normalize_path
-from .errors import EntityTypeValueError
-from .reference import (
+from .._paths import PathInput, normalize_path
+from ..errors import SisoRef010ValueError
+from ..models.standard import (
     ChangeRequest,
     EntityBranch,
     EntityTypeStandard,
@@ -21,7 +21,7 @@ from .reference import (
 )
 
 
-class ParseError(EntityTypeValueError):
+class ParseError(SisoRef010ValueError):
     """Malformed XML or a record that cannot be read from the standard."""
 
 

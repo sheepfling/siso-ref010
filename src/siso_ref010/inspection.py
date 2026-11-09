@@ -13,8 +13,8 @@ from typing import Literal, TypeAlias, cast
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from ._version import __version__
-from .errors import EntityTypeValueError
-from .reference import (
+from .errors import SisoRef010ValueError
+from .models.standard import (
     EntityTypeStandard,
     EnumerationTable,
     ReferenceEntry,
@@ -649,7 +649,7 @@ def _walk_entity_records(
         except ValueError:
             table = None
         if table is None:
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 f"Unresolved SISO enumeration cross-reference: {raw_uid!r}",
                 code="unresolved_enumeration_reference",
                 context={"xref": raw_uid},
@@ -1419,7 +1419,7 @@ class EditionInspector:
         """Classify repeated UUIDs and value identities by their source evidence."""
         try:
             values = self._values
-        except EntityTypeValueError as error:
+        except SisoRef010ValueError as error:
             return EditionIdentityDiagnostics(
                 checked=False,
                 error=str(error),
@@ -1494,7 +1494,7 @@ class EditionInspector:
         try:
             summary = self.summary()
             summary_error = None
-        except EntityTypeValueError as error:
+        except SisoRef010ValueError as error:
             summary = None
             summary_error = str(error)
         diagnostics = self.diagnostics(limit=0)
@@ -1608,7 +1608,7 @@ class EditionInspector:
 
         try:
             entity_values = self.values(kind=EditionValueKind.ENTITY_TYPE)
-        except EntityTypeValueError:
+        except SisoRef010ValueError:
             entity_values = ()
         entity_hit = next(
             (

@@ -22,7 +22,7 @@ from zipfile import ZipFile
 def _check_standard_files(members: tuple[str, ...]) -> None:
     assert any(name.endswith("data/standards/editions.xz") for name in members)
     root_names = {PurePosixPath(name).name for name in members}
-    assert "LICENSE" in root_names, "Apache-2.0 code license missing from distribution"
+    assert "LICENSE" in root_names, "MIT code license missing from distribution"
     assert "SISO-DATA-NOTICE.txt" in root_names, "SISO data notice missing from distribution"
     raw_xml = tuple(
         name
@@ -109,7 +109,7 @@ def main() -> None:
             """
 import json
 from importlib.resources import files
-from siso_ref010.api import EntityTypeAPI, decode_key, encode_entity
+from siso_ref010.api import SisoRef010API, decode_key, encode_entity
 from siso_ref010 import BUNDLED_STANDARD_VERSIONS, render_json, render_markdown
 standards = files("siso_ref010").joinpath("data/standards")
 registry = json.loads(standards.joinpath("PROVENANCE.json").read_text())
@@ -122,7 +122,7 @@ assert all(isinstance(row["source_history"], list) for row in registry["entries"
 assert len(registry["artifacts"]) == 1
 assert registry["artifacts"][0]["file"] == "data/SISO-REF-010.xsd"
 assert not standards.joinpath("SOURCES.json").is_file()
-api = EntityTypeAPI()
+api = SisoRef010API()
 item = api.describe("1.3.153.6.4.2.0")
 assert item.description == "F803 Tromp"
 prefix = api.resolve_entity("1.3.153.6.4.2")
@@ -161,7 +161,7 @@ assert files("siso_ref010").joinpath("data/standards/editions.xz").is_file()
 assert files("siso_ref010").joinpath("data/standards/index.json").is_file()
 assert not files("siso_ref010").joinpath("data/standards/v37.xml").is_file()
 assert files("siso_ref010").joinpath("data/SISO-REF-010.xsd").is_file()
-assert EntityTypeAPI.bundled(35).info().data_version == "SISO-REF-010-v35"
+assert SisoRef010API.bundled(35).info().data_version == "SISO-REF-010-v35"
 assert len(BUNDLED_STANDARD_VERSIONS) == 18
 assert decode_key(encode_entity(item.entity).key).entity == item.entity
 print(json.dumps({
@@ -257,14 +257,14 @@ assert Path(sys.argv[1]).read_bytes() == BUNDLED_STANDARD_SOURCE.read_xml(35)
 from hashlib import sha256
 import json
 from importlib.resources import files
-from siso_ref010 import BUNDLED_STANDARD_SOURCE, BUNDLED_STANDARD_VERSIONS, EntityTypeAPI
+from siso_ref010 import BUNDLED_STANDARD_SOURCE, BUNDLED_STANDARD_VERSIONS, SisoRef010API
 standards = files("siso_ref010").joinpath("data/standards")
 registry = json.loads(standards.joinpath("PROVENANCE.json").read_text())
 entries = {row["version"]: row for row in registry["entries"]}
 for version in BUNDLED_STANDARD_VERSIONS:
     payload = BUNDLED_STANDARD_SOURCE.read_xml(version)
     assert sha256(payload).hexdigest() == entries[version]["sha256"]
-    api = EntityTypeAPI.bundled(version)
+    api = SisoRef010API.bundled(version)
     report = api.inspector.report()
     assert report.summary is not None
     assert report.identity.source_sha256 == entries[version]["sha256"]
@@ -280,10 +280,10 @@ for version in BUNDLED_STANDARD_VERSIONS:
         else:
             reproduced = api.resolve_entity(example.query)
         assert reproduced == example.result
-v22 = EntityTypeAPI.bundled(22).inspector.identity_diagnostics()
+v22 = SisoRef010API.bundled(22).inspector.identity_diagnostics()
 assert v22.duplicate_source_identifier_groups == 6
 assert v22.conflicting_source_record_groups == 6
-v37 = EntityTypeAPI.bundled(37).inspector
+v37 = SisoRef010API.bundled(37).inspector
 for boundary in (64, 127):
     assert v37.resolve_enumeration_value(3, boundary).status.value == "range"
 assert v37.resolve_enumeration_value(3, 1_000_000).status.value == "unknown"
@@ -296,8 +296,8 @@ print(f"Installed edition inspection passed for {len(BUNDLED_STANDARD_VERSIONS)}
                 str(python),
                 "-I",
                 "-c",
-                "import sys; from siso_ref010 import EntityTypeAPI, render_markdown; "
-                "print(render_markdown(EntityTypeAPI.bundled(int(sys.argv[1])).inspector.report()), end='')",
+                "import sys; from siso_ref010 import SisoRef010API, render_markdown; "
+                "print(render_markdown(SisoRef010API.bundled(int(sys.argv[1])).inspector.report()), end='')",
                 str(version),
             )
             cli_markdown = run(
@@ -314,8 +314,8 @@ print(f"Installed edition inspection passed for {len(BUNDLED_STANDARD_VERSIONS)}
             str(python),
             "-I",
             "-c",
-            "from siso_ref010 import EntityTypeAPI, render_markdown; "
-            "print(render_markdown(EntityTypeAPI.bundled(37).inspector.report(audit=True)), end='')",
+            "from siso_ref010 import SisoRef010API, render_markdown; "
+            "print(render_markdown(SisoRef010API.bundled(37).inspector.report(audit=True)), end='')",
         )
         cli_audit_markdown = run(
             str(console), "--standard-version", "37", "inspect", "report", "--audit", "--format", "markdown"

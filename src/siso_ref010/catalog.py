@@ -8,7 +8,8 @@ from typing import cast
 from weakref import WeakValueDictionary
 
 from ._paths import PathInput, normalize_path
-from .codes import (
+from .errors import SisoRef010ValueError
+from .models.codes import (
     CategoryCode,
     CountryCode,
     DomainCode,
@@ -19,11 +20,10 @@ from .codes import (
     SpecificCode,
     SubcategoryCode,
 )
-from .errors import EntityTypeValueError
-from .model import EntityType
-from .parser import EntityTypeXmlParser
+from .models.entity import EntityType
+from .models.standard import EntityTypeStandard
+from .parsing.xml import EntityTypeXmlParser
 from .projection import CatalogData, ChildrenByPrefix, build_catalog_data
-from .reference import EntityTypeStandard
 from .sources import BUNDLED_STANDARD_SOURCE, BundledStandardSource, StandardSource
 
 BUNDLED_STANDARD_VERSIONS = BUNDLED_STANDARD_SOURCE.versions
@@ -88,7 +88,7 @@ def _search_descriptions(data: CatalogData, query: str) -> dict[str, str]:
     }
 
 
-class EntityTypeCatalog:
+class ReferenceCatalog:
     """Lookup facade over immutable ``CatalogData`` with small query caches."""
 
     def __init__(self, standard: EntityTypeStandard | None = None) -> None:
@@ -97,16 +97,16 @@ class EntityTypeCatalog:
         self._qualified_cache: dict[EntityKey, str] = {}
 
     @classmethod
-    def bundled(cls, version: int = BUNDLED_STANDARD_VERSION) -> EntityTypeCatalog:
+    def bundled(cls, version: int = BUNDLED_STANDARD_VERSION) -> ReferenceCatalog:
         return cls.from_source(BUNDLED_STANDARD_SOURCE, version)
 
     @classmethod
-    def from_source(cls, source: StandardSource, version: int) -> EntityTypeCatalog:
+    def from_source(cls, source: StandardSource, version: int) -> ReferenceCatalog:
         """Retrieve and parse one edition from a versioned standard source."""
         available = source.versions
         if type(version) is not int or version not in available:
             bundled = isinstance(source, BundledStandardSource)
-            raise EntityTypeValueError(
+            raise SisoRef010ValueError(
                 f"SISO-REF-010 version {version!r} is unavailable from this source",
                 code="unavailable_bundled_version" if bundled else "unavailable_source_version",
                 context={"version": version, "available": available},
@@ -118,7 +118,7 @@ class EntityTypeCatalog:
         return cls(standard)
 
     @classmethod
-    def _from_data(cls, data: CatalogData) -> EntityTypeCatalog:
+    def _from_data(cls, data: CatalogData) -> ReferenceCatalog:
         """Create a catalog with shared immutable data and per-instance caches."""
         catalog = cls.__new__(cls)
         catalog._data = data
@@ -127,7 +127,7 @@ class EntityTypeCatalog:
         return catalog
 
     @classmethod
-    def from_xml(cls, path: PathInput) -> EntityTypeCatalog:
+    def from_xml(cls, path: PathInput) -> ReferenceCatalog:
         source = normalize_path(path)
         return cls(EntityTypeXmlParser.from_file(source))
 

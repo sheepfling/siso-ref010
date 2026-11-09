@@ -3,14 +3,14 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from siso_ref010 import EntityType, EntityTypeAPI, EntityTypeCatalog, EntityTypePrefix
+from siso_ref010 import EntityType, EntityTypePrefix, ReferenceCatalog, SisoRef010API
 from siso_ref010.api import Collection, decode_key, encode_entity
 from siso_ref010.cli import main
 
 
 @pytest.fixture(scope="module")
 def api():
-    return EntityTypeAPI()
+    return SisoRef010API()
 
 
 def test_typed_describe(api, capsys):
@@ -167,16 +167,16 @@ def test_metadata_and_custom_xml(api, tmp_path):
         '<ebv title="CUSTOM" date="2026-01-01"><enum uid="29" name="Country">'
         '<enumrow value="1" description="Afghanistan"/></enum></ebv>'
     )
-    custom_api = EntityTypeAPI.from_xml(path)
+    custom_api = SisoRef010API.from_xml(path)
     assert custom_api.info().data_version == "CUSTOM"
     assert custom_api.info().data_date == "2026-01-01"
     assert custom_api.info().counts.countries == 1
-    assert EntityTypeAPI(EntityTypeCatalog()).info().data_version is None
+    assert SisoRef010API(ReferenceCatalog()).info().data_version is None
     assert custom_api.describe("1.2.3.4.5.6.7").description == "-"
 
 
 def test_bundled_version_discovery():
-    available = EntityTypeAPI.bundled_versions()
+    available = SisoRef010API.bundled_versions()
     assert available.default_version == 37
     assert available.versions == tuple(range(20, 38))
 

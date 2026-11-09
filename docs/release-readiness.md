@@ -1,8 +1,8 @@
 # MVP release readiness
 
-This page separates implemented safeguards from release gates that still need
-external evidence. Passing the code and packaging checks does not settle the
-redistribution terms for SISO source material.
+This page summarizes implementation checks and source terms a publisher must
+review. Passing code and packaging checks does not review the terms in the
+included SISO source editions.
 
 ## Implemented and locally verifiable
 
@@ -21,24 +21,28 @@ redistribution terms for SISO source material.
 - Each retrieved bundled XML is checked against the per-edition SHA-256 in the
   index. The index also fingerprints the compressed archive.
 
-Run the local checks from the repository environment with module commands:
+## Run the full local gate
+
+From the repository root, install the development environment and run the full gate:
 
 ```sh
-python -m tools.build_standards_pack
-python -m tools.check_bundled_standards
-python -m tools.check_standards_xsd
-python -m pytest -q
-python -m tools.check_markdown
-python -m ruff check .
-python -m ruff format --check .
-python -m pyright
-python -m build
+python -m pip install -e '.[dev]'
+python -m tools.ci
 ```
 
-The Markdown check pairs `rumdl` document linting with `mdrepo` repository-link and reachability
-checks. Activate the development environment so the native `rumdl` command is on `PATH`, then run
-`python -m tools.check_markdown`. CI runs the same checker through the local pre-commit hook. To run
-the hook automatically before local commits, install it once with `python -m pre_commit install`.
+Activate the development environment before running these commands so `python`, `rumdl`, and the
+pre-commit hook use the installed development dependencies. The full gate checks all 18 bundled
+editions and all applicable XSDs, runs the complete test suite with the coverage threshold, checks
+Markdown and repository links, runs Ruff and Pyright, and validates wheel and source-distribution
+installs offline. XSD validation requires `xmllint` from libxml2; isolated package checks download
+their temporary wheelhouse when it is not already available through pip's cache.
+
+Hosted CI uses narrower profiles at the supported Python endpoints, 3.11 and 3.14. The `edge`
+profile checks SISO v20 and v37, runs tests outside the all-edition sweep, and builds both
+distributions; `quality` checks Markdown, static quality, and endpoint XSDs. The full local gate
+also tests every edition and validates wheel and source-distribution installs offline. Use
+`python -m tools.ci --help` to see the CI profiles. To install the read-only Markdown check as a
+local commit hook, run `python -m pre_commit install` once.
 
 The network-backed upstream byte recheck is separate:
 
@@ -50,27 +54,20 @@ It verifies the registered SHA-256 and Git blob SHA-1 against each available
 source, and uses a recorded mirror if the primary URL is unavailable. A byte
 match does not authenticate the publisher or grant redistribution rights.
 
-`python -m tools.benchmark_snapshot_loading` measures cold retrieval and full
-API construction for v37, v30, and v20. It uses fresh subprocesses for each
-sample and reports timings for the current machine; they are observations, not
-performance guarantees. The [current measured run](contributing/snapshot-loading.md)
-records the method and environment. The XZ stream is solid: seeking to an older edition is
-logical random access, and may decompress the preceding stream content first.
+`python -m tools.benchmark_snapshot_loading` measures cold retrieval and API
+construction for selected editions. It uses fresh subprocesses and prints
+machine-local timings. The XZ stream is solid, so seeking to an older edition
+may decompress preceding stream content first.
 
 ## Gates before a public release
 
-### SISO data redistribution terms — unresolved
+### Review source terms before publishing
 
-The repository preserves the attribution carried by the recovered source and
-records source provenance. Neither action establishes permission to redistribute
-the XML or XSD in a public wheel or source archive. Confirm the terms for every
-edition and artifact with the relevant rights holder and record the result
-before publishing a distribution containing the data. Keep code and data terms
-distinct; do not interpret the source attribution as a license grant.
-
-The Python library code is under Apache-2.0, with the license text included in
-the repository and distributions. That code license does not cover the
-separately sourced SISO XML or XSD.
+Each edition's XML contains its source copyright and terms. Review the exact
+text for the editions and artifacts being distributed, and preserve the
+associated source notices. The repository notice points to that text; it does
+not summarize or replace it. The Python code license is separate from the
+terms embedded in the SISO source files.
 
 ### XSD validation — all editions covered by source-matched schemas
 

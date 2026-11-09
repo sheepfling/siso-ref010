@@ -3,13 +3,13 @@ from dataclasses import replace
 
 import pytest
 
-import siso_ref010.cli as cli
+import siso_ref010.cli.app as cli
 from siso_ref010 import (
     EditionReport,
-    EntityTypeAPI,
-    EntityTypeCatalog,
     EntityTypePrefix,
     EntityTypeXmlParser,
+    ReferenceCatalog,
+    SisoRef010API,
     render_json,
     render_markdown,
     render_terminal,
@@ -45,7 +45,7 @@ def _inspector_api():
         '</subcategory_range><subcategory_xref xref="7"/></category>'
         "</entity></cet></ebv>"
     )
-    return EntityTypeAPI(EntityTypeCatalog(standard))
+    return SisoRef010API(ReferenceCatalog(standard))
 
 
 def test_enumeration_table_and_row_metadata_are_inspectable():
@@ -172,8 +172,8 @@ def test_entity_resolution_distinguishes_exact_unspecified_partial_and_unknown()
 
 
 def test_entity_resolution_distinguishes_explicit_zero_and_ambiguous_source_rows():
-    api = EntityTypeAPI(
-        EntityTypeCatalog(
+    api = SisoRef010API(
+        ReferenceCatalog(
             EntityTypeXmlParser.from_string(
                 '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
                 '<enum uid="30" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
@@ -208,8 +208,8 @@ def test_enumeration_value_resolution_identifies_range_membership():
 
 
 def test_overlapping_exact_and_range_values_report_ambiguity_and_a_diagnostic():
-    api = EntityTypeAPI(
-        EntityTypeCatalog(
+    api = SisoRef010API(
+        ReferenceCatalog(
             EntityTypeXmlParser.from_string(
                 '<ebv><enum uid="7" name="Overlap">'
                 '<enumrow value="1" description="Exact one"/>'
@@ -333,7 +333,7 @@ def test_report_audit_renderers_explain_duplicate_and_conflicting_uuids():
         '<enumrow value="3" description="Second meaning" uuid="conflict"/>'
         "</enum></ebv>"
     )
-    api = EntityTypeAPI(EntityTypeCatalog(EntityTypeXmlParser.from_string(xml)))
+    api = SisoRef010API(ReferenceCatalog(EntityTypeXmlParser.from_string(xml)))
     report = api.inspector.report(audit=True)
     classifications = {group.classification.value for group in report.identity_diagnostics.groups}
     assert classifications == {"duplicate_source_identifier", "conflicting_source_records"}
@@ -353,8 +353,8 @@ def test_edition_report_v1_schema_is_generated_from_pydantic_model():
     assert schema["properties"]["report_schema_version"]["const"] == 1
     assert schema["additionalProperties"] is False
 
-    invalid = EntityTypeAPI(
-        EntityTypeCatalog(
+    invalid = SisoRef010API(
+        ReferenceCatalog(
             EntityTypeXmlParser.from_string(
                 '<ebv><enum uid="7" name="A"><enumrow value="1" uuid="shared"/>'
                 '<enumrow_range value_min="1" value_max="3" uuid="shared"/></enum>'
@@ -403,7 +403,7 @@ def test_xml_well_formedness_uses_explicit_parser_evidence_not_checksum_presence
     assert parsed.xml_parse_succeeded is True
     without_digest = parsed.model_copy(update={"source_sha256": None})
     assert (
-        EntityTypeAPI(EntityTypeCatalog(without_digest))
+        SisoRef010API(ReferenceCatalog(without_digest))
         .inspector.report()
         .validation.xml_well_formedness.value
         == "passed"
@@ -411,7 +411,7 @@ def test_xml_well_formedness_uses_explicit_parser_evidence_not_checksum_presence
 
     without_parse_evidence = parsed.model_copy(update={"xml_parse_succeeded": None})
     assert (
-        EntityTypeAPI(EntityTypeCatalog(without_parse_evidence))
+        SisoRef010API(ReferenceCatalog(without_parse_evidence))
         .inspector.report()
         .validation.xml_well_formedness.value
         == "not_run"
@@ -433,8 +433,8 @@ def test_edition_summary_counts_values_and_levels_without_losing_ranges():
 
 
 def test_entity_search_includes_category_only_values():
-    api = EntityTypeAPI(
-        EntityTypeCatalog(
+    api = SisoRef010API(
+        ReferenceCatalog(
             EntityTypeXmlParser.from_string(
                 '<ebv><cet name="Entity Types"><entity kind="1" domain="1" country="1">'
                 '<category value="2" description="Category only marker"/></entity></cet></ebv>'
@@ -447,8 +447,8 @@ def test_entity_search_includes_category_only_values():
 
 
 def test_inspector_tracks_catalog_reinitialization_and_rejects_empty_source():
-    catalog = EntityTypeCatalog(EntityTypeXmlParser.from_string('<ebv title="Original"/>'))
-    api = EntityTypeAPI(catalog)
+    catalog = ReferenceCatalog(EntityTypeXmlParser.from_string('<ebv title="Original"/>'))
+    api = SisoRef010API(catalog)
     first = api.inspector
     replacement = EntityTypeXmlParser.from_string('<ebv title="Replacement"/>')
     catalog.initialize(replacement)
@@ -457,12 +457,12 @@ def test_inspector_tracks_catalog_reinitialization_and_rejects_empty_source():
     assert second.title == "Replacement"
 
     with pytest.raises(ValueError, match="No parsed SISO-REF-010 source"):
-        _ = EntityTypeAPI(EntityTypeCatalog()).inspector
+        _ = SisoRef010API(ReferenceCatalog()).inspector
 
 
 def test_inspect_cli_supports_filtered_values_and_json(monkeypatch, capsys):
     api = _inspector_api()
-    monkeypatch.setattr(cli, "EntityTypeAPI", lambda: api)
+    monkeypatch.setattr(cli, "SisoRef010API", lambda: api)
 
     assert (
         main(
@@ -489,7 +489,7 @@ def test_inspect_cli_supports_filtered_values_and_json(monkeypatch, capsys):
 
 def test_inspect_cli_searches_metadata_and_explains_entities(monkeypatch, capsys):
     api = _inspector_api()
-    monkeypatch.setattr(cli, "EntityTypeAPI", lambda: api)
+    monkeypatch.setattr(cli, "SisoRef010API", lambda: api)
 
     assert main(["inspect", "search", "table context note", "--json"]) == 0
     search = json.loads(capsys.readouterr().out)
@@ -505,7 +505,7 @@ def test_inspect_cli_searches_metadata_and_explains_entities(monkeypatch, capsys
 
 def test_inspect_cli_resolves_ranges_and_emits_report(monkeypatch, capsys):
     api = _inspector_api()
-    monkeypatch.setattr(cli, "EntityTypeAPI", lambda: api)
+    monkeypatch.setattr(cli, "SisoRef010API", lambda: api)
     assert main(["inspect", "value", "7", "11", "--json"]) == 0
     resolution = json.loads(capsys.readouterr().out)
     assert resolution["result"]["status"] == "range"
@@ -546,7 +546,7 @@ def test_inspect_cli_resolves_ranges_and_emits_report(monkeypatch, capsys):
 
 def test_inspect_cli_lists_annotated_tables_and_resolves_uuid(monkeypatch, capsys):
     api = _inspector_api()
-    monkeypatch.setattr(cli, "EntityTypeAPI", lambda: api)
+    monkeypatch.setattr(cli, "SisoRef010API", lambda: api)
 
     assert main(["inspect", "tables", "--query", "Example values", "--json"]) == 0
     tables = json.loads(capsys.readouterr().out)
@@ -564,8 +564,8 @@ def test_inspect_cli_lists_annotated_tables_and_resolves_uuid(monkeypatch, capsy
 
 
 def test_identity_diagnostics_classify_conflicting_uuidless_library_keys():
-    api = EntityTypeAPI(
-        EntityTypeCatalog(
+    api = SisoRef010API(
+        ReferenceCatalog(
             EntityTypeXmlParser.from_string(
                 '<ebv><cet name="Entity Types"><entity kind="1" domain="1" country="1">'
                 '<category value="2" description="First definition"/>'
@@ -635,8 +635,8 @@ def test_identity_signatures_cover_each_source_semantic_field():
 
 
 def test_diagnostics_handle_non_numeric_entity_references_and_bad_filter_types():
-    api = EntityTypeAPI(
-        EntityTypeCatalog(
+    api = SisoRef010API(
+        ReferenceCatalog(
             EntityTypeXmlParser.from_string(
                 '<ebv><enum uid="7" name="Example">'
                 '<enumrow value="1"><subcategory_xref xref="not-a-number"/></enumrow></enum>'
