@@ -18,10 +18,8 @@ def _catalog_xml(entities: str, *, title: str = "Test") -> EntityTypeStandard:
 
 def test_catalog_search(catalog):
     assert len(catalog.search_descriptions("")) == 27323
+    assert len(catalog.search_description("")) == 27323
     assert catalog.search_description("F803") == {"1.3.153.6.4.2.0": "F803 Tromp"}
-    with pytest.raises(ValueError) as error:
-        catalog.search_description("")
-    assert getattr(error.value, "code", None) == "ambiguous_entity_description"
 
 
 def test_v37_catalog_counts_and_examples(catalog):

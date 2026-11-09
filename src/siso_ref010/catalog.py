@@ -20,7 +20,7 @@ from .models.codes import (
     SpecificCode,
     SubcategoryCode,
 )
-from .models.entity import EntityType
+from .models.entity import EntityType, create_key
 from .models.standard import EntityTypeStandard
 from .parsing.xml import EntityTypeXmlParser
 from .projection import CatalogChild, CatalogData, ChildrenByPrefix, build_catalog_data
@@ -165,17 +165,33 @@ def _description_for(data: CatalogData, entity: EntityType) -> str:
 
 def _search_descriptions(data: CatalogData, query: str) -> dict[str, tuple[str, ...]]:
     normalized = query.casefold()
-    descriptions_by_key: dict[EntityKey, list[str]] = {}
-    for source, ambiguous_source in (
-        (data.categories, data.ambiguous_categories),
-        (data.subcategories, data.ambiguous_subcategories),
-    ):
-        for key, description in source.items():
-            descriptions_by_key.setdefault(key, []).extend(ambiguous_source.get(key, (description,)))
+    source_rows_by_key: dict[EntityKey, list[tuple[int, str]]] = {}
+    for parents, rows in data.children_by_prefix.items():
+        for row in rows:
+            fields = (*parents, row.value)
+            padded = (*fields, *((0,) * (7 - len(fields))))
+            key = create_key(
+                kind=KindCode(padded[0]),
+                domain=DomainCode(padded[1]),
+                country=CountryCode(padded[2]),
+                category=CategoryCode(padded[3]),
+                subcategory=SubcategoryCode(padded[4]),
+                specific=SpecificCode(padded[5]),
+                extra=ExtraCode(padded[6]),
+                signed=False,
+            )
+            source_rows_by_key.setdefault(key, []).append((len(fields), row.description))
+
+    effective_descriptions: dict[EntityKey, tuple[str, ...]] = {}
+    for key, source_rows in source_rows_by_key.items():
+        deepest = max(depth for depth, _ in source_rows)
+        effective_descriptions[key] = tuple(
+            description for depth, description in source_rows if depth == deepest
+        )
     return {
-        str(EntityType.from_key(key)): tuple(descriptions)
-        for key, descriptions in descriptions_by_key.items()
-        if any(normalized in description.casefold() for description in descriptions)
+        str(EntityType.from_key(key)): descriptions
+        for key, descriptions in effective_descriptions.items()
+        if any(normalized in description.casefold() for _, description in source_rows_by_key[key])
     }
 
 
@@ -398,7 +414,7 @@ class ReferenceCatalog:
         return self._qualified_cache[key]
 
     def search_descriptions(self, query: str) -> dict[str, tuple[str, ...]]:
-        """Search hierarchy descriptions while retaining duplicate-code candidates."""
+        """Search all hierarchy levels, returning deepest labels and their duplicate candidates."""
         return _search_descriptions(self._data, query)
 
     def search_description(self, query: str) -> dict[str, str]:

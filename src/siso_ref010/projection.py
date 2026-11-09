@@ -90,7 +90,13 @@ def _field_values(expression: str) -> tuple[KindCode, ...]:
         if len(bounds) == 1:
             values.append(KindCode(bounds[0]))
             continue
-        minimum, maximum = bounds[:2]
+        if len(bounds) != 2:
+            raise SisoRef010ValueError(
+                f"Invalid SISO applicability range: {part!r}",
+                code="invalid_applicability_range",
+                context={"range": part, "bounds": tuple(bounds)},
+            )
+        minimum, maximum = bounds
         if minimum > maximum:
             raise SisoRef010ValueError(
                 f"Invalid SISO applicability range: {part!r}",
@@ -312,9 +318,7 @@ def _build_hierarchy_indexes(
 def _freeze_children(
     children_by_prefix: Mapping[tuple[EntityFieldCode, ...], list[CatalogChild]],
 ) -> ChildrenByPrefix:
-    return MappingProxyType(
-        {parents: tuple(children) for parents, children in children_by_prefix.items()}
-    )
+    return MappingProxyType({parents: tuple(children) for parents, children in children_by_prefix.items()})
 
 
 def _validated_standard(value: object) -> EntityTypeStandard | None:

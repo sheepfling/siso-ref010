@@ -71,14 +71,15 @@ available. `choices()`, `resolve_entity()`, and `describe()` use this same rule.
 Kind and domain choices also preserve duplicate codes. Their catalog dictionary
 getters raise `ambiguous_enumeration_name` when a code has multiple source rows.
 
-Description search returns one hit per entity code. For an ambiguous code,
-`SearchHit.description` is `None`, `candidate_descriptions` contains every
-source description, and `ambiguous` is `True`; the query may match any of those
-candidate descriptions.
-At the lower-level catalog, `search_descriptions()` returns every candidate;
-the singular `search_description()` returns strings only for unambiguous codes
-and raises `ambiguous_entity_description` if a match has multiple candidates.
-Use the plural method when you want all alternatives in one result.
+Description search returns one hit per entity code. It matches text at any
+hierarchy level and displays the deepest effective description for that code.
+If multiple source rows at that depth share the code,
+`SearchHit.description` is `None`, `candidate_descriptions` contains those
+equally specific labels, and `ambiguous` is `True`.
+At the lower-level catalog, `search_descriptions()` returns every equally
+specific candidate; the singular `search_description()` returns strings only
+for unambiguous codes and raises `ambiguous_entity_description` if a match has
+multiple candidates. Use the plural method to inspect those alternatives.
 
 ## Compare editions
 
