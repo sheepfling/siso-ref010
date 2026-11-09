@@ -96,6 +96,14 @@ def test_search_labels_ambiguous_entity_descriptions(tmp_path, capsys):
     assert "First source row; Second source row" in output
     assert "1 of 1 matches" in output
 
+    with pytest.raises(SystemExit) as error:
+        main(["--xml", str(source), "describe", "1.1.1.2.0.0.0"])
+
+    assert error.value.code == 2
+    diagnostic = capsys.readouterr().err
+    assert "candidate: First source row" in diagnostic
+    assert "candidate: Second source row" in diagnostic
+
 
 def test_info(capsys):
     assert main(["info"]) == 0
@@ -180,6 +188,8 @@ def test_inspect_entity_reports_ambiguous_and_unknown_source_paths(capsys, tmp_p
     assert main(["--xml", str(source), "inspect", "entity", "1.1.1.2.0.0.0"]) == 0
     ambiguous = capsys.readouterr().out
     assert "Ambiguous source candidates: 2" in ambiguous
+    assert "candidate: 1.1.1.2: First" in ambiguous
+    assert "candidate: 1.1.1.2: Second" in ambiguous
 
     assert main(["--xml", str(source), "inspect", "entity", "1.1.1.2.99"]) == 0
     unknown = capsys.readouterr().out
