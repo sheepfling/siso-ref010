@@ -105,7 +105,10 @@ def _load_registries() -> tuple[
             raise ValueError(f"Historical XSD is missing or escapes its directory: {schema_path}")
         digest = hashlib.sha256(schema_path.read_bytes()).hexdigest()
         if digest != row["sha256"]:
-            raise ValueError(f"Historical XSD checksum mismatch for v{row['version']}")
+            raise ValueError(
+                f"Historical XSD checksum mismatch for v{row['version']}: "
+                f"expected {row['sha256']}, got {digest} ({schema_path})"
+            )
         if _schema_namespace(schema_path) != row["namespace"]:
             raise ValueError(f"Historical XSD target namespace mismatch for v{row['version']}")
         historical[row["version"]] = row

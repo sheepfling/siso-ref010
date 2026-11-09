@@ -3,6 +3,6 @@
 /src/siso_ref010/data/SISO-REF-010.xml -text
 /src/siso_ref010/data/SISO-REF-010.xsd -text -whitespace
 /src/siso_ref010/data/standards/*.xml -text -whitespace
-/tools/standards-xsds/*.xsd -text -whitespace
+/tools/standards-xsds/*.xsd -text !eol -whitespace
 # Preserve the source notice's original whitespace.
 /SISO-DATA-NOTICE.txt -whitespace
