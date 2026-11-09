@@ -17,6 +17,7 @@ from siso_ref010 import (
     ValueRecord,
 )
 from siso_ref010.cli import main
+from siso_ref010.cli.text import print_history_text
 from siso_ref010.comparison import (
     _classify_change,
     _display_label,
@@ -115,6 +116,49 @@ def test_enumeration_history_resolves_scalar_and_range_values(comparison_source)
     assert [point.name for point in table.points] == ["Example table", "Renamed table"]
     assert all(point.present for point in range_value.points)
     assert [point.description for point in range_value.points] == ["Range value", "Range value"]
+
+
+def test_history_preserves_ambiguous_entity_and_enumeration_candidates(capsys):
+    xml = (
+        '<ebv title="Ambiguous edition">'
+        '<enum uid="7" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
+        '<enum uid="90" name="First table"><enumrow value="5" description="First value"/></enum>'
+        '<enum uid="90" name="Second table"><enumrow value="5" description="Second value"/></enum>'
+        '<cet><entity kind="1" domain="1" country="1">'
+        '<category value="2" description="First category" uuid="category-first"/>'
+        '<category value="2" description="Second category" uuid="category-second"/>'
+        "</entity></cet></ebv>"
+    )
+    source = MemorySource({1: xml})
+
+    entity_history = SisoRef010API.entity_history(
+        "1.1.1.2.0.0.0", source=source, versions=(1,)
+    )
+    entity_point = entity_history.points[0]
+    assert entity_point.present
+    assert entity_point.match_status.value == "ambiguous"
+    assert entity_point.description is None
+    assert entity_point.stable_id is None
+    assert [row.description for row in entity_point.candidates] == [
+        "First category",
+        "Second category",
+    ]
+    print_history_text(entity_history)
+    assert "ambiguous (2 matching source rows)" in capsys.readouterr().out
+
+    enum_history = SisoRef010API.enumeration_history(90, 5, source=source, versions=(1,))
+    enum_point = enum_history.points[0]
+    assert enum_point.present
+    assert enum_point.match_status.value == "ambiguous_table"
+    assert enum_point.description is None
+    assert [row.description for row in enum_point.candidates] == ["First value", "Second value"]
+    assert [table.name for table in enum_point.table_candidates] == ["First table", "Second table"]
+
+    table_history = SisoRef010API.enumeration_history(90, source=source, versions=(1,))
+    table_point = table_history.points[0]
+    assert table_point.present
+    assert table_point.name is None
+    assert [table.name for table in table_point.table_candidates] == ["First table", "Second table"]
 
 
 def test_pairwise_diff_detects_add_remove_modify_move_and_table_metadata(comparison_source):

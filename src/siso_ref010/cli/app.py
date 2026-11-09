@@ -304,7 +304,11 @@ def _handle_api_command(command: str, args: argparse.Namespace, machine: bool, a
             write_json_result(command, results)
         else:
             for hit in results.hits:
-                print(f"{hit.entity}: {hit.description}")
+                if hit.ambiguous:
+                    candidates = "; ".join(hit.candidate_descriptions)
+                    print(f"{hit.entity}: ambiguous source descriptions ({candidates})")
+                else:
+                    print(f"{hit.entity}: {hit.description}")
             print(f"{len(results.hits)} of {results.total} matches")
         if results.truncated and not machine:
             print(

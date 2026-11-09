@@ -39,6 +39,7 @@ from .inspection import (
     EntityResolution,
     EnumerationTableInfo,
     EnumerationValueResolution,
+    EnumerationValueStatus,
 )
 from .models.codes import EntityFieldCode
 from .models.entity import EntityType, EntityTypePrefix
@@ -122,7 +123,13 @@ class EntityDescription(EntityEncoding):
 
 class SearchHit(ResultModel):
     entity: EntityType
-    description: str
+    description: str | None
+    candidate_descriptions: tuple[str, ...] = ()
+
+    @computed_field
+    @property
+    def ambiguous(self) -> bool:
+        return len(self.candidate_descriptions) > 1
 
 
 class SearchResults(ResultModel):
@@ -192,7 +199,7 @@ class EnumerationNameStatus(StrEnum):
 
 
 class EnumerationNameResolution(ResultModel):
-    """Range-aware value results for every table matching an exact table name."""
+    """Range-aware value results grouped by UID for an exact table name."""
 
     name: str
     value: int
@@ -531,18 +538,23 @@ class SisoRef010API:
                 context={"value": value, "minimum": 0},
             )
         tables = self.find_enumeration_tables(name)
-        matches = tuple(self.inspector.resolve_enumeration_value(table.uid, value) for table in tables)
+        matching_uids = tuple(dict.fromkeys(table.uid for table in tables))
+        matches = tuple(self.inspector.resolve_enumeration_value(uid, value) for uid in matching_uids)
         if not tables:
             status = EnumerationNameStatus.TABLE_NOT_FOUND
-        elif len(tables) > 1 or len(matches[0].tables) > 1:
+        elif len(tables) > 1 or any(
+            match.status is EnumerationValueStatus.AMBIGUOUS_TABLE for match in matches
+        ):
             status = EnumerationNameStatus.AMBIGUOUS_TABLE
         else:
             status = {
-                "exact": EnumerationNameStatus.EXACT,
-                "range": EnumerationNameStatus.RANGE,
-                "unknown": EnumerationNameStatus.UNKNOWN,
-                "ambiguous": EnumerationNameStatus.AMBIGUOUS_VALUE,
-            }[matches[0].status.value]
+                EnumerationValueStatus.EXACT: EnumerationNameStatus.EXACT,
+                EnumerationValueStatus.RANGE: EnumerationNameStatus.RANGE,
+                EnumerationValueStatus.UNKNOWN: EnumerationNameStatus.UNKNOWN,
+                EnumerationValueStatus.AMBIGUOUS_VALUE: EnumerationNameStatus.AMBIGUOUS_VALUE,
+                EnumerationValueStatus.TABLE_NOT_FOUND: EnumerationNameStatus.TABLE_NOT_FOUND,
+                EnumerationValueStatus.AMBIGUOUS_TABLE: EnumerationNameStatus.AMBIGUOUS_TABLE,
+            }[matches[0].status]
         return EnumerationNameResolution(name=name, value=value, status=status, matches=matches)
 
     def warmup(self) -> EntityQueryWarmup:
@@ -571,11 +583,15 @@ class SisoRef010API:
                 code="invalid_query_type",
                 context={"received_type": type(query).__name__, "expected": "str"},
             )
-        matches = self._catalog.search_description(query)
+        matches = self._catalog.search_descriptions(query)
         selected = list(matches.items())[:limit] if limit is not None else list(matches.items())
         hits = tuple(
-            SearchHit(entity=EntityType.from_string(entity), description=description)
-            for entity, description in selected
+            SearchHit(
+                entity=EntityType.from_string(entity),
+                description=descriptions[0] if len(descriptions) == 1 else None,
+                candidate_descriptions=descriptions if len(descriptions) > 1 else (),
+            )
+            for entity, descriptions in selected
         )
         return SearchResults(query=query, total=len(matches), hits=hits, limit=limit)
 
@@ -688,12 +704,23 @@ class SisoRef010API:
             )
         entity = prefix.to_entity() if prefix is not None else EntityType(0, 0, 0, 0, 0, 0, 0)
         if kind in {
+            Collection.COUNTRIES,
+            Collection.KINDS,
+            Collection.DOMAINS,
             Collection.CATEGORIES,
             Collection.SUBCATEGORIES,
             Collection.SPECIFICS,
             Collection.EXTRAS,
         }:
-            rows = self._catalog.get_choice_rows(parents)
+            match kind:
+                case Collection.COUNTRIES:
+                    rows = self._catalog.get_country_choices()
+                case Collection.KINDS:
+                    rows = self._catalog.get_kind_choices()
+                case Collection.DOMAINS:
+                    rows = self._catalog.get_domain_choices(entity.kind)
+                case _:
+                    rows = self._catalog.get_choice_rows(parents)
             counts: dict[EntityFieldCode, int] = {}
             for row in rows:
                 counts[row.value] = counts.get(row.value, 0) + 1

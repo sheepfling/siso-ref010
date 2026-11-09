@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from siso_ref010 import EntityType, EntityTypePrefix, ReferenceCatalog, SisoRef010API
 from siso_ref010.api import Collection, decode_key, encode_entity
 from siso_ref010.cli import main
+from siso_ref010.parsing.xml import EntityTypeXmlParser
 
 
 @pytest.fixture(scope="module")
@@ -39,6 +40,32 @@ def test_search_contract(api):
     assert api.search("no-such-item-xyz").model_dump(mode="json", by_alias=True)["returned"] == 0
 
 
+def test_search_returns_all_descriptions_for_an_ambiguous_code():
+    standard = EntityTypeXmlParser.from_string(
+        '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
+        '<enum uid="30" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
+        '<cet><entity kind="1" domain="1" country="1">'
+        '<category value="2" description="First source row"/>'
+        '<category value="2" description="Second source row"/>'
+        "</entity></cet></ebv>"
+    )
+    catalog = ReferenceCatalog(standard)
+    api = SisoRef010API(catalog)
+
+    results = api.search("Second source row")
+
+    assert results.total == 1
+    hit = results.hits[0]
+    assert hit.entity == EntityType.from_string("1.1.1.2.0.0.0")
+    assert hit.description is None
+    assert hit.candidate_descriptions == ("First source row", "Second source row")
+    assert hit.ambiguous
+    serialized = results.model_dump(mode="json", by_alias=True)["hits"][0]
+    assert serialized["description"] is None
+    assert serialized["candidate_descriptions"] == ["First source row", "Second source row"]
+    assert serialized["ambiguous"] is True
+
+
 @pytest.mark.parametrize("limit", [-1, True, 1.5, "1"])
 def test_search_limit_validation(api, limit):
     with pytest.raises(ValueError):
@@ -63,6 +90,105 @@ def test_choices(api, collection, parents, expected):
     assert choices.parents == parents
     assert choices.collection is collection
     assert len(choices.model_dump(mode="json", by_alias=True)["choices"]) == expected
+
+
+def test_choices_preserve_and_mark_duplicate_source_codes():
+    standard = EntityTypeXmlParser.from_string(
+        '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
+        '<enum uid="30" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
+        '<cet><entity kind="1" domain="1" country="1">'
+        '<category value="2" description="First source row"/>'
+        '<category value="2" description="Second source row"/>'
+        "</entity></cet></ebv>"
+    )
+    catalog = ReferenceCatalog(standard)
+    api = SisoRef010API(catalog)
+
+    choices = api.choices("categories", EntityTypePrefix(kind=1, domain=1, country=1))
+
+    assert [(choice.value, choice.description, choice.ambiguous) for choice in choices.items] == [
+        (2, "First source row", True),
+        (2, "Second source row", True),
+    ]
+    assert len(choices.model_dump(mode="json", by_alias=True)["choices"]) == 2
+
+
+@pytest.mark.parametrize(
+    "categories, expected",
+    [
+        (
+            '<entity kind="1" domain="1" country="153">'
+            '<category value="2" description="Specific earlier"/></entity>'
+            '<entity kind="1" domain="1" country="0">'
+            '<category value="2" description="Generic winner"/>'
+            '<category value="2" description="Generic duplicate"/></entity>',
+            {"Generic winner", "Generic duplicate"},
+        ),
+        (
+            '<entity kind="1" domain="1" country="0">'
+            '<category value="2" description="Generic earlier"/></entity>'
+            '<entity kind="1" domain="1" country="153">'
+            '<category value="2" description="Specific winner"/>'
+            '<category value="2" description="Specific duplicate"/></entity>',
+            {"Specific winner", "Specific duplicate"},
+        ),
+    ],
+)
+def test_country_overlay_keeps_duplicates_in_the_winning_scope(categories, expected):
+    standard = EntityTypeXmlParser.from_string(
+        '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
+        '<enum uid="30" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
+        f"<cet>{categories}</cet></ebv>"
+    )
+    catalog = ReferenceCatalog(standard)
+    api = SisoRef010API(catalog)
+
+    choices = api.choices("categories", EntityTypePrefix(kind=1, domain=1, country=153))
+    resolution = api.resolve_entity("1.1.153.2.0.0.0")
+
+    assert {choice.description for choice in choices.items} == expected
+    assert len(choices.items) == 2
+    assert all(choice.ambiguous for choice in choices.items)
+    assert resolution.status.value == "ambiguous"
+    assert {row.description for row in resolution.ambiguous_candidates} == expected
+    with pytest.raises(ValueError) as error:
+        catalog.get_description_of(EntityType.from_string("1.1.153.2.0.0.0"))
+    assert getattr(error.value, "code", None) == "ambiguous_entity_description"
+    assert set(error.value.context["candidate_descriptions"]) == expected
+
+
+def test_kind_and_domain_choices_preserve_duplicate_codes():
+    standard = EntityTypeXmlParser.from_string(
+        '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
+        '<enum uid="30" name="Entity Kind">'
+        '<enumrow value="1" description="First kind"/>'
+        '<enumrow value="1" description="Second kind"/></enum>'
+        '<enum uid="31" name="Land Domain" applicability="1">'
+        '<enumrow value="2" description="First domain"/>'
+        '<enumrow value="2" description="Second domain"/></enum></ebv>'
+    )
+    catalog = ReferenceCatalog(standard)
+    api = SisoRef010API(catalog)
+
+    kinds = api.choices("kinds")
+    domains = api.choices("domains", EntityTypePrefix(kind=1))
+
+    assert [(item.value, item.description, item.ambiguous) for item in kinds.items] == [
+        (1, "First kind", True),
+        (1, "Second kind", True),
+    ]
+    assert [(item.value, item.description, item.ambiguous) for item in domains.items] == [
+        (2, "First domain", True),
+        (2, "Second domain", True),
+    ]
+    with pytest.raises(ValueError, match="multiple source descriptions"):
+        catalog.get_all_kinds()
+    with pytest.raises(ValueError, match="multiple source descriptions"):
+        catalog.get_kind_name(1)
+    with pytest.raises(ValueError, match="multiple source descriptions"):
+        catalog.get_all_domains_of(1)
+    with pytest.raises(ValueError, match="multiple source descriptions"):
+        catalog.get_domain_name(EntityType(1, 2, 0, 0, 0, 0, 0))
 
 
 @pytest.mark.parametrize(

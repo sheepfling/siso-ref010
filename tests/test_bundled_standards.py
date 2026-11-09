@@ -7,6 +7,7 @@ import pytest
 from siso_ref010 import (
     BUNDLED_STANDARD_VERSIONS,
     BundledStandardSource,
+    CountryCode,
     EntityTypePrefix,
     ReferenceCatalog,
     SisoRef010API,
@@ -149,9 +150,9 @@ def test_inspection_contract_across_representative_editions(version):
             result = api.resolve_entity(example.query)
         assert result == example.result
 
-    # Missing optional tables are an explicit unknown result, not an exception.
+    # A missing table UID is distinct from an unknown value in an existing table.
     missing = inspector.resolve_enumeration_value(2_000_000 + version, 93)
-    assert missing.status.value == "unknown"
+    assert missing.status.value == "table_not_found"
     assert missing.table is None
 
     nonempty_table = next(
@@ -290,10 +291,12 @@ def test_v22_duplicate_uuid_diagnostic_keeps_all_matching_records():
 
 def test_v20_country_alias_is_flagged_without_resolving_duplicate_code():
     inspector = SisoRef010API.bundled(20).inspector
+    api = SisoRef010API.bundled(20)
+    catalog = ReferenceCatalog.bundled(20)
     resolution = inspector.resolve_enumeration_value(29, 107)
     aliases = inspector.diagnostics(code="possible_value_alias", table_uid=29, limit=None)
 
-    assert resolution.status.value == "ambiguous"
+    assert resolution.status.value == "ambiguous_value"
     assert {match.description for match in resolution.matches} == {
         "Cote D'Ivoire (aka Ivory Coast)",
         "Ivory Coast (aka Cote D'Ivoire)",
@@ -303,6 +306,20 @@ def test_v20_country_alias_is_flagged_without_resolving_duplicate_code():
     assert "Scalar code 107" in aliases.findings[0].message
     assert "lookup remains ambiguous" in aliases.findings[0].message
     assert aliases.groups[0].severity.value == "info"
+
+    choices = [choice for choice in api.choices("countries").items if choice.value == 107]
+    assert {choice.description for choice in choices} == {
+        "Cote D'Ivoire (aka Ivory Coast)",
+        "Ivory Coast (aka Cote D'Ivoire)",
+    }
+    assert len(choices) == 2
+    assert all(choice.ambiguous for choice in choices)
+    with pytest.raises(SisoRef010ValueError) as country_error:
+        catalog.get_country_name(CountryCode(107))
+    assert country_error.value.code == "ambiguous_country_name"
+    with pytest.raises(SisoRef010ValueError) as countries_error:
+        catalog.get_all_countries()
+    assert countries_error.value.code == "ambiguous_country_name"
 
 
 @pytest.mark.parametrize(

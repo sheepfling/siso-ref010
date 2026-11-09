@@ -222,7 +222,7 @@ def test_overlapping_exact_and_range_values_report_ambiguity_and_a_diagnostic():
     resolution = api.inspector.resolve_enumeration_value(7, 1)
     diagnostics = api.inspector.diagnostics(code="overlapping_values", limit=0)
 
-    assert resolution.status.value == "ambiguous"
+    assert resolution.status.value == "ambiguous_value"
     assert len(resolution.matches) == 2
     assert diagnostics.total == 1
     assert diagnostics.groups[0].table_uid == 7
@@ -382,7 +382,7 @@ def test_edition_report_v1_schema_is_generated_from_pydantic_model():
     assert invalid.inspector.enumeration_table(7) is None
     assert len(invalid.inspector.enumeration_tables_by_uid(7)) == 2
     duplicate_uid_result = invalid.inspector.resolve_enumeration_value(7, 1)
-    assert duplicate_uid_result.status.value == "ambiguous"
+    assert duplicate_uid_result.status.value == "ambiguous_table"
     assert len(duplicate_uid_result.tables) == 2
     malformed_report = invalid.inspector.report()
     assert malformed_report.summary is None

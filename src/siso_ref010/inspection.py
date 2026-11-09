@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from enum import StrEnum
 from functools import cached_property
@@ -17,10 +17,12 @@ from .errors import SisoRef010ValueError
 from .models.standard import (
     EntityTypeStandard,
     EnumerationTable,
+    EnumerationTableIndex,
     ReferenceEntry,
     SourceInfo,
     TableAnnotation,
 )
+from .projection import _referenced_tables  # pyright: ignore[reportPrivateUsage]
 
 SourceOccurrence: TypeAlias = tuple[str, int | None, str | None]
 
@@ -46,9 +48,11 @@ class ResolutionMatchMode(StrEnum):
 
 
 class EnumerationValueStatus(StrEnum):
+    TABLE_NOT_FOUND = "table_not_found"
+    AMBIGUOUS_TABLE = "ambiguous_table"
     EXACT = "exact"
     RANGE = "range"
-    AMBIGUOUS = "ambiguous"
+    AMBIGUOUS_VALUE = "ambiguous_value"
     UNKNOWN = "unknown"
 
 
@@ -235,7 +239,7 @@ class EntityResolution(BaseModel):
 
 
 class EnumerationValueResolution(BaseModel):
-    """Exact, ranged, ambiguous, or missing result for one table code."""
+    """Resolve a value while keeping table identity and value ambiguity separate."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -634,7 +638,7 @@ def _walk_table_entries(
 
 
 def _walk_entity_records(
-    enumerations_by_uid: Mapping[int, EnumerationTable],
+    enumerations_by_uid: EnumerationTableIndex,
     entry: ReferenceEntry,
     parents: tuple[int, ...],
     parent_path: tuple[str, ...],
@@ -644,26 +648,18 @@ def _walk_entity_records(
     """Traverse source rows without constructing result models."""
     if entry.tag == "subcategory_xref":
         raw_uid = entry.source.get("xref")
-        try:
-            table = enumerations_by_uid.get(int(raw_uid)) if raw_uid is not None else None
-        except ValueError:
-            table = None
-        if table is None:
-            raise SisoRef010ValueError(
-                f"Unresolved SISO enumeration cross-reference: {raw_uid!r}",
-                code="unresolved_enumeration_reference",
-                context={"xref": raw_uid},
-            )
-        for row in table.entries:
-            label = row.description or f"<{row.tag}>"
-            if _entry_has_value(row):
-                codes = (*parents, row.value) if row.value is not None else parents
-                yield row, codes, (*parent_path, label), table, entry.source
-            for value in _entry_numeric_values(row):
-                for child in entry.children:
-                    yield from _walk_entity_records(
-                        enumerations_by_uid, child, (*parents, value), (*parent_path, label)
-                    )
+        tables = _referenced_tables(raw_uid, enumerations_by_uid)
+        for table in tables:
+            for row in table.entries:
+                label = row.description or f"<{row.tag}>"
+                if _entry_has_value(row):
+                    codes = (*parents, row.value) if row.value is not None else parents
+                    yield row, codes, (*parent_path, label), table, entry.source
+                for value in _entry_numeric_values(row):
+                    for child in entry.children:
+                        yield from _walk_entity_records(
+                            enumerations_by_uid, child, (*parents, value), (*parent_path, label)
+                        )
         return
     label = entry.description or f"<{entry.tag}>"
     path = (*parent_path, label)
@@ -676,7 +672,7 @@ def _walk_entity_records(
 
 
 def _walk_entity_entries(
-    enumerations_by_uid: Mapping[int, EnumerationTable],
+    enumerations_by_uid: EnumerationTableIndex,
     entry: ReferenceEntry,
     parents: tuple[int, ...],
     parent_path: tuple[str, ...],
@@ -783,7 +779,7 @@ class EditionInspector:
     @cached_property
     def _entity_values(self) -> tuple[EditionValue, ...]:
         values: list[EditionValue] = []
-        enumerations_by_uid = {table.uid: table for table in self.standard.enumerations}
+        enumerations_by_uid = self.standard.enumeration_uid_index
         for branch in self.standard.entity_types:
             prefix = (branch.kind, branch.domain, branch.country)
             path = (f"kind {branch.kind}", f"domain {branch.domain}", f"country {branch.country}")
@@ -879,14 +875,18 @@ class EditionInspector:
         return tuple(row for row in rows if _contains(row, value))
 
     def resolve_enumeration_value(self, table_uid: int, value: int) -> EnumerationValueResolution:
-        """Resolve a value to its exact row or covering range in one table."""
+        """Resolve a value by UID, preserving missing and duplicate table definitions."""
         _validate_nonnegative_integer(table_uid, "table UID")
         _validate_nonnegative_integer(value, "enumeration value")
         tables = tuple(table for table in self.standard.enumerations if table.uid == table_uid)
         table_infos = tuple(self._table_info(table) for table in tables)
         matches = self.enumeration_rows(table_uid, value=value) if tables else ()
-        if len(tables) > 1 or len(matches) > 1:
-            status = EnumerationValueStatus.AMBIGUOUS
+        if not tables:
+            status = EnumerationValueStatus.TABLE_NOT_FOUND
+        elif len(tables) > 1:
+            status = EnumerationValueStatus.AMBIGUOUS_TABLE
+        elif len(matches) > 1:
+            status = EnumerationValueStatus.AMBIGUOUS_VALUE
         elif not matches:
             status = EnumerationValueStatus.UNKNOWN
         elif matches[0].value is not None:
@@ -897,7 +897,7 @@ class EditionInspector:
             table_uid=table_uid,
             value=value,
             status=status,
-            table=table_infos[0] if table_infos else None,
+            table=table_infos[0] if len(table_infos) == 1 else None,
             tables=table_infos,
             matches=matches,
         )
@@ -1065,7 +1065,18 @@ class EditionInspector:
             generic_country: tuple[EditionValue, ...] = tuple(
                 row for row in candidates if len(row.hierarchy_codes) > 2 and row.hierarchy_codes[2] == 0
             )
-            preferred: tuple[EditionValue, ...] = exact_country or generic_country or candidates
+            if country_value not in (None, 0) and exact_country and generic_country:
+                # entity_path preserves source order among rows at this depth.
+                # Match catalog choices: the later country scope wins for this code.
+                exact_order = max(
+                    index for index, row in enumerate(candidates) if row in exact_country
+                )
+                generic_order = max(
+                    index for index, row in enumerate(candidates) if row in generic_country
+                )
+                preferred = exact_country if exact_order > generic_order else generic_country
+            else:
+                preferred = exact_country or generic_country or candidates
             if not preferred:
                 break
             if len(preferred) > 1:

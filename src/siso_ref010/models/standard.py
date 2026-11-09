@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import date as Date
-from typing import Annotated, Any, Self
+from types import MappingProxyType
+from typing import Annotated, Any, Self, TypeAlias
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
@@ -100,6 +102,9 @@ class EnumerationTable(ReferenceModel):
     annotations: tuple[TableAnnotation, ...] = ()
 
 
+EnumerationTableIndex: TypeAlias = Mapping[int, tuple[EnumerationTable, ...]]
+
+
 class EntityBranch(ReferenceModel):
     kind: UnsignedByte
     domain: UnsignedByte
@@ -131,10 +136,25 @@ class EntityTypeStandard(ReferenceModel):
         return self.source.get("title") or ""
 
     def enumeration(self, name: str) -> EnumerationTable | None:
-        return next((table for table in self.enumerations if table.name == name), None)
+        """Return a table only when its name uniquely identifies one definition."""
+        matches = self.enumerations_named(name)
+        return matches[0] if len(matches) == 1 else None
 
     def enumerations_named(self, name: str) -> list[EnumerationTable]:
         return [table for table in self.enumerations if table.name == name]
 
+    @property
+    def enumeration_uid_index(self) -> EnumerationTableIndex:
+        tables_by_uid: dict[int, list[EnumerationTable]] = {}
+        for table in self.enumerations:
+            tables_by_uid.setdefault(table.uid, []).append(table)
+        return MappingProxyType({uid: tuple(tables) for uid, tables in tables_by_uid.items()})
+
+    def enumeration_tables_by_uid(self, uid: int) -> tuple[EnumerationTable, ...]:
+        """Return every table definition carrying a UID, in source order."""
+        return self.enumeration_uid_index.get(uid, ())
+
     def enumeration_by_uid(self, uid: int) -> EnumerationTable | None:
-        return next((table for table in self.enumerations if table.uid == uid), None)
+        """Return a table only when its UID uniquely identifies one definition."""
+        matches = self.enumeration_tables_by_uid(uid)
+        return matches[0] if len(matches) == 1 else None

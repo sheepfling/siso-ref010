@@ -28,7 +28,7 @@ from siso_ref010.projection import (
     _child_code,
     _entry_values,
     _field_values,
-    _referenced_table,
+    _referenced_tables,
     _walk_entry,
 )
 
@@ -87,7 +87,7 @@ def test_projection_parser_edges():
     with pytest.raises(ValueError):
         _child_code(2, 1)
     with pytest.raises(SisoRef010ValueError) as error:
-        _referenced_table("bad", {})
+        _referenced_tables("bad", {})
     assert error.value.code == "unresolved_enumeration_reference"
 
     empty = ReferenceEntry(

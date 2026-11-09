@@ -36,14 +36,8 @@ This archive contains audit, concise, summary, and separately pageable review
 queue JSON reports plus human-readable summaries for v35 to v36, v36 to v37,
 and the direct v35 to v37 comparison.
 
-This is report-bundle package revision 5 (`siso_diff_v5.zip`). Its JSON reports
-use report schema version 5. These version numbers are independent. Each JSON
-report's `generator_version` records the installed siso-ref010 package
-version. `SCHEMA.json` is generated from the report Pydantic models;
-`TEST-EVIDENCE.json` records report, implementation, and test hashes plus the
-checks performed. Audits are complete and source hashes identify the exact XML
-bytes compared. The bundled XSD defines enumeration `size` values in bits; the
-reports flag changes to that declared width for protocol-field review.
+This archive contains generated edition-diff reports, their schema, and
+validation evidence. Reports include source and generator metadata.
 
 From the repository root, regenerate reports with
 `python -m tools.build_diff_reports`, then package them with

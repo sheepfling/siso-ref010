@@ -46,10 +46,38 @@ Resolution results distinguish exact, partial, unspecified, unknown, and
 ambiguous values. An ambiguous lookup returns its candidates instead of
 choosing one.
 
+`resolve_enumeration_value()` distinguishes a missing UID (`table_not_found`),
+a duplicated UID (`ambiguous_table`), an absent value in a known table
+(`unknown`), and multiple matching rows (`ambiguous_value`). Its `table` field
+is set only for a unique UID; `tables` and `matches` preserve the alternatives.
+Name-based resolution returns one value result per distinct UID.
+For table-only lookup, `api.inspector.enumeration_tables_by_uid(uid)` returns
+zero, one, or several definitions; `enumeration_table(uid)` returns a table
+only when the UID is unique.
+
 `describe()` raises `ambiguous_entity_description` when its code maps to
 multiple source rows. Use `resolve_entity()` or `explain_entity()` to inspect
 those candidates. `choices()` keeps duplicate hierarchy codes as separate
 items and marks each one with `ambiguous=True`.
+Country choices preserve duplicate numeric codes in the same way. The catalog's
+`get_country_name()` and `get_all_countries()` raise `ambiguous_country_name`
+when the selected edition assigns multiple source descriptions to a code;
+`api.choices("countries")` keeps all of those candidates.
+For hierarchy choices, rows are overlaid per code in source order. When a code
+appears in both the requested country and country zero, the scope whose latest
+source row occurs later wins; duplicate rows in that winning scope remain
+visible as ambiguous candidates. Codes found in only one scope remain
+available. `choices()`, `resolve_entity()`, and `describe()` use this same rule.
+Kind and domain choices also preserve duplicate codes. Their catalog dictionary
+getters raise `ambiguous_enumeration_name` when a code has multiple source rows.
+
+Description search returns one hit per entity code. For an ambiguous code,
+`SearchHit.description` is `None`, `candidate_descriptions` contains every
+source description, and `ambiguous` is `True`; the query may match any of those
+candidate descriptions.
+At the lower-level catalog, `search_descriptions()` returns every candidate;
+the singular `search_description()` keeps its legacy string mapping. Use the
+plural method when candidate ambiguity matters.
 
 ## Compare editions
 

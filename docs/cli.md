@@ -38,6 +38,8 @@ Human-readable text is the default. Add `--json` for a machine-readable result
 with `schema_version`, `command`, and `result` fields. Errors go to stderr; JSON
 errors use the same versioned envelope and include a stable error code when
 available. The JSON output is generated from the Python Pydantic result models.
+Description search labels duplicate entity codes as ambiguous and displays all
+source-description candidates.
 
 The executable CLI writes text and JSON to stdout/stderr as UTF-8 on all
 supported Python versions. Redirected output can therefore be decoded as UTF-8

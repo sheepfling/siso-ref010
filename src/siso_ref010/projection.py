@@ -21,7 +21,12 @@ from .models.codes import (
     SubcategoryCode,
 )
 from .models.entity import create_key
-from .models.standard import EntityTypeStandard, EnumerationTable, ReferenceEntry
+from .models.standard import (
+    EntityTypeStandard,
+    EnumerationTable,
+    EnumerationTableIndex,
+    ReferenceEntry,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,8 +56,11 @@ class CatalogData:
 
     standard: EntityTypeStandard | None
     countries: Mapping[CountryCode, str]
+    country_rows: tuple[CatalogChild, ...]
     domains: Mapping[tuple[KindCode, DomainCode], str]
+    domain_rows: tuple[tuple[KindCode, CatalogChild], ...]
     kinds: Mapping[KindCode, str]
+    kind_rows: tuple[CatalogChild, ...]
     categories: Mapping[EntityKey, str]
     subcategories: Mapping[EntityKey, str]
     ambiguous_categories: Mapping[EntityKey, tuple[str, ...]]
@@ -156,37 +164,39 @@ def _child_code(parent_count: int, value: int) -> EntityFieldCode:
             raise ValueError(f"unsupported entity hierarchy depth: {parent_count}")
 
 
-def _referenced_table(
-    xref: str | None, enumerations_by_uid: Mapping[int, EnumerationTable]
-) -> EnumerationTable:
+def _referenced_tables(
+    xref: str | None, enumerations_by_uid: EnumerationTableIndex
+) -> tuple[EnumerationTable, ...]:
     try:
-        table = enumerations_by_uid.get(int(xref)) if xref is not None else None
+        uid = int(xref) if xref is not None else None
     except ValueError:
-        table = None
-    if table is None:
+        uid = None
+    tables = enumerations_by_uid.get(uid, ()) if uid is not None else ()
+    if not tables:
         raise SisoRef010ValueError(
             f"Unresolved SISO enumeration cross-reference: {xref!r}",
             code="unresolved_enumeration_reference",
             context={"xref": xref},
         )
-    return table
+    return tables
 
 
 def _walk_entry(
     entry: ReferenceEntry,
     parents: tuple[int, ...],
-    enumerations_by_uid: Mapping[int, EnumerationTable],
+    enumerations_by_uid: EnumerationTableIndex,
 ) -> Iterator[CatalogRow]:
     if entry.tag == "subcategory_xref":
-        table = _referenced_table(entry.source.get("xref"), enumerations_by_uid)
-        for row in table.entries:
-            if row.description is None:
-                continue
-            for value in _entry_values(row):
-                yield CatalogRow(parents, value, row.description)
-                next_parents = (*parents, value)
-                for child in entry.children:
-                    yield from _walk_entry(child, next_parents, enumerations_by_uid)
+        tables = _referenced_tables(entry.source.get("xref"), enumerations_by_uid)
+        for table in tables:
+            for row in table.entries:
+                if row.description is None:
+                    continue
+                for value in _entry_values(row):
+                    yield CatalogRow(parents, value, row.description)
+                    next_parents = (*parents, value)
+                    for child in entry.children:
+                        yield from _walk_entry(child, next_parents, enumerations_by_uid)
         return
 
     if entry.description is None:
@@ -202,22 +212,32 @@ def _build_enumeration_indexes(
     standard: EntityTypeStandard,
 ) -> tuple[
     dict[CountryCode, str],
+    tuple[CatalogChild, ...],
     dict[tuple[KindCode, DomainCode], str],
+    tuple[tuple[KindCode, CatalogChild], ...],
     dict[KindCode, str],
+    tuple[CatalogChild, ...],
 ]:
     countries: dict[CountryCode, str] = {}
+    country_rows: list[CatalogChild] = []
     domains: dict[tuple[KindCode, DomainCode], str] = {}
+    domain_rows: list[tuple[KindCode, CatalogChild]] = []
     kinds: dict[KindCode, str] = {}
+    kind_rows: list[CatalogChild] = []
     for table in standard.enumerations:
         if table.name == "Entity Kind":
             for row in table.entries:
                 if row.value is not None and row.description is not None:
                     kinds[KindCode(row.value)] = row.description
+                    kind_rows.append(CatalogChild(KindCode(row.value), row.description, len(kind_rows)))
             continue
         if table.name == "Country":
             for row in table.entries:
                 if row.value is not None and row.description is not None:
                     countries[CountryCode(row.value)] = row.description
+                    country_rows.append(
+                        CatalogChild(CountryCode(row.value), row.description, len(country_rows))
+                    )
             continue
         if table.name.endswith("Domain"):
             parent_kinds = _applicability_values(table.applicability, 0)
@@ -226,8 +246,18 @@ def _build_enumeration_indexes(
                     continue
                 for kind in parent_kinds:
                     domains[(kind, DomainCode(row.value))] = row.description
+                    domain_rows.append(
+                        (kind, CatalogChild(DomainCode(row.value), row.description, len(domain_rows)))
+                    )
             continue
-    return countries, domains, kinds
+    return (
+        countries,
+        tuple(country_rows),
+        domains,
+        tuple(domain_rows),
+        kinds,
+        tuple(kind_rows),
+    )
 
 
 def _build_hierarchy_indexes(
@@ -244,7 +274,7 @@ def _build_hierarchy_indexes(
     ambiguous_categories: dict[EntityKey, list[str]] = {}
     ambiguous_subcategories: dict[EntityKey, list[str]] = {}
     children_by_prefix: dict[tuple[EntityFieldCode, ...], list[CatalogChild]] = {}
-    enumerations_by_uid = {table.uid: table for table in standard.enumerations}
+    enumerations_by_uid = standard.enumeration_uid_index
     rows = (
         row
         for branch in standard.entity_types
@@ -304,8 +334,11 @@ def build_catalog_data(standard: EntityTypeStandard | None) -> CatalogData:
         return CatalogData(
             standard=None,
             countries=MappingProxyType({}),
+            country_rows=(),
             domains=MappingProxyType({}),
+            domain_rows=(),
             kinds=MappingProxyType({}),
+            kind_rows=(),
             categories=MappingProxyType({}),
             subcategories=MappingProxyType({}),
             ambiguous_categories=MappingProxyType({}),
@@ -313,7 +346,7 @@ def build_catalog_data(standard: EntityTypeStandard | None) -> CatalogData:
             children_by_prefix=MappingProxyType({}),
         )
 
-    countries, domains, kinds = _build_enumeration_indexes(standard)
+    countries, country_rows, domains, domain_rows, kinds, kind_rows = _build_enumeration_indexes(standard)
     (
         categories,
         subcategories,
@@ -324,8 +357,11 @@ def build_catalog_data(standard: EntityTypeStandard | None) -> CatalogData:
     return CatalogData(
         standard=standard,
         countries=MappingProxyType(countries),
+        country_rows=country_rows,
         domains=MappingProxyType(domains),
+        domain_rows=domain_rows,
         kinds=MappingProxyType(kinds),
+        kind_rows=kind_rows,
         categories=MappingProxyType(categories),
         subcategories=MappingProxyType(subcategories),
         ambiguous_categories=MappingProxyType(ambiguous_categories),

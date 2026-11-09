@@ -77,6 +77,26 @@ def test_custom_xml_source(tmp_path, capsys):
     assert capsys.readouterr().out.strip() == "153: Netherlands"
 
 
+def test_search_labels_ambiguous_entity_descriptions(tmp_path, capsys):
+    source = tmp_path / "ambiguous-search.xml"
+    source.write_text(
+        '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
+        '<enum uid="30" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
+        '<cet><entity kind="1" domain="1" country="1">'
+        '<category value="2" description="First source row"/>'
+        '<category value="2" description="Second source row"/>'
+        "</entity></cet></ebv>",
+        encoding="utf-8",
+    )
+
+    assert main(["--xml", str(source), "search", "Second source row"]) == 0
+
+    output = capsys.readouterr().out
+    assert "1.1.1.2.0.0.0: ambiguous source descriptions" in output
+    assert "First source row; Second source row" in output
+    assert "1 of 1 matches" in output
+
+
 def test_info(capsys):
     assert main(["info"]) == 0
     assert "Data version: SISO-REF-010-v37" in capsys.readouterr().out

@@ -30,7 +30,12 @@ def print_history_text(history: ValueHistory) -> None:
     print(f"{history.kind} history: {history.target}")
     for point in history.points:
         if (
-            point.match_status in {ResolutionStatus.AMBIGUOUS, EnumerationValueStatus.AMBIGUOUS}
+            point.match_status
+            in {
+                ResolutionStatus.AMBIGUOUS,
+                EnumerationValueStatus.AMBIGUOUS_TABLE,
+                EnumerationValueStatus.AMBIGUOUS_VALUE,
+            }
             or len(point.table_candidates) > 1
         ):
             details: list[str] = []
@@ -307,8 +312,11 @@ def print_inspect_text(action: str, result: BaseModel) -> None:
         return
     if isinstance(result, EnumerationValueResolution):
         print(f"table {result.table_uid}, value {result.value}: {result.status.value}")
-        if result.table is None:
+        if result.status is EnumerationValueStatus.TABLE_NOT_FOUND:
             print("Enumeration table not found.")
+        elif result.status is EnumerationValueStatus.AMBIGUOUS_TABLE:
+            for table in result.tables:
+                print(f"  candidate table: {table.name} (UID {table.uid})")
         for value in result.matches:
             print(_inspection_value_text(value))
         return
@@ -317,6 +325,9 @@ def print_inspect_text(action: str, result: BaseModel) -> None:
         if result.status.value == "table_not_found":
             print("No enumeration table has that exact name.")
         for resolved in result.matches:
+            if resolved.status is EnumerationValueStatus.AMBIGUOUS_TABLE:
+                for table in resolved.tables:
+                    print(f"  candidate table: {table.name} (UID {table.uid})")
             table_name = resolved.table.name if resolved.table is not None else "<ambiguous table UID>"
             print(f"  {table_name} (UID {resolved.table_uid}): {resolved.status.value}")
             for value in resolved.matches:

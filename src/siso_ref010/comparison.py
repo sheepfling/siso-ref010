@@ -1512,7 +1512,16 @@ def enumeration_history(
                 attributes=entry.source.attributes
                 if entry is not None
                 else (table.source.attributes if table else ()),
-                candidates=matching if resolution is not None and resolution.status is EnumerationValueStatus.AMBIGUOUS else (),
+                candidates=(
+                    matching
+                    if resolution is not None
+                    and resolution.status
+                    in {
+                        EnumerationValueStatus.AMBIGUOUS_TABLE,
+                        EnumerationValueStatus.AMBIGUOUS_VALUE,
+                    }
+                    else ()
+                ),
                 table_candidates=table_candidates if len(table_candidates) > 1 else (),
             )
         )

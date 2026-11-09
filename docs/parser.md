@@ -41,9 +41,14 @@ rejected.
   change request values or ranges. Enumeration cross-references remain attached
   to their source entries and can be followed through `EntityTypeStandard`.
 
-For example, `standard.enumeration_by_uid(21)` resolves a `subcategory_xref`
-whose source attributes contain `xref="21"`. `ReferenceCatalog` uses this
-relationship when creating hierarchy choices.
+`standard.enumerations_named(name)` and
+`standard.enumeration_tables_by_uid(uid)` return all matching definitions. An
+empty tuple/list means missing, one item means unique, and multiple items are
+ambiguous. The singular `enumeration(name)` and `enumeration_by_uid(uid)`
+helpers return a table only when the match is unique. `ReferenceCatalog` and
+`EditionInspector` expand cross-references from all matching definitions,
+preserving duplicate rows so lookup can report ambiguous entity codes instead
+of silently selecting one table.
 
 This is a structured model of standard data, not a lossless XML infoset. Unknown
 extension elements, comments, processing instructions, and formatting are not

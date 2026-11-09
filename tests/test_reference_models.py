@@ -56,3 +56,13 @@ def test_standard_supports_exact_name_and_uid_table_lookup():
     assert standard.enumerations_named("Missing") == []
     assert standard.enumeration_by_uid(7) is standard.enumerations[0]
     assert standard.enumeration_by_uid(8) is None
+
+
+def test_singular_table_name_lookup_does_not_select_first_duplicate():
+    standard = EntityTypeXmlParser.from_string(
+        '<ebv><enum uid="7" name="Repeated"><enumrow value="1" description="one"/></enum>'
+        '<enum uid="8" name="Repeated"><enumrow value="2" description="two"/></enum></ebv>'
+    )
+
+    assert standard.enumeration("Repeated") is None
+    assert [table.uid for table in standard.enumerations_named("Repeated")] == [7, 8]

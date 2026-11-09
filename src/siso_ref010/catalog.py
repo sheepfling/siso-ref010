@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from itertools import chain
+from collections.abc import Callable
 from threading import RLock
 from typing import cast
 from weakref import WeakValueDictionary
@@ -50,7 +50,7 @@ def _children_for(
     children_by_prefix: ChildrenByPrefix,
     parents: tuple[EntityFieldCode, ...],
 ) -> dict[EntityFieldCode, str]:
-    """Return unambiguous children, preferring country-specific rows to generic rows."""
+    """Return unambiguous children after applying source-ordered country overlay."""
     rows = _choice_rows_for(children_by_prefix, parents)
     grouped: dict[EntityFieldCode, list[str]] = {}
     for row in rows:
@@ -65,15 +65,29 @@ def _choice_rows_for(
     children_by_prefix: ChildrenByPrefix,
     parents: tuple[EntityFieldCode, ...],
 ) -> tuple[CatalogChild, ...]:
-    """Return every source choice under a prefix, retaining duplicate codes."""
-    rows = list(children_by_prefix.get(parents, ()))
-    if parents[2] != 0:
-        generic = (*parents[:2], CountryCode(0), *parents[3:])
-        generic_rows = children_by_prefix.get(generic, ())
-        specific_codes = {row.value for row in rows}
-        rows.extend(row for row in generic_rows if row.value not in specific_codes)
-        rows.sort(key=lambda row: row.source_order)
-    return tuple(rows)
+    """Overlay country scopes in source order, retaining winner-scope duplicates."""
+    specific_rows = tuple(children_by_prefix.get(parents, ()))
+    if parents[2] == 0:
+        return specific_rows
+
+    generic = (*parents[:2], CountryCode(0), *parents[3:])
+    generic_rows = tuple(children_by_prefix.get(generic, ()))
+    specific_by_value: dict[EntityFieldCode, list[CatalogChild]] = {}
+    generic_by_value: dict[EntityFieldCode, list[CatalogChild]] = {}
+    for row in specific_rows:
+        specific_by_value.setdefault(row.value, []).append(row)
+    for row in generic_rows:
+        generic_by_value.setdefault(row.value, []).append(row)
+
+    rows: list[CatalogChild] = []
+    for value in specific_by_value.keys() | generic_by_value.keys():
+        specific = specific_by_value.get(value, ())
+        generic = generic_by_value.get(value, ())
+        if specific and generic:
+            rows.extend(specific if specific[-1].source_order > generic[-1].source_order else generic)
+        else:
+            rows.extend(specific or generic)
+    return tuple(sorted(rows, key=lambda row: row.source_order))
 
 
 def _ambiguous_choice_error(
@@ -92,6 +106,28 @@ def _ambiguous_choice_error(
     )
 
 
+def _duplicate_descriptions(
+    rows: tuple[CatalogChild, ...], key_for: Callable[[CatalogChild], object]
+) -> tuple[object, tuple[str, ...]] | None:
+    grouped: dict[object, list[str]] = {}
+    for row in rows:
+        grouped.setdefault(key_for(row), []).append(row.description)
+    return next(
+        ((key, tuple(descriptions)) for key, descriptions in grouped.items() if len(descriptions) > 1),
+        None,
+    )
+
+
+def _raise_ambiguous_enumeration_name(
+    label: str, key: object, descriptions: tuple[str, ...]
+) -> None:
+    raise SisoRef010ValueError(
+        f"{label} code {key} has multiple source descriptions",
+        code="ambiguous_enumeration_name",
+        context={"code": key, "candidate_descriptions": descriptions},
+    )
+
+
 def _child_description_for(
     children_by_prefix: ChildrenByPrefix,
     parents: tuple[EntityFieldCode, ...],
@@ -107,41 +143,41 @@ def _child_description_for(
 
 
 def _description_for(data: CatalogData, entity: EntityType) -> str:
-    key = entity.to_key(signed=False)
-    for source, ambiguous, masked in (
-        (data.subcategories, data.ambiguous_subcategories, key),
-        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFF0000FFFFFFFF),
-        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFFFFFFFFFFFF00),
-        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFF0000FFFFFF00),
-        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFFFFFFFFFF0000),
-        (data.subcategories, data.ambiguous_subcategories, key & 0xFFFF0000FFFF0000),
-        (data.categories, data.ambiguous_categories, key & 0xFFFFFFFFFF000000),
-        (data.categories, data.ambiguous_categories, key & 0xFFFFFFFF00000000),
-        (data.categories, data.ambiguous_categories, key & 0xFFFF0000FF000000),
-        (data.categories, data.ambiguous_categories, key & 0xFFFF000000000000),
-    ):
-        candidates = ambiguous.get(EntityKey(masked))
-        if candidates is not None:
+    fields = entity.as_tuple()
+    for depth in range(len(fields), 3, -1):
+        parents = fields[: depth - 1]
+        value = fields[depth - 1]
+        try:
+            description = _child_description_for(data.children_by_prefix, parents, value)
+        except SisoRef010ValueError as error:
+            if error.code != "ambiguous_entity_choice":
+                raise
             raise SisoRef010ValueError(
                 "Entity code matches multiple source descriptions",
                 code="ambiguous_entity_description",
                 context={
-                    "entity_key": int(EntityKey(masked)),
-                    "candidate_descriptions": candidates,
+                    "entity_key": int(entity.to_key(signed=False)),
+                    **(error.context or {}),
                 },
-            )
-        description = source.get(EntityKey(masked))
+            ) from error
         if description is not None:
             return description
     return "-"
 
 
-def _search_descriptions(data: CatalogData, query: str) -> dict[str, str]:
+def _search_descriptions(data: CatalogData, query: str) -> dict[str, tuple[str, ...]]:
     normalized = query.casefold()
+    descriptions_by_key: dict[EntityKey, list[str]] = {}
+    for source, ambiguous_source in (
+        (data.categories, data.ambiguous_categories),
+        (data.subcategories, data.ambiguous_subcategories),
+    ):
+        for key, description in source.items():
+            descriptions_by_key.setdefault(key, []).extend(ambiguous_source.get(key, (description,)))
     return {
-        str(EntityType.from_key(key)): text
-        for key, text in chain(data.categories.items(), data.subcategories.items())
-        if normalized in text.casefold()
+        str(EntityType.from_key(key)): tuple(descriptions)
+        for key, descriptions in descriptions_by_key.items()
+        if any(normalized in description.casefold() for description in descriptions)
     }
 
 
@@ -226,16 +262,60 @@ class ReferenceCatalog:
         return len(self._data.subcategories)
 
     def get_all_countries(self) -> dict[CountryCode, str]:
+        """Return country names when every numeric code has one source description."""
+        duplicates = self._ambiguous_country_names()
+        if duplicates:
+            code, descriptions = next(iter(duplicates.items()))
+            raise SisoRef010ValueError(
+                f"Country code {code} has multiple source descriptions",
+                code="ambiguous_country_name",
+                context={"country": int(code), "candidate_descriptions": descriptions},
+            )
         return dict(self._data.countries)
+
+    def get_country_choices(self) -> tuple[CatalogChild, ...]:
+        """Return all country source rows, including duplicate-code candidates."""
+        return self._data.country_rows
+
+    def get_kind_choices(self) -> tuple[CatalogChild, ...]:
+        """Return entity-kind source rows, preserving duplicate codes."""
+        return self._data.kind_rows
+
+    def get_domain_choices(self, kind: KindCode) -> tuple[CatalogChild, ...]:
+        """Return domain source rows applicable to one kind, preserving duplicates."""
+        return tuple(row for parent, row in self._data.domain_rows if parent == kind)
+
+    def _ambiguous_country_names(self) -> dict[CountryCode, tuple[str, ...]]:
+        descriptions: dict[CountryCode, list[str]] = {}
+        for row in self._data.country_rows:
+            code = cast(CountryCode, row.value)
+            descriptions.setdefault(code, []).append(row.description)
+        return {
+            code: tuple(values)
+            for code, values in descriptions.items()
+            if len(values) > 1
+        }
 
     def get_all_domains(self) -> dict[tuple[KindCode, DomainCode], str]:
         """Return each domain with its kind, preserving kind-specific code spaces."""
+        grouped: dict[tuple[KindCode, DomainCode], list[str]] = {}
+        for kind, row in self._data.domain_rows:
+            grouped.setdefault((kind, cast(DomainCode, row.value)), []).append(row.description)
+        duplicate = next(((key, tuple(values)) for key, values in grouped.items() if len(values) > 1), None)
+        if duplicate is not None:
+            _raise_ambiguous_enumeration_name("Domain", *duplicate)
         return dict(self._data.domains)
 
     def get_all_kinds(self) -> dict[KindCode, str]:
+        duplicate = _duplicate_descriptions(self._data.kind_rows, lambda row: row.value)
+        if duplicate is not None:
+            _raise_ambiguous_enumeration_name("Entity kind", *duplicate)
         return dict(self._data.kinds)
 
     def get_all_domains_of(self, kind: KindCode) -> dict[DomainCode, str]:
+        duplicate = _duplicate_descriptions(self.get_domain_choices(kind), lambda row: row.value)
+        if duplicate is not None:
+            _raise_ambiguous_enumeration_name("Domain", *duplicate)
         return {
             domain: text for (parent_kind, domain), text in self._data.domains.items() if parent_kind == kind
         }
@@ -262,9 +342,22 @@ class ReferenceCatalog:
         return cast(dict[ExtraCode, str], self._children(entity.as_tuple()[:6]))
 
     def get_country_name(self, country: CountryCode) -> str:
+        ambiguous = self._ambiguous_country_names().get(country)
+        if ambiguous is not None:
+            raise SisoRef010ValueError(
+                f"Country code {country} has multiple source descriptions",
+                code="ambiguous_country_name",
+                context={"country": int(country), "candidate_descriptions": ambiguous},
+            )
         return self._data.countries.get(country) or f"Unknown country {country}"
 
     def get_kind_name(self, kind: KindCode) -> str:
+        duplicate = _duplicate_descriptions(
+            tuple(row for row in self._data.kind_rows if row.value == kind),
+            lambda row: row.value,
+        )
+        if duplicate is not None:
+            _raise_ambiguous_enumeration_name("Entity kind", *duplicate)
         return self._data.kinds.get(kind) or f"Unknown kind {kind}"
 
     def get_domain_name(self, entity: EntityType) -> str:
@@ -316,6 +409,18 @@ class ReferenceCatalog:
             )
         return self._qualified_cache[key]
 
-    def search_description(self, query: str) -> dict[str, str]:
-        """Search all entity hierarchy descriptions, from categories through extras."""
+    def search_descriptions(self, query: str) -> dict[str, tuple[str, ...]]:
+        """Search hierarchy descriptions while retaining duplicate-code candidates."""
         return _search_descriptions(self._data, query)
+
+    def search_description(self, query: str) -> dict[str, str]:
+        """Return one description per code; use ``search_descriptions`` for conflicts."""
+        normalized = query.casefold()
+        return {
+            entity: next(
+                description
+                for description in reversed(descriptions)
+                if normalized in description.casefold()
+            )
+            for entity, descriptions in self.search_descriptions(query).items()
+        }

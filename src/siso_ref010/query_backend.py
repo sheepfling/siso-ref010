@@ -138,7 +138,7 @@ class MappingEntityQueryBackend:
         page_values: list[EditionValue] = []
         fields = request.fields
         text = request.text.casefold() if request.text else None
-        tables = {table.uid: table for table in inspector.standard.enumerations}
+        tables = inspector.standard.enumeration_uid_index
         for branch in inspector.standard.entity_types:
             prefix = (branch.kind, branch.domain, branch.country)
             path = (f"kind {branch.kind}", f"domain {branch.domain}", f"country {branch.country}")

@@ -101,15 +101,14 @@ def test_country_overlay_follows_source_order():
         '<entity kind="1" domain="1" country="153"><category value="2" description="Specific"/></entity>'
     )
     generic = '<entity kind="1" domain="1" country="0"><category value="2" description="Generic"/></entity>'
-    for categories, expected in [
+    entity = EntityType(1, 1, 153, 2, 0, 0, 0)
+    for categories, expected in (
         (specific + generic, "Generic"),
         (generic + specific, "Specific"),
-    ]:
+    ):
         catalog = ReferenceCatalog(_catalog_xml(categories))
         assert catalog.get_all_categories_of(prefix)[2] == expected
-        # Description fallback prioritizes the country-specific key, independently of collection ordering.
-        entity = EntityType(1, 1, 153, 2, 0, 0, 0)
-        assert catalog.get_description_of(entity) == "Specific"
+        assert catalog.get_description_of(entity) == expected
 
 
 def test_empty_catalog():
