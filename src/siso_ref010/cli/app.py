@@ -415,6 +415,15 @@ def _configure_cli_output_encoding() -> None:
             reconfigure(encoding="utf-8")
 
 
+def _text_error_message(error: SisoRef010Error) -> str:
+    """Include candidate labels from structured ambiguity errors in text mode."""
+    message = str(error)
+    candidates = error.context.get("candidate_descriptions")
+    if isinstance(candidates, (tuple, list)) and candidates:
+        message += "\n" + "\n".join(f"  candidate: {candidate}" for candidate in candidates)
+    return message
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     if argv is None:
         _configure_cli_output_encoding()
@@ -437,7 +446,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if machine:
             write_json_error(str(exc), error_type(exc), command, exc)
             parser.exit(2)
-        parser.exit(2, f"{parser.prog}: error: {exc}\n")
+        parser.exit(2, f"{parser.prog}: error: {_text_error_message(exc)}\n")
     except (ValueError, TypeError, OSError) as exc:
         if machine:
             write_json_error(str(exc), type(exc).__name__, command)

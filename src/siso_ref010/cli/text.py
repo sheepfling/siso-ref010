@@ -48,10 +48,7 @@ def print_history_text(history: ValueHistory) -> None:
             for table in point.table_candidates:
                 print(f"  candidate table: {table.name} (UID {table.uid})")
             for candidate in point.candidates:
-                row = _inspection_value_text(candidate)
-                if candidate.kind is EditionValueKind.ENUMERATION and candidate.table_name:
-                    row = f"{candidate.table_name}: {row}"
-                print(f"  candidate: {row}")
+                print(f"  candidate: {_inspection_candidate_text(candidate)}")
             continue
         if not point.present:
             print(f"v{point.version}: absent")
@@ -283,6 +280,12 @@ def _inspection_value_text(value: EditionValue) -> str:
     return f"{text} ({', '.join(metadata)})" if metadata else text
 
 
+def _inspection_candidate_text(value: EditionValue) -> str:
+    """Include table identity when showing a row as one ambiguity candidate."""
+    text = _inspection_value_text(value)
+    return f"{value.table_name}: {text}" if value.table_name else text
+
+
 def print_entity_query_text(result: EntityQueryResults) -> None:
     print(f"{result.title} ({result.date}) · {result.total:,} matching entity records")
     for value in result.values:
@@ -325,7 +328,12 @@ def print_inspect_text(action: str, result: BaseModel) -> None:
             for table in result.tables:
                 print(f"  candidate table: {table.name} (UID {table.uid})")
         for value in result.matches:
-            print(_inspection_value_text(value))
+            text = (
+                _inspection_candidate_text(value)
+                if result.status is EnumerationValueStatus.AMBIGUOUS_TABLE
+                else _inspection_value_text(value)
+            )
+            print(text)
         return
     if isinstance(result, EnumerationNameResolution):
         print(f"{result.name}, value {result.value}: {result.status.value}")
@@ -338,7 +346,12 @@ def print_inspect_text(action: str, result: BaseModel) -> None:
             table_name = resolved.table.name if resolved.table is not None else "<ambiguous table UID>"
             print(f"  {table_name} (UID {resolved.table_uid}): {resolved.status.value}")
             for value in resolved.matches:
-                print(f"    {_inspection_value_text(value)}")
+                text = (
+                    _inspection_candidate_text(value)
+                    if resolved.status is EnumerationValueStatus.AMBIGUOUS_TABLE
+                    else _inspection_value_text(value)
+                )
+                print(f"    {text}")
         return
     if isinstance(result, EditionTableResults):
         print(f"{result.title} ({result.date}): {result.total} enumeration tables")
@@ -389,6 +402,8 @@ def print_inspect_text(action: str, result: BaseModel) -> None:
             print("Unknown supplied components: None")
         if resolution.ambiguous_candidates:
             print(f"Ambiguous source candidates: {len(resolution.ambiguous_candidates)}")
+            for candidate in resolution.ambiguous_candidates:
+                print(f"  candidate: {_inspection_candidate_text(candidate)}")
         for value in result.path:
             print(f"  {_inspection_value_text(value)}")
         return

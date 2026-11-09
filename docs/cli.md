@@ -40,6 +40,9 @@ errors use the same versioned envelope and include a stable error code when
 available. The JSON output is generated from the Python Pydantic result models.
 Description search labels duplicate entity codes as ambiguous and displays all
 source-description candidates.
+Entity inspection and history output list ambiguous source rows, including the
+table name when duplicate enumeration UIDs are involved. Text-mode errors also
+show candidate descriptions when available.
 
 The executable CLI writes text and JSON to stdout/stderr as UTF-8 on all
 supported Python versions. Redirected output can therefore be decoded as UTF-8
