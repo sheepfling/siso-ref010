@@ -224,8 +224,8 @@ def test_standard_reference_lookups_support_names_and_unique_uids():
         '<enum uid="8" name="Example"><enumrow value="2"/></enum></ebv>'
     )
 
-    assert standard.enumeration("Example").uid == 7
-    assert [table.uid for table in standard.enumerations_named("Example")] == [7, 8]
+    assert standard.enumeration("Example") is None
+    assert tuple(table.uid for table in standard.enumerations_named("Example")) == (7, 8)
     assert standard.enumeration_by_uid(8).name == "Example"
     assert standard.enumeration("Missing") is None
     assert standard.enumeration_by_uid(9) is None

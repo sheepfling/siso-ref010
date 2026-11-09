@@ -76,8 +76,9 @@ Description search returns one hit per entity code. For an ambiguous code,
 source description, and `ambiguous` is `True`; the query may match any of those
 candidate descriptions.
 At the lower-level catalog, `search_descriptions()` returns every candidate;
-the singular `search_description()` keeps its legacy string mapping. Use the
-plural method when candidate ambiguity matters.
+the singular `search_description()` returns strings only for unambiguous codes
+and raises `ambiguous_entity_description` if a match has multiple candidates.
+Use the plural method when you want all alternatives in one result.
 
 ## Compare editions
 

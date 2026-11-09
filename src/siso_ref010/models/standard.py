@@ -136,12 +136,13 @@ class EntityTypeStandard(ReferenceModel):
         return self.source.get("title") or ""
 
     def enumeration(self, name: str) -> EnumerationTable | None:
-        """Return a table only when its name uniquely identifies one definition."""
+        """Return the unique name match, or ``None`` if missing or ambiguous."""
         matches = self.enumerations_named(name)
         return matches[0] if len(matches) == 1 else None
 
-    def enumerations_named(self, name: str) -> list[EnumerationTable]:
-        return [table for table in self.enumerations if table.name == name]
+    def enumerations_named(self, name: str) -> tuple[EnumerationTable, ...]:
+        """Return all exact-name matches in source order; count distinguishes outcomes."""
+        return tuple(table for table in self.enumerations if table.name == name)
 
     @property
     def enumeration_uid_index(self) -> EnumerationTableIndex:
@@ -155,6 +156,6 @@ class EntityTypeStandard(ReferenceModel):
         return self.enumeration_uid_index.get(uid, ())
 
     def enumeration_by_uid(self, uid: int) -> EnumerationTable | None:
-        """Return a table only when its UID uniquely identifies one definition."""
+        """Return the unique UID match, or ``None`` if missing or ambiguous."""
         matches = self.enumeration_tables_by_uid(uid)
         return matches[0] if len(matches) == 1 else None

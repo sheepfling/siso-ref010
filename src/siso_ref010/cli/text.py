@@ -45,6 +45,13 @@ def print_history_text(history: ValueHistory) -> None:
                 details.append(f"{len(point.table_candidates)} tables share the UID")
             suffix = f" ({'; '.join(details)})" if details else ""
             print(f"v{point.version}: ambiguous{suffix}")
+            for table in point.table_candidates:
+                print(f"  candidate table: {table.name} (UID {table.uid})")
+            for candidate in point.candidates:
+                row = _inspection_value_text(candidate)
+                if candidate.kind is EditionValueKind.ENUMERATION and candidate.table_name:
+                    row = f"{candidate.table_name}: {row}"
+                print(f"  candidate: {row}")
             continue
         if not point.present:
             print(f"v{point.version}: absent")

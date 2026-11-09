@@ -64,6 +64,13 @@ def test_search_returns_all_descriptions_for_an_ambiguous_code():
     assert serialized["description"] is None
     assert serialized["candidate_descriptions"] == ["First source row", "Second source row"]
     assert serialized["ambiguous"] is True
+    with pytest.raises(ValueError) as error:
+        catalog.search_description("Second source row")
+    assert getattr(error.value, "code", None) == "ambiguous_entity_description"
+    assert error.value.context["candidate_descriptions"] == (
+        "First source row",
+        "Second source row",
+    )
 
 
 @pytest.mark.parametrize("limit", [-1, True, 1.5, "1"])

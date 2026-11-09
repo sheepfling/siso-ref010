@@ -118,9 +118,7 @@ def _duplicate_descriptions(
     )
 
 
-def _raise_ambiguous_enumeration_name(
-    label: str, key: object, descriptions: tuple[str, ...]
-) -> None:
+def _raise_ambiguous_enumeration_name(label: str, key: object, descriptions: tuple[str, ...]) -> None:
     raise SisoRef010ValueError(
         f"{label} code {key} has multiple source descriptions",
         code="ambiguous_enumeration_name",
@@ -290,11 +288,7 @@ class ReferenceCatalog:
         for row in self._data.country_rows:
             code = cast(CountryCode, row.value)
             descriptions.setdefault(code, []).append(row.description)
-        return {
-            code: tuple(values)
-            for code, values in descriptions.items()
-            if len(values) > 1
-        }
+        return {code: tuple(values) for code, values in descriptions.items() if len(values) > 1}
 
     def get_all_domains(self) -> dict[tuple[KindCode, DomainCode], str]:
         """Return each domain with its kind, preserving kind-specific code spaces."""
@@ -365,25 +359,19 @@ class ReferenceCatalog:
 
     def get_category_name(self, entity: EntityType) -> str:
         return (
-            _child_description_for(
-                self._data.children_by_prefix, entity.as_tuple()[:3], entity.category
-            )
+            _child_description_for(self._data.children_by_prefix, entity.as_tuple()[:3], entity.category)
             or f"Unknown category {entity.category}"
         )
 
     def get_subcategory_name(self, entity: EntityType) -> str:
         return (
-            _child_description_for(
-                self._data.children_by_prefix, entity.as_tuple()[:4], entity.subcategory
-            )
+            _child_description_for(self._data.children_by_prefix, entity.as_tuple()[:4], entity.subcategory)
             or f"Unknown subcategory {entity.subcategory}"
         )
 
     def get_specific_name(self, entity: EntityType) -> str:
         return (
-            _child_description_for(
-                self._data.children_by_prefix, entity.as_tuple()[:5], entity.specific
-            )
+            _child_description_for(self._data.children_by_prefix, entity.as_tuple()[:5], entity.specific)
             or f"Unknown specific {entity.specific}"
         )
 
@@ -414,13 +402,14 @@ class ReferenceCatalog:
         return _search_descriptions(self._data, query)
 
     def search_description(self, query: str) -> dict[str, str]:
-        """Return one description per code; use ``search_descriptions`` for conflicts."""
-        normalized = query.casefold()
-        return {
-            entity: next(
-                description
-                for description in reversed(descriptions)
-                if normalized in description.casefold()
+        """Search descriptions, raising rather than selecting an ambiguous label."""
+        matches = self.search_descriptions(query)
+        ambiguous = next(((entity, labels) for entity, labels in matches.items() if len(labels) > 1), None)
+        if ambiguous is not None:
+            entity, labels = ambiguous
+            raise SisoRef010ValueError(
+                f"Entity code {entity} matches multiple source descriptions",
+                code="ambiguous_entity_description",
+                context={"entity": entity, "candidate_descriptions": labels},
             )
-            for entity, descriptions in self.search_descriptions(query).items()
-        }
+        return {entity: labels[0] for entity, labels in matches.items()}

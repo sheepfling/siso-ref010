@@ -131,9 +131,7 @@ def test_history_preserves_ambiguous_entity_and_enumeration_candidates(capsys):
     )
     source = MemorySource({1: xml})
 
-    entity_history = SisoRef010API.entity_history(
-        "1.1.1.2.0.0.0", source=source, versions=(1,)
-    )
+    entity_history = SisoRef010API.entity_history("1.1.1.2.0.0.0", source=source, versions=(1,))
     entity_point = entity_history.points[0]
     assert entity_point.present
     assert entity_point.match_status.value == "ambiguous"
@@ -144,7 +142,10 @@ def test_history_preserves_ambiguous_entity_and_enumeration_candidates(capsys):
         "Second category",
     ]
     print_history_text(entity_history)
-    assert "ambiguous (2 matching source rows)" in capsys.readouterr().out
+    entity_text = capsys.readouterr().out
+    assert "ambiguous (2 matching source rows)" in entity_text
+    assert "candidate: 1.1.1.2: First category" in entity_text
+    assert "candidate: 1.1.1.2: Second category" in entity_text
 
     enum_history = SisoRef010API.enumeration_history(90, 5, source=source, versions=(1,))
     enum_point = enum_history.points[0]
@@ -153,6 +154,12 @@ def test_history_preserves_ambiguous_entity_and_enumeration_candidates(capsys):
     assert enum_point.description is None
     assert [row.description for row in enum_point.candidates] == ["First value", "Second value"]
     assert [table.name for table in enum_point.table_candidates] == ["First table", "Second table"]
+    print_history_text(enum_history)
+    enumeration_text = capsys.readouterr().out
+    assert "candidate table: First table (UID 90)" in enumeration_text
+    assert "candidate table: Second table (UID 90)" in enumeration_text
+    assert "candidate: First table: table 90:5: First value" in enumeration_text
+    assert "candidate: Second table: table 90:5: Second value" in enumeration_text
 
     table_history = SisoRef010API.enumeration_history(90, source=source, versions=(1,))
     table_point = table_history.points[0]

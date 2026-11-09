@@ -1068,12 +1068,8 @@ class EditionInspector:
             if country_value not in (None, 0) and exact_country and generic_country:
                 # entity_path preserves source order among rows at this depth.
                 # Match catalog choices: the later country scope wins for this code.
-                exact_order = max(
-                    index for index, row in enumerate(candidates) if row in exact_country
-                )
-                generic_order = max(
-                    index for index, row in enumerate(candidates) if row in generic_country
-                )
+                exact_order = max(index for index, row in enumerate(candidates) if row in exact_country)
+                generic_order = max(index for index, row in enumerate(candidates) if row in generic_country)
                 preferred = exact_country if exact_order > generic_order else generic_country
             else:
                 preferred = exact_country or generic_country or candidates

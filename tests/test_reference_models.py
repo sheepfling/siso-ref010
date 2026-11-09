@@ -52,8 +52,8 @@ def test_standard_supports_exact_name_and_uid_table_lookup():
     )
     assert standard.enumeration("Example") is standard.enumerations[0]
     assert standard.enumeration("Missing") is None
-    assert standard.enumerations_named("Example") == [standard.enumerations[0]]
-    assert standard.enumerations_named("Missing") == []
+    assert standard.enumerations_named("Example") == (standard.enumerations[0],)
+    assert standard.enumerations_named("Missing") == ()
     assert standard.enumeration_by_uid(7) is standard.enumerations[0]
     assert standard.enumeration_by_uid(8) is None
 
@@ -61,8 +61,15 @@ def test_standard_supports_exact_name_and_uid_table_lookup():
 def test_singular_table_name_lookup_does_not_select_first_duplicate():
     standard = EntityTypeXmlParser.from_string(
         '<ebv><enum uid="7" name="Repeated"><enumrow value="1" description="one"/></enum>'
-        '<enum uid="8" name="Repeated"><enumrow value="2" description="two"/></enum></ebv>'
+        '<enum uid="8" name="Repeated"><enumrow value="2" description="two"/></enum>'
+        '<enum uid="9" name="First UID name"><enumrow value="3" description="three"/></enum>'
+        '<enum uid="9" name="Second UID name"><enumrow value="4" description="four"/></enum></ebv>'
     )
 
     assert standard.enumeration("Repeated") is None
-    assert [table.uid for table in standard.enumerations_named("Repeated")] == [7, 8]
+    assert tuple(table.uid for table in standard.enumerations_named("Repeated")) == (7, 8)
+    assert standard.enumeration_by_uid(9) is None
+    assert tuple(table.name for table in standard.enumeration_tables_by_uid(9)) == (
+        "First UID name",
+        "Second UID name",
+    )

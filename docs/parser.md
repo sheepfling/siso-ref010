@@ -42,10 +42,12 @@ rejected.
   to their source entries and can be followed through `EntityTypeStandard`.
 
 `standard.enumerations_named(name)` and
-`standard.enumeration_tables_by_uid(uid)` return all matching definitions. An
-empty tuple/list means missing, one item means unique, and multiple items are
-ambiguous. The singular `enumeration(name)` and `enumeration_by_uid(uid)`
-helpers return a table only when the match is unique. `ReferenceCatalog` and
+`standard.enumeration_tables_by_uid(uid)` return all matching definitions as
+tuples in source order. An empty tuple means missing, one item means unique,
+and multiple items are ambiguous. The singular `enumeration(name)` and
+`enumeration_by_uid(uid)` helpers return a table only when the match is unique;
+`None` means either missing or ambiguous, so use the plural method to tell which.
+`ReferenceCatalog` and
 `EditionInspector` expand cross-references from all matching definitions,
 preserving duplicate rows so lookup can report ambiguous entity codes instead
 of silently selecting one table.
