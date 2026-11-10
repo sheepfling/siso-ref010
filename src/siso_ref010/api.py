@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from ._paths import PathInput, normalize_path
 from ._version import __version__
-from .catalog import BUNDLED_STANDARD_VERSION, BUNDLED_STANDARD_VERSIONS, ReferenceCatalog
+from .catalog import ReferenceCatalog
 from .comparison import (
     ComparisonScope,
     EditionDiff,
@@ -318,33 +318,42 @@ class SisoRef010API:
         *,
         query_backend: EntityQueryBackend | None = None,
     ) -> None:
-        self._catalog = catalog if catalog is not None else ReferenceCatalog.bundled()
+        default_version = max(BUNDLED_STANDARD_SOURCE.versions) if catalog is None else None
+        self._catalog = catalog if catalog is not None else ReferenceCatalog.bundled(default_version)
         self._source = "bundled" if catalog is None else "supplied"
         self._verified_standard = self._catalog.standard if catalog is None else None
-        self._edition_number = BUNDLED_STANDARD_VERSION if catalog is None else None
+        self._edition_number = default_version
         self._inspector: EditionInspector | None = None
         self._query_backend = query_backend if query_backend is not None else MappingEntityQueryBackend()
 
     @classmethod
     def bundled(
         cls,
-        version: int = BUNDLED_STANDARD_VERSION,
+        version: int | None = None,
         *,
         query_backend: EntityQueryBackend | None = None,
     ) -> SisoRef010API:
         """Load one of the bundled SISO-REF-010 editions by its release number."""
-        result = cls(ReferenceCatalog.bundled(version), query_backend=query_backend)
+        selected_version = max(BUNDLED_STANDARD_SOURCE.versions) if version is None else version
+        result = cls(ReferenceCatalog.bundled(selected_version), query_backend=query_backend)
         result._source = "bundled"
         result._verified_standard = result._catalog.standard
-        result._edition_number = version
+        result._edition_number = selected_version
         return result
 
     @classmethod
     def bundled_versions(cls) -> BundledStandards:
         """Return the bundled editions and default release without loading XML."""
+        versions = BUNDLED_STANDARD_SOURCE.versions
+        if not versions:
+            raise SisoRef010ValueError(
+                "No bundled SISO-REF-010 editions are available",
+                code="no_bundled_editions",
+                context={},
+            )
         return BundledStandards(
-            default_version=BUNDLED_STANDARD_VERSION,
-            versions=BUNDLED_STANDARD_VERSIONS,
+            default_version=max(versions),
+            versions=versions,
         )
 
     @classmethod

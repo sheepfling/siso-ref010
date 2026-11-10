@@ -11,7 +11,8 @@ included SISO source editions.
   carries the compressed payload, not the individual edition XML files.
 - The build validates the compressed payload recorded in an sdist when the raw
   source XML is not present. CI installs from both the wheel and the sdist in a
-  fresh offline environment.
+  fresh offline environment. The sdist is deliberately build-oriented: it omits
+  repository tests and development tools, which remain available in a checkout.
 - `EntityType` and `create_key()` reject values outside each DIS field width.
   The wire-byte test includes a separately published DIS entity type example
   (M1A2) and checks the exact network-byte representation.
@@ -40,7 +41,8 @@ installs offline. XSD validation requires `xmllint` from libxml2; isolated packa
 their temporary wheelhouse when it is not already available through pip's cache.
 
 The quality profile also checks test annotations with Ruff and runs basic
-Pyright analysis over tests. Source and example code use strict Pyright.
+Pyright analysis over tests. Source, examples, and maintained tools use strict
+Pyright.
 
 Hosted CI uses narrower profiles at the supported Python endpoints, 3.11 and 3.15. The `edge`
 profile checks SISO v20 and v37, runs tests outside the all-edition sweep, and builds both
@@ -48,6 +50,18 @@ distributions; `quality` checks Markdown, static quality, and endpoint XSDs. The
 also tests every edition and validates wheel and source-distribution installs offline. Use
 `python -m tools.ci --help` to see the CI profiles. To install the read-only Markdown check as a
 local commit hook, run `python -m pre_commit install` once.
+
+For a tagged release, run the release profile from the tagged commit:
+
+```sh
+python -m tools.ci release --release-version 0.1.0a0
+```
+
+The command requires an exact `0.1.0a0` or `v0.1.0a0` tag at `HEAD` and a
+clean working tree. It runs the full local gate, then checks the wheel and sdist
+filenames and installs both artifacts to confirm that package metadata and
+`siso_ref010.__version__` report the requested version. Do not use this profile
+on an untagged or modified development checkout.
 
 The network-backed upstream byte recheck is separate:
 

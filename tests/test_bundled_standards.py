@@ -1,4 +1,5 @@
 import gc
+from datetime import date
 from hashlib import sha256
 from typing import cast
 from weakref import ref
@@ -15,7 +16,8 @@ from siso_ref010.catalog import (
 from siso_ref010.cli import main
 from siso_ref010.inspection import EntityResolution
 from siso_ref010.reporting import render_markdown
-from siso_ref010.sources import BundledStandardSource
+from siso_ref010.snapshots import SnapshotEdition, SnapshotIndex
+from siso_ref010.sources import BUNDLED_STANDARD_SOURCE, BundledStandardSource
 
 
 def test_bundled_projection_cache_shares_live_data_without_retaining_released_editions() -> None:
@@ -96,6 +98,76 @@ def test_bundled_edition_metadata_comes_from_index_without_loading_xml(
     assert len(editions[-1].source_sha256) == 64
     assert editions[-1].source_byte_length > 0
     assert editions[-1].model_dump(mode="json")["date"] == editions[-1].date.isoformat()
+
+
+def test_future_synthetic_editions_drive_discovery_defaults_and_inspection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import siso_ref010.snapshots as snapshots
+
+    payloads = {
+        version: (
+            f'<ebv title="Synthetic edition v{version}" date="2026-01-0{version}">'
+            '<enum uid="7" name="Example"><enumrow value="1" description="one"/></enum>'
+            '<cet name="Entity Types"><entity kind="1" domain="1" country="1">'
+            '<category value="2" description="Platform"/></entity></cet></ebv>'
+        ).encode()
+        for version in (1, 2, 3)
+    }
+    editions: list[SnapshotEdition] = []
+    offset = 0
+    for version in (3, 2, 1):
+        payload = payloads[version]
+        editions.append(
+            SnapshotEdition(
+                version=version,
+                date=date(2026, 1, version),
+                sha256=sha256(payload).hexdigest(),
+                size=len(payload),
+                offset=offset,
+                title=f"Synthetic edition v{version}",
+                source_file=f"synthetic/v{version}.xml",
+            )
+        )
+        offset += len(payload)
+    registry = SnapshotIndex(
+        format="siso-ref010-snapshot-pack-1",
+        latest_version=3,
+        verified_scope="synthetic regression fixture",
+        raw_size=offset,
+        pack_size=1,
+        pack_sha256="0" * 64,
+        editions=tuple(editions),
+    )
+
+    monkeypatch.setattr(snapshots, "_index", lambda: registry)
+    monkeypatch.setattr(BUNDLED_STANDARD_SOURCE, "read_xml", lambda version: payloads[version])
+    with _BUNDLED_CATALOG_DATA_CACHE_LOCK:
+        _BUNDLED_CATALOG_DATA_CACHE.clear()
+
+    try:
+        versions = SisoRef010API.bundled_versions()
+        assert versions.versions == (1, 2, 3)
+        assert versions.default_version == 3
+        assert tuple(edition.version for edition in SisoRef010API.bundled_editions()) == (1, 2, 3)
+        assert SisoRef010API().info().data_version == "Synthetic edition v3"
+        assert SisoRef010API.bundled().info().data_version == "Synthetic edition v3"
+        synthetic_catalog = ReferenceCatalog.bundled()
+        assert synthetic_catalog.standard is not None
+        assert synthetic_catalog.standard.title == "Synthetic edition v3"
+
+        inspected_versions: list[int] = []
+        for version, api in SisoRef010API.iter_editions():
+            report = api.inspector.report()
+            assert report.identity.edition_number == version
+            assert report.identity.title == f"Synthetic edition v{version}"
+            assert report.summary is not None
+            assert report.summary.enumeration_tables == 1
+            inspected_versions.append(version)
+        assert tuple(inspected_versions) == (1, 2, 3)
+    finally:
+        with _BUNDLED_CATALOG_DATA_CACHE_LOCK:
+            _BUNDLED_CATALOG_DATA_CACHE.clear()
 
 
 def test_full_entity_code_reports_zero_extra_as_unspecified() -> None:

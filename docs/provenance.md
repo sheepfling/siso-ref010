@@ -20,6 +20,9 @@ The network check compares available source bytes with the registry:
 python -m tools.siso_ref010.check_standards_provenance
 ```
 
+It limits each download to 50 MiB and ZIP XML members to 50 MiB both per member
+and in aggregate before accepting their hashes.
+
 Offline XSD validation is separate:
 
 ```sh

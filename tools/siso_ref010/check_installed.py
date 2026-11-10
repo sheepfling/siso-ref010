@@ -19,6 +19,9 @@ import venv
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
 
+from packaging.utils import parse_sdist_filename, parse_wheel_filename
+from packaging.version import Version
+
 
 def _check_distribution_files(members: tuple[str, ...], *, source_distribution: bool) -> None:
     required_suffixes = (
@@ -41,18 +44,33 @@ def _check_distribution_files(members: tuple[str, ...], *, source_distribution: 
     )
     assert not raw_xml, f"Uncompressed edition XML leaked into distribution: {raw_xml}"
     if source_distribution:
-        excluded_developer_files = (
-            "tools/siso_ref010/build_diff_reports.py",
-            "tools/siso_ref010/package_diff_reports.py",
-            "tools/repo_hygiene/check_markdown.py",
-            "tools/repo_hygiene/check_repository_hygiene.py",
-            "tools/repo_hygiene/repository-hygiene-baseline.json",
-            "tests/test_repository_hygiene.py",
+        tool_files = tuple(name for name in members if "tools" in PurePosixPath(name).parts)
+        assert not tool_files, f"Build-oriented source distribution contains repository tools: {tool_files}"
+        test_files = tuple(name for name in members if "tests" in PurePosixPath(name).parts)
+        assert not test_files, f"Build-oriented source distribution contains tests: {test_files}"
+        ci_files = tuple(name for name in members if ".github" in PurePosixPath(name).parts)
+        assert not ci_files, f"Build-oriented source distribution contains CI configuration: {ci_files}"
+        development_configs = tuple(
+            name
+            for name in members
+            if PurePosixPath(name).name in {".pre-commit-config.yaml", "pyright-tests.json"}
         )
-        included = tuple(
-            name for name in members if any(name.endswith(path) for path in excluded_developer_files)
+        assert not development_configs, (
+            "Build-oriented source distribution contains repository-only configuration: "
+            f"{development_configs}"
         )
-        assert not included, f"Repository-only developer files leaked into source distribution: {included}"
+
+
+def _check_distribution_version(distribution: Path, expected_version: str) -> None:
+    expected = Version(expected_version)
+    if distribution.name.endswith(".whl"):
+        _name, actual, _build, _tags = parse_wheel_filename(distribution.name)
+    elif distribution.name.endswith(".tar.gz"):
+        _name, actual = parse_sdist_filename(distribution.name)
+    else:
+        raise ValueError(f"Unsupported distribution filename: {distribution.name}")
+    if actual != expected:
+        raise AssertionError(f"Distribution {distribution.name} has version {actual}, expected {expected}")
 
 
 def main() -> None:
@@ -60,6 +78,9 @@ def main() -> None:
     parser.add_argument("distribution", type=Path, help="Built distribution file or its output directory")
     parser.add_argument("--kind", choices=("wheel", "sdist"), help="Select an artifact from a directory")
     parser.add_argument("--wheelhouse", type=Path, required=True)
+    parser.add_argument(
+        "--expected-version", help="Require this exact release version in artifact and install"
+    )
     args = parser.parse_args()
     distribution = args.distribution.resolve()
     wheelhouse = args.wheelhouse.resolve()
@@ -73,6 +94,8 @@ def main() -> None:
         distribution = candidates[0].resolve()
     elif not distribution.is_file():
         parser.error(f"Distribution not found: {distribution}")
+    if args.expected_version is not None:
+        _check_distribution_version(distribution, args.expected_version)
     if not wheelhouse.is_dir():
         parser.error(f"Wheelhouse not found: {wheelhouse}")
 
@@ -121,6 +144,14 @@ def main() -> None:
         consumer_script = Path(__file__).with_name("installed_consumer_smoke.py")
         consumer = run(str(python), "-I", str(consumer_script))
         smoke = json.loads(consumer.stdout)
+        if args.expected_version is not None:
+            expected_version = str(Version(args.expected_version))
+            if smoke["package_version"] != expected_version or smoke["metadata_version"] != expected_version:
+                raise AssertionError(
+                    "Installed package version mismatch: "
+                    f"metadata={smoke['metadata_version']!r}, package={smoke['package_version']!r}, "
+                    f"expected={expected_version!r}"
+                )
         versions = tuple(smoke["versions"])
         default_version = smoke["default_version"]
         assert versions and default_version == max(versions)

@@ -11,6 +11,7 @@ import hashlib
 import sys
 from io import BytesIO
 from pathlib import Path
+from typing import cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -20,6 +21,8 @@ from tools.siso_ref010.standard_metadata import ProvenanceRegistry, SourceRecord
 
 REGISTRY = Path("src/siso_ref010/data/standards/PROVENANCE.json")
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024
+MAX_EDITION_XML_BYTES = 50 * 1024 * 1024
+MAX_ARCHIVE_XML_BYTES = 50 * 1024 * 1024
 ALLOWED_HOSTS = {
     "downloads.sourceforge.net",
     "raw.githubusercontent.com",
@@ -36,7 +39,7 @@ def _read_https(url: str) -> tuple[bytes, str]:
         raise ValueError(f"Source URL uses an unapproved host or scheme: {url}")
     request = Request(url, headers={"User-Agent": "siso-ref010-provenance-check/1"})
     with urlopen(request, timeout=60) as response:
-        final_url = response.geturl()
+        final_url = cast(str, response.geturl())
         final_host = urlsplit(final_url).hostname
         if final_host not in ALLOWED_HOSTS:
             raise ValueError(f"Source redirected to an unapproved host: {final_url}")
@@ -55,13 +58,29 @@ def _edition_payload(payload: bytes, url: str, expected_sha256: str) -> tuple[by
     if not urlsplit(url).path.casefold().endswith(".zip"):
         return payload, None
     matches: list[tuple[str, bytes]] = []
+    total_xml_bytes = 0
     try:
         with ZipFile(BytesIO(payload)) as archive:
-            for name in archive.namelist():
-                if name.casefold().endswith(".xml"):
-                    candidate = archive.read(name)
+            for info in archive.infolist():
+                if info.filename.casefold().endswith(".xml"):
+                    if info.file_size > MAX_EDITION_XML_BYTES:
+                        raise ValueError(
+                            f"XML member exceeds {MAX_EDITION_XML_BYTES} uncompressed bytes: "
+                            f"{info.filename} ({info.file_size} bytes)"
+                        )
+                    total_xml_bytes += info.file_size
+                    if total_xml_bytes > MAX_ARCHIVE_XML_BYTES:
+                        raise ValueError(
+                            f"XML members exceed {MAX_ARCHIVE_XML_BYTES} aggregate uncompressed bytes"
+                        )
+                    with archive.open(info) as member:
+                        candidate = member.read(MAX_EDITION_XML_BYTES + 1)
+                    if len(candidate) > MAX_EDITION_XML_BYTES:
+                        raise ValueError(
+                            f"XML member exceeds {MAX_EDITION_XML_BYTES} uncompressed bytes: {info.filename}"
+                        )
                     if hashlib.sha256(candidate).hexdigest() == expected_sha256:
-                        matches.append((name, candidate))
+                        matches.append((info.filename, candidate))
     except BadZipFile as error:
         raise ValueError(f"Source did not contain a valid ZIP archive: {url}") from error
     if len(matches) != 1:

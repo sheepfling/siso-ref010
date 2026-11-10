@@ -109,7 +109,7 @@ def _call_name(node: ast.expr) -> str | None:
     return None
 
 
-def _integer(node: ast.expr) -> int | None:
+def _integer(node: ast.expr | None) -> int | None:
     if isinstance(node, ast.Constant) and isinstance(node.value, int) and not isinstance(node.value, bool):
         return node.value
     return None
@@ -125,7 +125,11 @@ def _source_findings(path: str, source: str) -> tuple[Finding, ...]:
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             names = _assignment_names(node)
             value = node.value
-            if names & {"DEFAULT_VERSION", "PACKAGE_REVISION"} and _integer(value) is not None:
+            if (
+                names & {"DEFAULT_VERSION", "PACKAGE_REVISION"}
+                and value is not None
+                and _integer(value) is not None
+            ):
                 name = sorted(names & {"DEFAULT_VERSION", "PACKAGE_REVISION"})[0]
                 line = lines[node.lineno - 1]
                 findings.append(
@@ -162,7 +166,7 @@ def _source_findings(path: str, source: str) -> tuple[Finding, ...]:
                 and bool(default.elts)
                 and all(_integer(item) is not None for item in default.elts)
             )
-            if is_version_argument and _integer(default) is not None or fixed_version_list:
+            if (is_version_argument and _integer(default) is not None) or fixed_version_list:
                 findings.append(
                     _finding(
                         "repo.edition.cli_default",
@@ -219,9 +223,11 @@ def _source_findings(path: str, source: str) -> tuple[Finding, ...]:
             ):
                 try:
                     versions_index = next(
-                        index for index, argument in enumerate(node.args) if argument.value == "--versions"
+                        index
+                        for index, argument in enumerate(node.args)
+                        if isinstance(argument, ast.Constant) and argument.value == "--versions"
                     )
-                except (StopIteration, AttributeError):
+                except StopIteration:
                     continue
                 if any(
                     isinstance(argument, ast.Constant)

@@ -31,9 +31,11 @@ Historical XSD inputs used by the library checks are in
 
 ## `tools.repo_hygiene`
 
-These check repository-wide conventions and generated-file hygiene. This
-includes `check_repository_hygiene`, its acknowledgement baseline, and the
-Markdown/link checker invoked by pre-commit.
+These check selected high-confidence repository conventions and generated-file
+hygiene. The hygiene checker reports only the patterns it currently recognizes;
+it is a focused regression check, not a general detector for every durability
+or hardcoding problem. This group includes `check_repository_hygiene`, its
+acknowledgement baseline, and the Markdown/link checker invoked by pre-commit.
 
 ```sh
 python -m tools.repo_hygiene.check_repository_hygiene
@@ -44,4 +46,6 @@ python -m tools.repo_hygiene.check_markdown
 
 `tools.ci` coordinates repository checks and package verification. It remains
 at the top level because it runs both tool groups along with pytest, Ruff, and
-Pyright.
+Pyright. These tools and the repository's tests are for a source checkout; the
+published sdist intentionally omits them and contains only what is needed to
+build and install the library.

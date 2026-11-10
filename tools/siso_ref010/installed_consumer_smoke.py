@@ -24,11 +24,9 @@ def _check_index_only_discovery() -> None:
         raise AssertionError("edition discovery attempted to load XML")
 
     original_reads = snapshots.read_snapshot_bytes, sources.read_snapshot_bytes
-    original_verifier = snapshots._verify_pack
     try:
         snapshots.read_snapshot_bytes = fail_if_xml_is_read
         sources.read_snapshot_bytes = fail_if_xml_is_read
-        snapshots._verify_pack = fail_if_xml_is_read
         editions = SisoRef010API.bundled_editions()
         assert tuple(edition.version for edition in editions) == BUNDLED_STANDARD_VERSIONS
         output = io.StringIO()
@@ -39,7 +37,6 @@ def _check_index_only_discovery() -> None:
         assert result["default_version"] == max(BUNDLED_STANDARD_VERSIONS)
     finally:
         snapshots.read_snapshot_bytes, sources.read_snapshot_bytes = original_reads
-        snapshots._verify_pack = original_verifier
 
 
 def _check_all_editions() -> dict[int, str]:
@@ -114,6 +111,8 @@ def main() -> None:
         json.dumps(
             {
                 "versions": list(versions),
+                "package_version": __version__,
+                "metadata_version": installed_version("siso-ref010"),
                 "default_version": default_version,
                 "data_version": edition.title,
                 "entity": str(entity),
