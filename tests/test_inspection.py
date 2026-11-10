@@ -1,30 +1,27 @@
 import json
 from dataclasses import replace
+from typing import cast
 
 import pytest
 
 import siso_ref010.cli.app as cli
-from siso_ref010 import (
-    EditionReport,
-    EntityTypePrefix,
-    EntityTypeXmlParser,
-    ReferenceCatalog,
-    SisoRef010API,
-    render_json,
-    render_markdown,
-    render_terminal,
-)
+from siso_ref010 import EntityTypePrefix, SisoRef010API
+from siso_ref010.catalog import ReferenceCatalog
 from siso_ref010.cli import main
 from siso_ref010.inspection import (
     EditionAudit,
     EditionExampleKind,
+    EditionReport,
+    EntityResolution,
     _alias_description,
     _entity_depth,
     _SourceRecordSignature,
 )
+from siso_ref010.parsing import EntityTypeXmlParser
+from siso_ref010.reporting import render_json, render_markdown, render_terminal
 
 
-def _inspector_api():
+def _inspector_api() -> SisoRef010API:
     standard = EntityTypeXmlParser.from_string(
         '<ebv title="Inspection fixture" date="2026-01-02">'
         '<enum uid="7" name="Example values" applicability="1.1.X.2" size="8">'
@@ -48,7 +45,7 @@ def _inspector_api():
     return SisoRef010API(ReferenceCatalog(standard))
 
 
-def test_enumeration_table_and_row_metadata_are_inspectable():
+def test_enumeration_table_and_row_metadata_are_inspectable() -> None:
     inspector = _inspector_api().inspector
     table = inspector.enumeration_table(7)
     assert table is not None
@@ -70,7 +67,7 @@ def test_enumeration_table_and_row_metadata_are_inspectable():
     assert inspector.enumeration_rows(7, value=11)[0].description == "Reserved values"
 
 
-def test_inspection_result_envelopes_report_totals_and_truncation():
+def test_inspection_result_envelopes_report_totals_and_truncation() -> None:
     inspector = _inspector_api().inspector
     tables = inspector.enumeration_table_results("example", limit=0)
     assert tables.total == 1
@@ -88,7 +85,7 @@ def test_inspection_result_envelopes_report_totals_and_truncation():
     assert not matches.truncated
 
 
-def test_inspection_rejects_boolean_and_negative_numeric_filters():
+def test_inspection_rejects_boolean_and_negative_numeric_filters() -> None:
     inspector = _inspector_api().inspector
     with pytest.raises(TypeError, match="table UID must be an integer"):
         inspector.enumeration_table(True)
@@ -98,7 +95,7 @@ def test_inspection_rejects_boolean_and_negative_numeric_filters():
         inspector.entity_path((1, 1, 1, True))
 
 
-def test_search_covers_source_metadata_and_table_annotations():
+def test_search_covers_source_metadata_and_table_annotations() -> None:
     inspector = _inspector_api().inspector
     assert inspector.search("table context note").total == 4
     assert inspector.search("row-8").hits[0].description == "Referenced value"
@@ -116,7 +113,7 @@ def test_search_covers_source_metadata_and_table_annotations():
     assert inspector.lookup_uuid("ROW-8")[0].value == 8
 
 
-def test_entity_explanation_matches_ranges_xrefs_and_generic_country():
+def test_entity_explanation_matches_ranges_xrefs_and_generic_country() -> None:
     explanation = _inspector_api().explain_entity("1.1.153.2.5.5.0")
     assert explanation.entity == "1.1.153.2.5.5.0"
     assert explanation.description == "One specific"
@@ -135,7 +132,7 @@ def test_entity_explanation_matches_ranges_xrefs_and_generic_country():
     assert referenced.description == "Referenced value"
 
 
-def test_entity_resolution_distinguishes_exact_unspecified_partial_and_unknown():
+def test_entity_resolution_distinguishes_exact_unspecified_partial_and_unknown() -> None:
     api = _inspector_api()
     exact = api.resolve_entity("1.1.153.2.5.5.9")
     unspecified = api.resolve_entity("1.1.153.2.5.5.0")
@@ -171,7 +168,7 @@ def test_entity_resolution_distinguishes_exact_unspecified_partial_and_unknown()
     assert "generic_country" in {mode.value for mode in unspecified.match_modes}
 
 
-def test_entity_resolution_distinguishes_explicit_zero_and_ambiguous_source_rows():
+def test_entity_resolution_distinguishes_explicit_zero_and_ambiguous_source_rows() -> None:
     api = SisoRef010API(
         ReferenceCatalog(
             EntityTypeXmlParser.from_string(
@@ -194,7 +191,7 @@ def test_entity_resolution_distinguishes_explicit_zero_and_ambiguous_source_rows
     assert len(ambiguous.ambiguous_candidates) == 2
 
 
-def test_enumeration_value_resolution_identifies_range_membership():
+def test_enumeration_value_resolution_identifies_range_membership() -> None:
     inspector = _inspector_api().inspector
     exact = inspector.resolve_enumeration_value(7, 8)
     ranged = inspector.resolve_enumeration_value(7, 11)
@@ -207,7 +204,7 @@ def test_enumeration_value_resolution_identifies_range_membership():
     assert unknown.status.value == "unknown"
 
 
-def test_overlapping_exact_and_range_values_report_ambiguity_and_a_diagnostic():
+def test_overlapping_exact_and_range_values_report_ambiguity_and_a_diagnostic() -> None:
     api = SisoRef010API(
         ReferenceCatalog(
             EntityTypeXmlParser.from_string(
@@ -228,7 +225,7 @@ def test_overlapping_exact_and_range_values_report_ambiguity_and_a_diagnostic():
     assert diagnostics.groups[0].table_uid == 7
 
 
-def test_edition_report_and_diagnostics_expose_integrity_and_source_findings():
+def test_edition_report_and_diagnostics_expose_integrity_and_source_findings() -> None:
     api = _inspector_api()
     report = api.inspector.report()
     assert report.identity.title == "Inspection fixture"
@@ -246,6 +243,7 @@ def test_edition_report_and_diagnostics_expose_integrity_and_source_findings():
     assert report.summary is not None
     assert report.summary.unclassified_entity_rows == 0
     entity_example = next(example for example in report.examples if example.kind.value == "entity_resolution")
+    assert isinstance(entity_example.result, EntityResolution)
     assert entity_example.query == entity_example.result.code
     assert entity_example.result.requested_depth == len(entity_example.query.split("."))
     assert entity_example.result.is_prefix == (entity_example.result.status.value == "partial")
@@ -257,7 +255,7 @@ def test_edition_report_and_diagnostics_expose_integrity_and_source_findings():
     assert "SISO-REF-010" in render_terminal(report)
 
 
-def test_report_renderers_handle_unavailable_sections_and_bad_example_types():
+def test_report_renderers_handle_unavailable_sections_and_bad_example_types() -> None:
     from siso_ref010.reporting import _render_example
 
     report = _inspector_api().inspector.report()
@@ -323,7 +321,7 @@ def test_report_renderers_handle_unavailable_sections_and_bad_example_types():
         _render_example(unknown_kind)
 
 
-def test_report_audit_renderers_explain_duplicate_and_conflicting_uuids():
+def test_report_audit_renderers_explain_duplicate_and_conflicting_uuids() -> None:
     xml = (
         '<ebv title="Identity report" date="2026-01-02">'
         '<enum uid="7" name="Duplicate values">'
@@ -346,7 +344,7 @@ def test_report_audit_renderers_explain_duplicate_and_conflicting_uuids():
     assert "Individual findings" in terminal
 
 
-def test_edition_report_v1_schema_is_generated_from_pydantic_model():
+def test_edition_report_v1_schema_is_generated_from_pydantic_model() -> None:
     schema = EditionReport.model_json_schema(mode="serialization", by_alias=True)
 
     assert "report_schema_version" in schema["required"]
@@ -398,7 +396,7 @@ def test_edition_report_v1_schema_is_generated_from_pydantic_model():
     assert identity_check.finding_count is None
 
 
-def test_xml_well_formedness_uses_explicit_parser_evidence_not_checksum_presence():
+def test_xml_well_formedness_uses_explicit_parser_evidence_not_checksum_presence() -> None:
     parsed = EntityTypeXmlParser.from_string("<ebv/>")
     assert parsed.xml_parse_succeeded is True
     without_digest = parsed.model_copy(update={"source_sha256": None})
@@ -418,7 +416,7 @@ def test_xml_well_formedness_uses_explicit_parser_evidence_not_checksum_presence
     )
 
 
-def test_edition_summary_counts_values_and_levels_without_losing_ranges():
+def test_edition_summary_counts_values_and_levels_without_losing_ranges() -> None:
     summary = _inspector_api().inspector.summary()
     assert summary.title == "Inspection fixture"
     assert summary.enumeration_tables == 3
@@ -432,7 +430,7 @@ def test_edition_summary_counts_values_and_levels_without_losing_ranges():
     assert summary.change_request_ranges == 1
 
 
-def test_entity_search_includes_category_only_values():
+def test_entity_search_includes_category_only_values() -> None:
     api = SisoRef010API(
         ReferenceCatalog(
             EntityTypeXmlParser.from_string(
@@ -446,7 +444,7 @@ def test_entity_search_includes_category_only_values():
     assert results.hits[0].description == "Category only marker"
 
 
-def test_inspector_tracks_catalog_reinitialization_and_rejects_empty_source():
+def test_inspector_tracks_catalog_reinitialization_and_rejects_empty_source() -> None:
     catalog = ReferenceCatalog(EntityTypeXmlParser.from_string('<ebv title="Original"/>'))
     api = SisoRef010API(catalog)
     first = api.inspector
@@ -460,7 +458,9 @@ def test_inspector_tracks_catalog_reinitialization_and_rejects_empty_source():
         _ = SisoRef010API(ReferenceCatalog()).inspector
 
 
-def test_inspect_cli_supports_filtered_values_and_json(monkeypatch, capsys):
+def test_inspect_cli_supports_filtered_values_and_json(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     api = _inspector_api()
     monkeypatch.setattr(cli, "SisoRef010API", lambda: api)
 
@@ -487,7 +487,9 @@ def test_inspect_cli_supports_filtered_values_and_json(monkeypatch, capsys):
     assert result["result"]["truncated"] is True
 
 
-def test_inspect_cli_searches_metadata_and_explains_entities(monkeypatch, capsys):
+def test_inspect_cli_searches_metadata_and_explains_entities(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     api = _inspector_api()
     monkeypatch.setattr(cli, "SisoRef010API", lambda: api)
 
@@ -503,7 +505,9 @@ def test_inspect_cli_searches_metadata_and_explains_entities(monkeypatch, capsys
     assert "Explicitly unspecified component" in output
 
 
-def test_inspect_cli_resolves_ranges_and_emits_report(monkeypatch, capsys):
+def test_inspect_cli_resolves_ranges_and_emits_report(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     api = _inspector_api()
     monkeypatch.setattr(cli, "SisoRef010API", lambda: api)
     assert main(["inspect", "value", "7", "11", "--json"]) == 0
@@ -544,7 +548,9 @@ def test_inspect_cli_resolves_ranges_and_emits_report(monkeypatch, capsys):
     assert page["hits"][0]["matched_fields"]
 
 
-def test_inspect_cli_lists_annotated_tables_and_resolves_uuid(monkeypatch, capsys):
+def test_inspect_cli_lists_annotated_tables_and_resolves_uuid(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     api = _inspector_api()
     monkeypatch.setattr(cli, "SisoRef010API", lambda: api)
 
@@ -563,7 +569,7 @@ def test_inspect_cli_lists_annotated_tables_and_resolves_uuid(monkeypatch, capsy
     assert all(value["value"] == 8 for value in matches["result"]["values"])
 
 
-def test_identity_diagnostics_classify_conflicting_uuidless_library_keys():
+def test_identity_diagnostics_classify_conflicting_uuidless_library_keys() -> None:
     api = SisoRef010API(
         ReferenceCatalog(
             EntityTypeXmlParser.from_string(
@@ -582,7 +588,7 @@ def test_identity_diagnostics_classify_conflicting_uuidless_library_keys():
     assert identity.conflicting_source_record_groups == 1
 
 
-def test_identity_signatures_cover_each_source_semantic_field():
+def test_identity_signatures_cover_each_source_semantic_field() -> None:
     original = _SourceRecordSignature(
         tag="enumrow",
         value=1,
@@ -634,7 +640,7 @@ def test_identity_signatures_cover_each_source_semantic_field():
     assert _entity_depth(enumeration_row) == len(enumeration_row.hierarchy_codes)
 
 
-def test_diagnostics_handle_non_numeric_entity_references_and_bad_filter_types():
+def test_diagnostics_handle_non_numeric_entity_references_and_bad_filter_types() -> None:
     api = SisoRef010API(
         ReferenceCatalog(
             EntityTypeXmlParser.from_string(
@@ -649,4 +655,4 @@ def test_diagnostics_handle_non_numeric_entity_references_and_bad_filter_types()
     findings = api.inspector.diagnostics(code="unresolved_enumeration_reference", limit=None)
     assert findings.total == 2
     with pytest.raises(TypeError, match="code must be a string"):
-        api.inspector.diagnostics(code=1)
+        api.inspector.diagnostics(code=cast(str, 1))

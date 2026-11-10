@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Iterator
+from datetime import date as Date
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Final, cast
@@ -16,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from ._paths import PathInput, normalize_path
 from ._version import __version__
-from .catalog import BUNDLED_STANDARD_VERSION, BUNDLED_STANDARD_VERSIONS, ReferenceCatalog
+from .catalog import ReferenceCatalog
 from .comparison import (
     ComparisonScope,
     EditionDiff,
@@ -49,6 +50,7 @@ from .query_backend import (
     EntityQueryRequest,
     MappingEntityQueryBackend,
 )
+from .snapshots import available_snapshot_editions
 from .sources import BUNDLED_STANDARD_SOURCE, BundledStandardSource, StandardSource
 
 
@@ -281,6 +283,16 @@ class BundledStandards(ResultModel):
     versions: tuple[int, ...]
 
 
+class BundledEdition(ResultModel):
+    """Lightweight source metadata for one indexed bundled edition."""
+
+    version: int
+    title: str
+    date: Date
+    source_sha256: str
+    source_byte_length: int
+
+
 def _validated_prefix(value: object) -> EntityTypePrefix | None:
     if value is None or isinstance(value, EntityTypePrefix):
         return value
@@ -306,33 +318,56 @@ class SisoRef010API:
         *,
         query_backend: EntityQueryBackend | None = None,
     ) -> None:
-        self._catalog = catalog if catalog is not None else ReferenceCatalog.bundled()
+        default_version = max(BUNDLED_STANDARD_SOURCE.versions) if catalog is None else None
+        self._catalog = catalog if catalog is not None else ReferenceCatalog.bundled(default_version)
         self._source = "bundled" if catalog is None else "supplied"
         self._verified_standard = self._catalog.standard if catalog is None else None
-        self._edition_number = BUNDLED_STANDARD_VERSION if catalog is None else None
+        self._edition_number = default_version
         self._inspector: EditionInspector | None = None
         self._query_backend = query_backend if query_backend is not None else MappingEntityQueryBackend()
 
     @classmethod
     def bundled(
         cls,
-        version: int = BUNDLED_STANDARD_VERSION,
+        version: int | None = None,
         *,
         query_backend: EntityQueryBackend | None = None,
     ) -> SisoRef010API:
         """Load one of the bundled SISO-REF-010 editions by its release number."""
-        result = cls(ReferenceCatalog.bundled(version), query_backend=query_backend)
+        selected_version = max(BUNDLED_STANDARD_SOURCE.versions) if version is None else version
+        result = cls(ReferenceCatalog.bundled(selected_version), query_backend=query_backend)
         result._source = "bundled"
         result._verified_standard = result._catalog.standard
-        result._edition_number = version
+        result._edition_number = selected_version
         return result
 
     @classmethod
     def bundled_versions(cls) -> BundledStandards:
         """Return the bundled editions and default release without loading XML."""
+        versions = BUNDLED_STANDARD_SOURCE.versions
+        if not versions:
+            raise SisoRef010ValueError(
+                "No bundled SISO-REF-010 editions are available",
+                code="no_bundled_editions",
+                context={},
+            )
         return BundledStandards(
-            default_version=BUNDLED_STANDARD_VERSION,
-            versions=BUNDLED_STANDARD_VERSIONS,
+            default_version=max(versions),
+            versions=versions,
+        )
+
+    @classmethod
+    def bundled_editions(cls) -> tuple[BundledEdition, ...]:
+        """Return edition dates, titles, hashes, and byte lengths from the index only."""
+        return tuple(
+            BundledEdition(
+                version=edition.version,
+                title=edition.title,
+                date=edition.date,
+                source_sha256=edition.sha256,
+                source_byte_length=edition.size,
+            )
+            for edition in available_snapshot_editions()
         )
 
     @classmethod
@@ -567,8 +602,8 @@ class SisoRef010API:
             indexed_records=self._query_backend.warmup(inspector),
         )
 
-    def search(self, query: str, *, limit: int | None = None) -> SearchResults:
-        """Search descriptions; None returns all, while zero returns no hits."""
+    def search(self, query: str, *, limit: int | None = 100) -> SearchResults:
+        """Search descriptions; defaults to 100 hits, while None returns all."""
         if limit is not None and (
             isinstance(limit, bool) or not isinstance(cast(object, limit), int) or limit < 0
         ):
@@ -703,56 +738,30 @@ class SisoRef010API:
                 },
             )
         entity = prefix.to_entity() if prefix is not None else EntityType(0, 0, 0, 0, 0, 0, 0)
-        if kind in {
-            Collection.COUNTRIES,
-            Collection.KINDS,
-            Collection.DOMAINS,
-            Collection.CATEGORIES,
-            Collection.SUBCATEGORIES,
-            Collection.SPECIFICS,
-            Collection.EXTRAS,
-        }:
-            match kind:
-                case Collection.COUNTRIES:
-                    rows = self._catalog.get_country_choices()
-                case Collection.KINDS:
-                    rows = self._catalog.get_kind_choices()
-                case Collection.DOMAINS:
-                    rows = self._catalog.get_domain_choices(entity.kind)
-                case _:
-                    rows = self._catalog.get_choice_rows(parents)
-            counts: dict[EntityFieldCode, int] = {}
-            for row in rows:
-                counts[row.value] = counts.get(row.value, 0) + 1
-            items = tuple(
-                Choice(
-                    value=row.value,
-                    description=row.description,
-                    ambiguous=counts[row.value] > 1,
-                )
-                for row in rows
-            )
-            return Choices(collection=kind, parents=parents, items=items)
-
         match kind:
             case Collection.COUNTRIES:
-                values = self._catalog.get_all_countries()
+                rows = self._catalog.get_country_choices()
             case Collection.KINDS:
-                values = self._catalog.get_all_kinds()
+                rows = self._catalog.get_kind_choices()
             case Collection.DOMAINS:
-                values = self._catalog.get_all_domains_of(entity.kind)
-            case Collection.CATEGORIES:
-                values = self._catalog.get_all_categories_of(entity)
-            case Collection.SUBCATEGORIES:
-                values = self._catalog.get_all_subcategories_of(entity)
-            case Collection.SPECIFICS:
-                values = self._catalog.get_all_specifics_of(entity)
-            case Collection.EXTRAS:
-                values = self._catalog.get_all_extras_of(entity)
+                rows = self._catalog.get_domain_choices(entity.kind)
+            case Collection.CATEGORIES | Collection.SUBCATEGORIES | Collection.SPECIFICS | Collection.EXTRAS:
+                rows = self._catalog.get_choice_rows(parents)
+        counts: dict[EntityFieldCode, int] = {}
+        for row in rows:
+            counts[row.value] = counts.get(row.value, 0) + 1
+        items = tuple(
+            Choice(
+                value=row.value,
+                description=row.description,
+                ambiguous=counts[row.value] > 1,
+            )
+            for row in rows
+        )
         return Choices(
             collection=kind,
             parents=parents,
-            items=tuple(Choice(value=value, description=text) for value, text in values.items()),
+            items=items,
         )
 
     def info(self) -> CatalogInfo:

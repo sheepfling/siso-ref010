@@ -1,20 +1,25 @@
+import collections.abc
 import json
+import pathlib
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
 
-from siso_ref010 import EntityType, EntityTypePrefix, ReferenceCatalog, SisoRef010API
+from siso_ref010 import EntityType, EntityTypePrefix, KindCode, SisoRef010API, SisoRef010ValueError
 from siso_ref010.api import Collection, decode_key, encode_entity
+from siso_ref010.catalog import ReferenceCatalog
 from siso_ref010.cli import main
 from siso_ref010.parsing.xml import EntityTypeXmlParser
 
 
 @pytest.fixture(scope="module")
-def api():
-    return SisoRef010API()
+def api() -> SisoRef010API:
+    # These API behavior assertions use the v37 golden source edition.
+    return SisoRef010API.bundled(37)
 
 
-def test_typed_describe(api, capsys):
+def test_typed_describe(api: SisoRef010API, capsys: pytest.CaptureFixture[str]) -> None:
     item = api.describe("1.3.153.6.4.2.0")
     assert isinstance(item.entity, EntityType)
     assert item.description == "F803 Tromp"
@@ -28,7 +33,7 @@ def test_typed_describe(api, capsys):
     assert capsys.readouterr() == ("", "")
 
 
-def test_search_contract(api):
+def test_search_contract(api: SisoRef010API) -> None:
     results = api.search("F803")
     assert results.total == 1
     assert results.hits[0].entity == EntityType.from_string("1.3.153.6.4.2.0")
@@ -38,9 +43,13 @@ def test_search_contract(api):
     assert api.search("", limit=1).truncated
     assert api.search("no-such-item-xyz").total == 0
     assert api.search("no-such-item-xyz").model_dump(mode="json", by_alias=True)["returned"] == 0
+    default_page = api.search("")
+    assert default_page.limit == 100
+    assert len(default_page.hits) == 100
+    assert default_page.truncated
 
 
-def test_search_returns_all_descriptions_for_an_ambiguous_code():
+def test_search_returns_all_descriptions_for_an_ambiguous_code() -> None:
     standard = EntityTypeXmlParser.from_string(
         '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
         '<enum uid="30" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
@@ -64,7 +73,7 @@ def test_search_returns_all_descriptions_for_an_ambiguous_code():
     assert serialized["description"] is None
     assert serialized["candidate_descriptions"] == ["First source row", "Second source row"]
     assert serialized["ambiguous"] is True
-    with pytest.raises(ValueError) as error:
+    with pytest.raises(SisoRef010ValueError) as error:
         catalog.search_description("Second source row")
     assert getattr(error.value, "code", None) == "ambiguous_entity_description"
     assert error.value.context["candidate_descriptions"] == (
@@ -74,9 +83,9 @@ def test_search_returns_all_descriptions_for_an_ambiguous_code():
 
 
 @pytest.mark.parametrize("limit", [-1, True, 1.5, "1"])
-def test_search_limit_validation(api, limit):
+def test_search_limit_validation(api: SisoRef010API, limit: object) -> None:
     with pytest.raises(ValueError):
-        api.search("x", limit=limit)
+        api.search("x", limit=cast(int, limit))
 
 
 @pytest.mark.parametrize(
@@ -91,7 +100,9 @@ def test_search_limit_validation(api, limit):
         (Collection.EXTRAS, (1, 2, 225, 7, 8, 7), 4),
     ],
 )
-def test_choices(api, collection, parents, expected):
+def test_choices(
+    api: SisoRef010API, collection: Collection | str, parents: tuple[int, ...], expected: int
+) -> None:
     choices = api.choices(collection, EntityTypePrefix.from_values(parents))
     assert len(choices.items) == expected
     assert choices.parents == parents
@@ -99,7 +110,7 @@ def test_choices(api, collection, parents, expected):
     assert len(choices.model_dump(mode="json", by_alias=True)["choices"]) == expected
 
 
-def test_choices_preserve_and_mark_duplicate_source_codes():
+def test_choices_preserve_and_mark_duplicate_source_codes() -> None:
     standard = EntityTypeXmlParser.from_string(
         '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
         '<enum uid="30" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
@@ -141,7 +152,7 @@ def test_choices_preserve_and_mark_duplicate_source_codes():
         ),
     ],
 )
-def test_country_overlay_keeps_duplicates_in_the_winning_scope(categories, expected):
+def test_country_overlay_keeps_duplicates_in_the_winning_scope(categories: str, expected: set[str]) -> None:
     standard = EntityTypeXmlParser.from_string(
         '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
         '<enum uid="30" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
@@ -158,13 +169,13 @@ def test_country_overlay_keeps_duplicates_in_the_winning_scope(categories, expec
     assert all(choice.ambiguous for choice in choices.items)
     assert resolution.status.value == "ambiguous"
     assert {row.description for row in resolution.ambiguous_candidates} == expected
-    with pytest.raises(ValueError) as error:
+    with pytest.raises(SisoRef010ValueError) as error:
         catalog.get_description_of(EntityType.from_string("1.1.153.2.0.0.0"))
     assert getattr(error.value, "code", None) == "ambiguous_entity_description"
-    assert set(error.value.context["candidate_descriptions"]) == expected
+    assert set(cast(tuple[str, ...], error.value.context["candidate_descriptions"])) == expected
 
 
-def test_kind_and_domain_choices_preserve_duplicate_codes():
+def test_kind_and_domain_choices_preserve_duplicate_codes() -> None:
     standard = EntityTypeXmlParser.from_string(
         '<ebv><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum>'
         '<enum uid="30" name="Entity Kind">'
@@ -191,9 +202,9 @@ def test_kind_and_domain_choices_preserve_duplicate_codes():
     with pytest.raises(ValueError, match="multiple source descriptions"):
         catalog.get_all_kinds()
     with pytest.raises(ValueError, match="multiple source descriptions"):
-        catalog.get_kind_name(1)
+        catalog.get_kind_name(KindCode(1))
     with pytest.raises(ValueError, match="multiple source descriptions"):
-        catalog.get_all_domains_of(1)
+        catalog.get_all_domains_of(KindCode(1))
     with pytest.raises(ValueError, match="multiple source descriptions"):
         catalog.get_domain_name(EntityType(1, 2, 0, 0, 0, 0, 0))
 
@@ -209,12 +220,14 @@ def test_kind_and_domain_choices_preserve_duplicate_codes():
         ("unknown", (), ValueError),
     ],
 )
-def test_parent_validation(api, collection, parents, error):
+def test_parent_validation(
+    api: SisoRef010API, collection: str, parents: tuple[object, ...], error: type[Exception]
+) -> None:
     with pytest.raises(error):
-        api.choices(collection, EntityTypePrefix.from_values(parents))
+        api.choices(collection, EntityTypePrefix.from_values(cast(tuple[int, ...], parents)))
 
 
-def test_encoding_contract():
+def test_encoding_contract() -> None:
     encoded = encode_entity("255.255.65535.255.255.255.255")
     assert encoded.key == -1
     assert encoded.unsigned_key == (1 << 64) - 1
@@ -225,7 +238,7 @@ def test_encoding_contract():
     assert encoded.model_dump(mode="json", by_alias=True)["unsigned_key"] == "18446744073709551615"
 
 
-def test_enumerations_resolve_by_exact_human_name(api):
+def test_enumerations_resolve_by_exact_human_name(api: SisoRef010API) -> None:
     tables = api.find_enumeration_tables("  dis-pdu type ")
     assert [(table.uid, table.name) for table in tables] == [(4, "DIS-PDU Type")]
     result = api.resolve_enumeration("DIS-PDU Type", 1)
@@ -256,32 +269,32 @@ def test_enumerations_resolve_by_exact_human_name(api):
         api.resolve_enumeration("DIS-PDU Type", -1)
 
     with pytest.raises(TypeError):
-        api.find_enumeration_tables(7)
+        api.find_enumeration_tables(cast(str, 7))
     with pytest.raises(ValueError):
         api.find_enumeration_tables("  ")
 
 
-def test_bad_types(api):
+def test_bad_types(api: SisoRef010API) -> None:
     with pytest.raises(TypeError):
-        encode_entity(123)
+        encode_entity(cast(str, 123))
     with pytest.raises(TypeError):
-        decode_key(1.5)
+        decode_key(cast(int, 1.5))
     with pytest.raises(TypeError):
-        api.search(123)
+        api.search(cast(str, 123))
 
 
-def test_resolve_entity_and_entity_queries_reject_invalid_api_inputs(api):
+def test_resolve_entity_and_entity_queries_reject_invalid_api_inputs(api: SisoRef010API) -> None:
     exact = EntityType.from_string("1.3.153.6.4.2.0")
     assert api.resolve_entity(exact).matched_depth >= 3
     with pytest.raises(TypeError, match="entity must be"):
-        api.resolve_entity(123)
+        api.resolve_entity(cast(str, 123))
 
     with pytest.raises(ValueError, match="entity_kind must be"):
         api.query_entities(entity_kind=256)
     with pytest.raises(ValueError, match="country must be an integer"):
         api.query_entities(country=True)
     with pytest.raises(TypeError, match="text must be a string"):
-        api.query_entities(text=1)
+        api.query_entities(text=cast(str, 1))
     with pytest.raises(ValueError, match="limit must be a nonnegative integer"):
         api.query_entities(limit=True)
     with pytest.raises(ValueError, match="offset must be a nonnegative integer"):
@@ -292,7 +305,7 @@ def test_resolve_entity_and_entity_queries_reject_invalid_api_inputs(api):
     assert empty.values == ()
 
 
-def test_metadata_and_custom_xml(api, tmp_path):
+def test_metadata_and_custom_xml(api: SisoRef010API, tmp_path: pathlib.Path) -> None:
     assert api.info().data_version == "SISO-REF-010-v37"
     assert api.info().counts.subcategories == 25473
     path = tmp_path / "custom.xml"
@@ -309,10 +322,13 @@ def test_metadata_and_custom_xml(api, tmp_path):
     assert custom_api.describe("1.2.3.4.5.6.7").description == "-"
 
 
-def test_bundled_version_discovery():
+def test_bundled_version_discovery() -> None:
     available = SisoRef010API.bundled_versions()
-    assert available.default_version == 37
-    assert available.versions == tuple(range(20, 38))
+    editions = SisoRef010API.bundled_editions()
+    assert available.versions == tuple(edition.version for edition in editions)
+    assert available.default_version == max(available.versions)
+    default_edition = next(edition for edition in editions if edition.version == available.default_version)
+    assert SisoRef010API().info().data_version == default_edition.title
 
 
 @pytest.mark.parametrize(
@@ -343,16 +359,21 @@ def test_bundled_version_discovery():
         (["info"], lambda api: api.info().model_dump(mode="json", by_alias=True)),
     ],
 )
-def test_cli_api_json_parity(api, capsys, args, method):
+def test_cli_api_json_parity(
+    api: SisoRef010API,
+    capsys: pytest.CaptureFixture[str],
+    args: list[str],
+    method: collections.abc.Callable[[SisoRef010API], object],
+) -> None:
     for command in [["--json", *args], [*args, "--json"]]:
-        assert main(command) == 0
+        assert main(["--standard-version", "37", *command]) == 0
         captured = capsys.readouterr()
         assert captured.err == ""
         output = json.loads(captured.out)
         assert output == {"schema_version": 1, "command": args[0], "result": method(api)}
 
 
-def test_cli_resolves_enumeration_by_name(api, capsys):
+def test_cli_resolves_enumeration_by_name(api: SisoRef010API, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["inspect", "resolve", "DIS-PDU Type", "1", "--json"]) == 0
     captured = capsys.readouterr()
     output = json.loads(captured.out)
@@ -379,7 +400,7 @@ def test_cli_resolves_enumeration_by_name(api, capsys):
         ["search", "x", "--limit", "-1"],
     ],
 )
-def test_json_errors(capsys, args):
+def test_json_errors(capsys: pytest.CaptureFixture[str], args: list[str]) -> None:
     with pytest.raises(SystemExit) as exc:
         main(["--json", *args])
     assert exc.value.code == 2
@@ -399,12 +420,12 @@ def test_json_errors(capsys, args):
         (["info"], "Data: bundled"),
     ],
 )
-def test_text_output(capsys, args, expected):
+def test_text_output(capsys: pytest.CaptureFixture[str], args: list[str], expected: str) -> None:
     assert main([*args, "--text"]) == 0
     assert expected in capsys.readouterr().out
 
 
-def test_json_custom_xml_info(tmp_path, capsys):
+def test_json_custom_xml_info(tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]) -> None:
     path = tmp_path / "input.xml"
     path.write_text(
         '<ebv title="CUSTOM"><enum uid="29" name="Country"><enumrow value="1" description="A"/></enum></ebv>',
@@ -423,7 +444,9 @@ def test_json_custom_xml_info(tmp_path, capsys):
         ["search", "--limit", "x", "--", "--json"],
     ],
 )
-def test_argument_error_output_override_and_terminator(arguments, capsys):
+def test_argument_error_output_override_and_terminator(
+    arguments: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
     with pytest.raises(SystemExit):
         main(arguments)
     captured = capsys.readouterr()
@@ -432,7 +455,7 @@ def test_argument_error_output_override_and_terminator(arguments, capsys):
     assert '"schema_version"' not in captured.err
 
 
-def test_unknown_leaf_and_country_fallbacks(api):
+def test_unknown_leaf_and_country_fallbacks(api: SisoRef010API) -> None:
     assert api.describe("1.3.153.6.4.2.255").description == "F803 Tromp"
     prefix = EntityTypePrefix(kind=1, domain=4, country=65535)
     assert len(api.choices("categories", prefix).items) == 1

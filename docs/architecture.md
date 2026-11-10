@@ -64,13 +64,14 @@ Exact lookup and hierarchy choices use the mapping indexes in
 `ReferenceCatalog`. Structured entity searches go through the independent
 `EntityQueryBackend` protocol. `MappingEntityQueryBackend` is the default and
 indexes each entity-code field separately while retaining stable source order.
-The two most recently used bundled `CatalogData` projections are shared in-process;
-they are immutable, while each catalog instance keeps its own mutable query caches.
+Bundled `CatalogData` projections use a `WeakValueDictionary`: live catalogs can
+share an immutable projection, while unused editions can be released. Each catalog
+instance keeps its own mutable query caches.
 An alternate backend receives the edition inspector and an immutable query
 request and returns a count plus a page of source records. This lets another in-memory
 index or database implementation replace query execution without changing the
 public result model or CLI. Compare warm indexed queries with a record scan using
-`python -m tools.benchmark_entity_queries`; its timings are local measurements,
+`python -m tools.siso_ref010.benchmark_entity_queries`; its timings are local measurements,
 not performance guarantees.
 
 `SisoRef010API.warmup()` builds the selected query backend's indexes explicitly.
@@ -79,12 +80,13 @@ the requested API-backed command; the in-memory cache does not persist between
 separate CLI invocations. Without warmup, the mapping backend scans source rows
 for a query instead of paying index construction during that request.
 
-Measure cold compressed-snapshot retrieval and API construction for selected
-editions with `python -m tools.benchmark_snapshot_loading`. Each sample runs in
-a fresh process so the edition cache cannot make later samples appear cold.
-The tool prints measurements for the current machine; the results are not
-stored as project performance guarantees. The bundled archive is one solid XZ
-stream: seeking to an older release can decompress earlier editions first.
+Measure cold compressed-snapshot retrieval, API construction, and process
+startup through the first `info()` result for selected editions with
+`python -m tools.siso_ref010.benchmark_snapshot_loading`. Each sample runs in a fresh
+process so the edition cache cannot make later samples appear cold. The tool
+prints measurements for the current machine; the results are not stored as
+project performance guarantees. The bundled archive is one solid XZ stream:
+seeking to an older release can decompress earlier editions first.
 
 `comparison.py` flattens source-backed entity and enumeration values into
 versioned records. It matches unique UUIDs first, then code paths or

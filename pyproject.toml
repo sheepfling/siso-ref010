@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77", "setuptools-scm>=10,<11"]
+requires = ["pydantic>=2.7,<3", "setuptools>=77", "setuptools-scm>=10,<11"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -32,6 +32,7 @@ Issues = "https://github.com/sheepfling/siso-ref010/issues"
 dev = [
     "build>=1.2",
     "mdrepo>=0.0.1.post0,<0.1",
+    "packaging>=24",
     "pre-commit>=4.0",
     "pyright>=1.1.414",
     "pytest>=8",
@@ -63,7 +64,6 @@ siso_ref010 = [
 [tool.setuptools.exclude-package-data]
 siso_ref010 = [
     "data/standards/v*.xml",
-    "data/standards/SOURCES.json",
 ]
 
 [tool.setuptools_scm]
@@ -77,7 +77,7 @@ markers = [
 ]
 
 [tool.pyright]
-include = ["src", "examples"]
+include = ["src", "examples", "tools"]
 typeCheckingMode = "strict"
 pythonVersion = "3.11"
 venvPath = "."

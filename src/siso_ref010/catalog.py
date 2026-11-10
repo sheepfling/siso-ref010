@@ -204,7 +204,16 @@ class ReferenceCatalog:
         self._qualified_cache: dict[EntityKey, str] = {}
 
     @classmethod
-    def bundled(cls, version: int = BUNDLED_STANDARD_VERSION) -> ReferenceCatalog:
+    def bundled(cls, version: int | None = None) -> ReferenceCatalog:
+        if version is None:
+            versions = BUNDLED_STANDARD_SOURCE.versions
+            if not versions:
+                raise SisoRef010ValueError(
+                    "No bundled SISO-REF-010 editions are available",
+                    code="no_bundled_editions",
+                    context={},
+                )
+            version = max(versions)
         return cls.from_source(BUNDLED_STANDARD_SOURCE, version)
 
     @classmethod

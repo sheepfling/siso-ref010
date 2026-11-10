@@ -1,19 +1,14 @@
 import json
+import pathlib
 import runpy
 import sys
+from typing import NoReturn
 
 import pytest
 from pydantic import ValidationError
 
-from siso_ref010 import (
-    EntityType,
-    EntityTypePrefix,
-    EntityTypeXmlParser,
-    ReferenceCatalog,
-    SisoRef010API,
-    SisoRef010TypeError,
-    SisoRef010ValueError,
-)
+from siso_ref010 import EntityType, EntityTypePrefix, SisoRef010API, SisoRef010TypeError, SisoRef010ValueError
+from siso_ref010.catalog import ReferenceCatalog
 from siso_ref010.cli.app import main
 from siso_ref010.cli.output import error_type as _error_type
 from siso_ref010.models.entity import (
@@ -23,6 +18,7 @@ from siso_ref010.models.entity import (
     get_entity_kind_description,
 )
 from siso_ref010.models.standard import ChangeRequest, ReferenceEntry, SourceInfo, _unsigned_integer
+from siso_ref010.parsing import EntityTypeXmlParser
 from siso_ref010.projection import (
     _applicability_values,
     _child_code,
@@ -33,7 +29,7 @@ from siso_ref010.projection import (
 )
 
 
-def test_pydantic_and_integer_boundary_edges():
+def test_pydantic_and_integer_boundary_edges() -> None:
     assert create_entity_kind_from_number(1.0) is not None
     assert create_entity_domain_from_number(2.0) is not None
     assert get_entity_kind_description(255) is None
@@ -52,7 +48,7 @@ def test_pydantic_and_integer_boundary_edges():
     assert error.value.code == "invalid_prefix_length"
 
 
-def test_reference_model_validation_edges():
+def test_reference_model_validation_edges() -> None:
     assert _unsigned_integer(4) == 4
     assert _unsigned_integer(" 7 ") == 7
     for invalid in (True, "-1", 1.5):
@@ -75,7 +71,7 @@ def test_reference_model_validation_edges():
         )
 
 
-def test_projection_parser_edges():
+def test_projection_parser_edges() -> None:
     assert _field_values("X,,2-3") == (0, 2, 3)
     assert _applicability_values(None, 0) == ()
     assert _applicability_values("1", 0) == (1,)
@@ -107,7 +103,9 @@ def test_projection_parser_edges():
     assert not ReferenceCatalog(no_domain_labels).data.domains
 
 
-def test_public_catalog_and_cli_error_edges(tmp_path, monkeypatch, capsys):
+def test_public_catalog_and_cli_error_edges(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     catalog = ReferenceCatalog.bundled()
     assert catalog.data is catalog.data
     assert all(isinstance(key, tuple) for key in catalog.get_all_domains())
@@ -128,7 +126,7 @@ def test_public_catalog_and_cli_error_edges(tmp_path, monkeypatch, capsys):
 
     import siso_ref010.cli.app as cli
 
-    def interrupt(_value):
+    def interrupt(_value: str) -> NoReturn:
         raise KeyboardInterrupt
 
     monkeypatch.setattr(cli, "encode_entity", interrupt)
@@ -138,7 +136,7 @@ def test_public_catalog_and_cli_error_edges(tmp_path, monkeypatch, capsys):
     assert json.loads(capsys.readouterr().err)["error"]["type"] == "Interrupted"
 
 
-def test_module_entry_point(monkeypatch):
+def test_module_entry_point(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "argv", ["siso-ref010", "--version"])
     with pytest.raises(SystemExit) as exit_code:
         runpy.run_module("siso_ref010", run_name="__main__")

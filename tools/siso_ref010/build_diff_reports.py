@@ -1,4 +1,4 @@
-"""Generate the v35/v36/v37 JSON and terminal report projections."""
+"""Generate JSON and terminal report projections for selected edition pairs."""
 
 from __future__ import annotations
 
@@ -10,8 +10,6 @@ from typing import Any
 from siso_ref010 import SisoRef010API
 from siso_ref010.cli import render_diff_summary
 
-PAIRS = ((35, 36), (36, 37), (35, 37))
-
 
 def _write_json(path: Path, value: Any) -> None:
     path.write_text(
@@ -20,10 +18,23 @@ def _write_json(path: Path, value: Any) -> None:
     )
 
 
-def build_reports(output_dir: Path) -> tuple[Path, ...]:
+def _parse_pair(value: str) -> tuple[int, int]:
+    parts = value.split(":")
+    if len(parts) != 2:
+        raise ValueError("expected FROM:TO")
+    try:
+        return int(parts[0]), int(parts[1])
+    except ValueError as error:
+        raise ValueError("edition numbers must be integers") from error
+
+
+def build_reports(
+    output_dir: Path,
+    pairs: tuple[tuple[int, int], ...],
+) -> tuple[Path, ...]:
     output_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
-    for from_version, to_version in PAIRS:
+    for from_version, to_version in pairs:
         stem = f"siso-ref-010-v{from_version}-to-v{to_version}"
         diff = SisoRef010API.compare_editions(from_version, to_version, limit=None)
         summary = diff.summary()
@@ -48,8 +59,19 @@ def build_reports(output_dir: Path) -> tuple[Path, ...]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=Path(".local"))
+    parser.add_argument(
+        "--pair",
+        action="append",
+        required=True,
+        metavar="FROM:TO",
+        help="edition pair to report; repeat to select several",
+    )
     args = parser.parse_args()
-    written = build_reports(args.output_dir)
+    try:
+        pairs = tuple(_parse_pair(pair) for pair in args.pair)
+    except ValueError as error:
+        parser.error(f"--pair must use FROM:TO edition numbers: {error}")
+    written = build_reports(args.output_dir, pairs)
     print(f"Wrote {len(written)} reports to {args.output_dir}")
     return 0
 

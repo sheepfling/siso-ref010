@@ -21,7 +21,8 @@ input with a nearby match.
 Select the edition your application has agreed to use, then inspect a complete
 seven-field code:
 
-    from siso_ref010 import EntityType, SisoRef010API, ResolutionStatus
+    from siso_ref010 import EntityType, SisoRef010API
+    from siso_ref010.inspection import ResolutionStatus
 
     api = SisoRef010API.bundled(37)
     code = EntityType.from_string("1.2.225.1.3.3.4")

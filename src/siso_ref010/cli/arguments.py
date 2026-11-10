@@ -114,7 +114,7 @@ def build_parser(*, json_errors: bool = False) -> _ArgumentParser:
     compare.add_argument(
         "--detail",
         choices=("summary", "concise", "audit", "review-queue"),
-        help="Select summary, concise, audit, or paged review-queue output",
+        help="Select output detail (defaults to summary for text and JSON)",
     )
     compare.add_argument("--offset", type=int, default=0, help="Review-queue page offset")
     compare.add_argument(

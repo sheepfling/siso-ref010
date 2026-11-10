@@ -8,18 +8,21 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import sys
 from io import BytesIO
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 from zipfile import BadZipFile, ZipFile
 
+from tools.siso_ref010.standard_metadata import ProvenanceRegistry, SourceRecord
+
 REGISTRY = Path("src/siso_ref010/data/standards/PROVENANCE.json")
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024
+MAX_EDITION_XML_BYTES = 50 * 1024 * 1024
+MAX_ARCHIVE_XML_BYTES = 50 * 1024 * 1024
 ALLOWED_HOSTS = {
     "downloads.sourceforge.net",
     "raw.githubusercontent.com",
@@ -30,33 +33,13 @@ ALLOWED_HOSTS = {
 }
 
 
-class SourceLocation(TypedDict):
-    provider: str
-    repository: str
-    path: str
-    url: str
-
-
-class EditionSource(TypedDict):
-    version: int
-    bytes: int
-    sha256: str
-    git_blob_sha1: str
-    primary_source: SourceLocation
-    verified_mirrors: list[SourceLocation]
-
-
-class SourceRegistry(TypedDict):
-    entries: list[EditionSource]
-
-
 def _read_https(url: str) -> tuple[bytes, str]:
     parsed = urlsplit(url)
     if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
         raise ValueError(f"Source URL uses an unapproved host or scheme: {url}")
     request = Request(url, headers={"User-Agent": "siso-ref010-provenance-check/1"})
     with urlopen(request, timeout=60) as response:
-        final_url = response.geturl()
+        final_url = cast(str, response.geturl())
         final_host = urlsplit(final_url).hostname
         if final_host not in ALLOWED_HOSTS:
             raise ValueError(f"Source redirected to an unapproved host: {final_url}")
@@ -75,13 +58,29 @@ def _edition_payload(payload: bytes, url: str, expected_sha256: str) -> tuple[by
     if not urlsplit(url).path.casefold().endswith(".zip"):
         return payload, None
     matches: list[tuple[str, bytes]] = []
+    total_xml_bytes = 0
     try:
         with ZipFile(BytesIO(payload)) as archive:
-            for name in archive.namelist():
-                if name.casefold().endswith(".xml"):
-                    candidate = archive.read(name)
+            for info in archive.infolist():
+                if info.filename.casefold().endswith(".xml"):
+                    if info.file_size > MAX_EDITION_XML_BYTES:
+                        raise ValueError(
+                            f"XML member exceeds {MAX_EDITION_XML_BYTES} uncompressed bytes: "
+                            f"{info.filename} ({info.file_size} bytes)"
+                        )
+                    total_xml_bytes += info.file_size
+                    if total_xml_bytes > MAX_ARCHIVE_XML_BYTES:
+                        raise ValueError(
+                            f"XML members exceed {MAX_ARCHIVE_XML_BYTES} aggregate uncompressed bytes"
+                        )
+                    with archive.open(info) as member:
+                        candidate = member.read(MAX_EDITION_XML_BYTES + 1)
+                    if len(candidate) > MAX_EDITION_XML_BYTES:
+                        raise ValueError(
+                            f"XML member exceeds {MAX_EDITION_XML_BYTES} uncompressed bytes: {info.filename}"
+                        )
                     if hashlib.sha256(candidate).hexdigest() == expected_sha256:
-                        matches.append((name, candidate))
+                        matches.append((info.filename, candidate))
     except BadZipFile as error:
         raise ValueError(f"Source did not contain a valid ZIP archive: {url}") from error
     if len(matches) != 1:
@@ -96,39 +95,38 @@ def main() -> int:
     parser.add_argument("--versions", type=int, nargs="+", help="editions to verify; defaults to all")
     parser.add_argument("--registry", type=Path, default=REGISTRY)
     args = parser.parse_args()
-    registry = cast(SourceRegistry, json.loads(args.registry.read_text(encoding="utf-8")))
-    entries = {row["version"]: row for row in registry["entries"]}
+    try:
+        registry = ProvenanceRegistry.model_validate_json(args.registry.read_bytes())
+    except (OSError, ValueError) as error:
+        parser.error(f"Invalid provenance registry {args.registry}: {error}")
+    entries = {row.version: row for row in registry.entries}
     versions = args.versions or sorted(entries)
     failures = 0
     for version in versions:
         entry = entries.get(version)
         if entry is None:
             parser.error(f"Edition v{version} is not in {args.registry}")
-        sources = [("primary", entry["primary_source"])] + [
-            ("mirror", mirror) for mirror in entry["verified_mirrors"]
+        sources: list[tuple[str, SourceRecord]] = [("primary", entry.primary_source)] + [
+            ("mirror", mirror) for mirror in entry.verified_mirrors
         ]
         unavailable: list[str] = []
         matched_source: tuple[str, str, bytes, str | None] | None = None
         failure: str | None = None
         for source_kind, source in sources:
-            source_url = source["url"]
+            source_url = source.url
             try:
                 downloaded, final_url = _read_https(source_url)
             except (HTTPError, URLError, OSError) as error:
                 unavailable.append(f"{source_kind} {source_url}: {error}")
                 continue
             try:
-                edition_xml, archive_member = _edition_payload(downloaded, source_url, entry["sha256"])
+                edition_xml, archive_member = _edition_payload(downloaded, source_url, entry.sha256)
             except (ValueError, BadZipFile) as error:
                 failure = f"{source_kind} source payload invalid: {error}"
                 break
             sha256 = hashlib.sha256(edition_xml).hexdigest()
             git_blob = _git_blob_sha1(edition_xml)
-            if (
-                len(edition_xml) != entry["bytes"]
-                or sha256 != entry["sha256"]
-                or git_blob != entry["git_blob_sha1"]
-            ):
+            if len(edition_xml) != entry.bytes or sha256 != entry.sha256 or git_blob != entry.git_blob_sha1:
                 failure = (
                     f"{source_kind} source identity mismatch: bytes={len(edition_xml)}, sha256={sha256}, "
                     f"git_blob_sha1={git_blob}"

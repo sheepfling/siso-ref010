@@ -1,21 +1,22 @@
 import random
+from typing import TypedDict, cast
 
 import pytest
 
-from siso_ref010 import (
+from siso_ref010 import SisoRef010ValueError
+from siso_ref010.models.codes import (
     CategoryCode,
     CountryCode,
     DomainCode,
-    EntityDomain,
-    EntityKind,
-    EntityType,
     ExtraCode,
     KindCode,
-    SisoRef010ValueError,
     SpecificCode,
     SubcategoryCode,
 )
 from siso_ref010.models.entity import (
+    EntityDomain,
+    EntityKind,
+    EntityType,
     create_entity_domain_from_number,
     create_entity_domain_from_string,
     create_entity_kind_from_number,
@@ -24,6 +25,12 @@ from siso_ref010.models.entity import (
 )
 from siso_ref010.models.standard import ReferenceEntry, SourceInfo
 from siso_ref010.parsing import EntityTypeXmlParser
+
+
+class EntryFixture(TypedDict):
+    value: int | None
+    value_min: int | None
+    value_max: int | None
 
 
 @pytest.mark.parametrize(
@@ -36,7 +43,7 @@ from siso_ref010.parsing import EntityTypeXmlParser
         ((255, 255, 65535, 255, 255, 255, 255), -1),
     ],
 )
-def test_wire_fixtures(fields, key):
+def test_wire_fixtures(fields: tuple[int, ...], key: int) -> None:
     entity = EntityType(*fields)
     assert entity.to_key() == key
     assert EntityType.from_key(key) == entity
@@ -58,7 +65,7 @@ def test_wire_fixtures(fields, key):
     )
 
 
-def test_wire_bytes_match_independent_dis_entity_type_vector():
+def test_wire_bytes_match_independent_dis_entity_type_vector() -> None:
     # OpenDIS serializes uint8, uint8, uint16, then four uint8s:
     # https://github.com/open-dis/open-dis-python/blob/master/opendis/dis7.py
     # M1A2 code values come from the independent tutorial example:
@@ -68,7 +75,7 @@ def test_wire_bytes_match_independent_dis_entity_type_vector():
     assert entity.to_key(signed=False) == 0x010100E101010300
 
 
-def test_seeded_full_width_roundtrips():
+def test_seeded_full_width_roundtrips() -> None:
     randomizer = random.Random(0x5150)
     for _ in range(10000):
         key = randomizer.getrandbits(64)
@@ -94,26 +101,26 @@ def test_seeded_full_width_roundtrips():
         "1.2.65536.4.5.6.7",
     ],
 )
-def test_invalid_strings(text):
+def test_invalid_strings(text: str) -> None:
     with pytest.raises(ValueError):
         EntityType.from_string(text)
 
 
 @pytest.mark.parametrize("key", [-(1 << 63) - 1, 1 << 64])
-def test_key_bounds(key):
+def test_key_bounds(key: int) -> None:
     with pytest.raises(ValueError):
         EntityType.from_key(key)
 
 
 @pytest.mark.parametrize("value", [True, 1.1, "1", None])
-def test_reject_coercion(value):
+def test_reject_coercion(value: object) -> None:
     with pytest.raises(TypeError):
-        EntityType(value, 0, 0, 0, 0, 0, 0)
+        EntityType(cast(int, value), 0, 0, 0, 0, 0, 0)
     with pytest.raises(TypeError):
-        EntityType.from_key(value)
+        EntityType.from_key(cast(int, value))
     with pytest.raises(TypeError):
         create_key(
-            kind=KindCode(value),
+            kind=KindCode(cast(int, value)),
             domain=DomainCode(0),
             country=CountryCode(0),
             category=CategoryCode(0),
@@ -137,7 +144,7 @@ def test_reject_coercion(value):
         ("extra", 256),
     ],
 )
-def test_create_key_rejects_out_of_range_fields(field, value):
+def test_create_key_rejects_out_of_range_fields(field: str, value: object) -> None:
     values = {
         "kind": KindCode(1),
         "domain": DomainCode(2),
@@ -154,7 +161,7 @@ def test_create_key_rejects_out_of_range_fields(field, value):
     assert error.value.context["field"] == field
 
 
-def test_native_methods():
+def test_native_methods() -> None:
     entity = EntityType.from_string("1|2|3|4|5|6|7", "|")
     assert entity.to_string() == "1.2.3.4.5.6.7"
     assert EntityType.from_key(entity.to_key()) == entity
@@ -167,13 +174,13 @@ def test_native_methods():
 
 
 @pytest.mark.parametrize("value", [5.562, -1, 11, float("nan"), float("inf"), True])
-def test_invalid_kind(value):
-    assert create_entity_kind_from_number(value) is None
+def test_invalid_kind(value: object) -> None:
+    assert create_entity_kind_from_number(cast(float, value)) is None
 
 
 @pytest.mark.parametrize("value", [3.562, -1, 6, 10, float("nan"), float("inf"), True])
-def test_invalid_domain(value):
-    assert create_entity_domain_from_number(value) is None
+def test_invalid_domain(value: object) -> None:
+    assert create_entity_domain_from_number(cast(float, value)) is None
 
 
 @pytest.mark.parametrize(
@@ -186,11 +193,11 @@ def test_invalid_domain(value):
         ("Lava", None),
     ],
 )
-def test_kind_names(name, kind):
+def test_kind_names(name: str, kind: EntityKind | None) -> None:
     assert create_entity_kind_from_string(name) == kind
 
 
-def test_domain_names():
+def test_domain_names() -> None:
     assert create_entity_domain_from_string("LAND") is EntityDomain.LAND
     assert create_entity_domain_from_string("space") is EntityDomain.SPACE
     assert create_entity_domain_from_string(" Land") is None  # Leading whitespace is not ignored.
@@ -206,7 +213,7 @@ def test_domain_names():
         ({"value": None, "value_min": None, "value_max": None}, "requires a value or value range"),
     ],
 )
-def test_reference_entries_enforce_scalar_and_range_shapes(entry, message):
+def test_reference_entries_enforce_scalar_and_range_shapes(entry: EntryFixture, message: str) -> None:
     with pytest.raises(ValueError, match=message):
         ReferenceEntry(
             tag="enumrow",
@@ -218,7 +225,7 @@ def test_reference_entries_enforce_scalar_and_range_shapes(entry, message):
         )
 
 
-def test_standard_reference_lookups_support_names_and_unique_uids():
+def test_standard_reference_lookups_support_names_and_unique_uids() -> None:
     standard = EntityTypeXmlParser.from_string(
         '<ebv><enum uid="7" name="Example"><enumrow value="1"/></enum>'
         '<enum uid="8" name="Example"><enumrow value="2"/></enum></ebv>'
@@ -226,6 +233,8 @@ def test_standard_reference_lookups_support_names_and_unique_uids():
 
     assert standard.enumeration("Example") is None
     assert tuple(table.uid for table in standard.enumerations_named("Example")) == (7, 8)
-    assert standard.enumeration_by_uid(8).name == "Example"
+    table = standard.enumeration_by_uid(8)
+    assert table is not None
+    assert table.name == "Example"
     assert standard.enumeration("Missing") is None
     assert standard.enumeration_by_uid(9) is None

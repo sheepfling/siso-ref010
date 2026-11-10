@@ -1,1 +1,1 @@
-"""Repository tools, run from the project root with ``python -m tools.<name>``."""
+"""Repository automation and the grouped siso_ref010 and hygiene tool packages."""

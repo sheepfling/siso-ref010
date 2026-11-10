@@ -1,6 +1,7 @@
 """The shipped application is Python with Pydantic as its runtime dependency."""
 
 import ast
+import pathlib
 import sys
 from pathlib import Path
 
@@ -9,8 +10,10 @@ import pytest
 SOURCE = Path(__file__).parents[1] / "src/siso_ref010"
 
 
-@pytest.mark.parametrize("path", sorted(SOURCE.glob("*.py")), ids=lambda path: path.name)
-def test_runtime_imports_standard_library_or_pydantic(path):
+@pytest.mark.parametrize(
+    "path", sorted(SOURCE.rglob("*.py")), ids=lambda path: path.relative_to(SOURCE).as_posix()
+)
+def test_runtime_imports_standard_library_or_pydantic(path: pathlib.Path) -> None:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

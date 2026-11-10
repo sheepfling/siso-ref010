@@ -1,6 +1,7 @@
 import pytest
 
-from siso_ref010 import EntityType, ReferenceCatalog, SisoRef010API
+from siso_ref010 import EntityType, SisoRef010API
+from siso_ref010.catalog import ReferenceCatalog
 from siso_ref010.parsing.xml import EntityTypeXmlParser
 from siso_ref010.projection import _field_values
 

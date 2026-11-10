@@ -7,18 +7,23 @@ from collections.abc import Sequence
 
 from siso_ref010 import EntityType, SisoRef010API
 
-DEFAULT_VERSION = 37
 DEFAULT_CODE = "1.2.225.1.3.3.4"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--standard-version", type=int, default=DEFAULT_VERSION)
+    parser.add_argument(
+        "--standard-version",
+        type=int,
+        help="Select a bundled edition (default: newest bundled edition)",
+    )
     parser.add_argument("--entity-type", default=DEFAULT_CODE, help="Seven numeric fields separated by dots")
     args = parser.parse_args(argv)
 
     try:
-        api = SisoRef010API.bundled(args.standard_version)
+        api = (
+            SisoRef010API() if args.standard_version is None else SisoRef010API.bundled(args.standard_version)
+        )
         entity_type = EntityType.from_string(args.entity_type)
         explanation = api.explain_entity(entity_type)
     except (TypeError, ValueError) as exc:
