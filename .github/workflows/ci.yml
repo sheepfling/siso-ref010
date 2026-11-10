@@ -3,7 +3,6 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main, "hardening/**" ]
   workflow_dispatch:
 
 permissions:
