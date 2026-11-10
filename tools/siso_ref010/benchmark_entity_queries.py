@@ -6,7 +6,8 @@ import argparse
 from statistics import median
 from time import perf_counter
 
-from siso_ref010 import EditionValue, SisoRef010API
+from siso_ref010 import SisoRef010API
+from siso_ref010.inspection import EditionValue
 
 _FIELD_NAMES = ("entity_kind", "domain", "country", "category", "subcategory", "specific", "extra")
 
@@ -61,20 +62,28 @@ def _indexed_total(api: SisoRef010API, fields: tuple[int | None, ...], text: str
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", type=int, default=37, help="Bundled edition to query (default: 37)")
+    parser.add_argument("--version", type=int, help="Bundled edition to query (default: latest)")
+    parser.add_argument(
+        "--country", type=int, default=153, help="Representative query country (default: 153)"
+    )
+    parser.add_argument("--entity-kind", type=int, default=1, help="Representative entity kind (default: 1)")
+    parser.add_argument("--category", type=int, default=6, help="Representative category (default: 6)")
+    parser.add_argument("--text", default="Tromp", help="Representative search text (default sample: Tromp)")
     parser.add_argument("--iterations", type=int, default=100, help="Warm queries per case (default: 100)")
     args = parser.parse_args()
     if args.iterations < 1:
         parser.error("--iterations must be positive")
 
+    version = SisoRef010API.bundled_versions().default_version if args.version is None else args.version
+
     start = perf_counter()
-    one_off_api = SisoRef010API.bundled(args.version)
+    one_off_api = SisoRef010API.bundled(version)
     construction_ms = (perf_counter() - start) * 1000
     cached_start = perf_counter()
-    api = SisoRef010API.bundled(args.version)
+    api = SisoRef010API.bundled(version)
     cached_construction_ms = (perf_counter() - cached_start) * 1000
     one_off_start = perf_counter()
-    one_off = one_off_api.query_entities(country=153, text="Tromp", limit=20)
+    one_off = one_off_api.query_entities(country=args.country, text=args.text, limit=20)
     one_off_ms = (perf_counter() - one_off_start) * 1000
     warmup_start = perf_counter()
     warmup = api.warmup()
@@ -82,11 +91,16 @@ def main() -> int:
     rows = api.inspector.entity_values()
 
     cases = (
-        ((None, None, 153, None, None, None, None), None),
-        ((1, None, 153, 6, None, None, None), None),
-        ((None, None, 153, None, None, None, None), "Tromp"),
+        ((None, None, args.country, None, None, None, None), None),
+        ((args.entity_kind, None, args.country, args.category, None, None, None), None),
+        ((None, None, args.country, None, None, None, None), args.text),
     )
-    print(f"edition v{args.version}: {len(rows):,} source entity records")
+    print(f"edition v{version}: {len(rows):,} source entity records")
+    print(
+        "Representative sample: "
+        f"entity_kind={args.entity_kind}, country={args.country}, "
+        f"category={args.category}, text={args.text!r}"
+    )
     print(f"API construction plus catalog projection: {construction_ms:.3f} ms")
     print(f"another API instance from the process cache: {cached_construction_ms:.3f} ms")
     print(f"first one-off query without warmup: {one_off_ms:.3f} ms ({one_off.total} matches)")

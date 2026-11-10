@@ -1,7 +1,9 @@
+import collections.abc
 import hashlib
 import json
 import lzma
 from io import BytesIO
+from typing import NotRequired, TypedDict
 
 import pytest
 
@@ -9,8 +11,29 @@ import siso_ref010.snapshots as snapshots
 from siso_ref010.snapshots import SnapshotIndex, SnapshotIntegrityError
 
 
+class EditionIndexFixture(TypedDict):
+    version: int
+    date: str
+    sha256: str
+    size: int
+    offset: int
+    title: str
+    source_file: str
+    extra: NotRequired[str]
+
+
+class IndexFixture(TypedDict):
+    format: str
+    latest_version: int
+    verified_scope: str
+    raw_size: int
+    pack_size: int
+    pack_sha256: str
+    editions: list[EditionIndexFixture]
+
+
 @pytest.fixture(autouse=True)
-def _clear_snapshot_caches():
+def _clear_snapshot_caches() -> collections.abc.Iterator[None]:
     snapshots._index.cache_clear()
     snapshots._verify_pack.cache_clear()
     snapshots.read_snapshot_bytes.cache_clear()
@@ -20,7 +43,7 @@ def _clear_snapshot_caches():
     snapshots.read_snapshot_bytes.cache_clear()
 
 
-def _valid_index():
+def _valid_index() -> IndexFixture:
     return {
         "format": snapshots._FORMAT,
         "latest_version": 1,
@@ -42,24 +65,24 @@ def _valid_index():
     }
 
 
-def _valid_model():
+def _valid_model() -> SnapshotIndex:
     return SnapshotIndex.model_validate_json(json.dumps(_valid_index()))
 
 
 class _Resource:
-    def __init__(self, content=b"", *, error=None):
+    def __init__(self, content: bytes = b"", *, error: Exception | None = None) -> None:
         self.content = content
         self.error = error
 
-    def joinpath(self, *_parts):
+    def joinpath(self, *_parts: str) -> "_Resource":
         return self
 
-    def read_bytes(self):
+    def read_bytes(self) -> bytes:
         if self.error is not None:
             raise self.error
         return self.content
 
-    def open(self, _mode):
+    def open(self, _mode: str) -> BytesIO:
         if self.error is not None:
             raise self.error
         return BytesIO(self.content)
@@ -74,13 +97,13 @@ class _Resource:
         json.dumps({"format": snapshots._FORMAT, "latest_version": True}).encode(),
     ],
 )
-def test_index_rejects_unreadable_and_malformed_data(monkeypatch, content):
+def test_index_rejects_unreadable_and_malformed_data(monkeypatch: pytest.MonkeyPatch, content: bytes) -> None:
     monkeypatch.setattr(snapshots, "files", lambda _package: _Resource(content))
     with pytest.raises(SnapshotIntegrityError, match="Malformed bundled edition index"):
         snapshots._index()
 
 
-def test_index_io_failure_is_reported_as_integrity_error(monkeypatch):
+def test_index_io_failure_is_reported_as_integrity_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(snapshots, "files", lambda _package: _Resource(error=OSError("missing")))
     with pytest.raises(SnapshotIntegrityError, match="Cannot read the bundled edition index"):
         snapshots._index()
@@ -101,7 +124,11 @@ def test_index_io_failure_is_reported_as_integrity_error(monkeypatch):
         (lambda index: index.update(raw_size=2), "uncompressed size"),
     ],
 )
-def test_index_pydantic_models_validate_fields_and_layout(monkeypatch, mutate, message):
+def test_index_pydantic_models_validate_fields_and_layout(
+    monkeypatch: pytest.MonkeyPatch,
+    mutate: collections.abc.Callable[[IndexFixture], None],
+    message: str,
+) -> None:
     payload = _valid_index()
     mutate(payload)
     monkeypatch.setattr(
@@ -113,9 +140,11 @@ def test_index_pydantic_models_validate_fields_and_layout(monkeypatch, mutate, m
         snapshots._index()
 
 
-def test_index_rejects_duplicate_versions(monkeypatch):
+def test_index_rejects_duplicate_versions(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = _valid_index()
-    payload["editions"].append(dict(payload["editions"][0], offset=1))
+    duplicate_edition = payload["editions"][0].copy()
+    duplicate_edition["offset"] = 1
+    payload["editions"].append(duplicate_edition)
     payload["raw_size"] = 2
     monkeypatch.setattr(
         snapshots,
@@ -126,14 +155,14 @@ def test_index_rejects_duplicate_versions(monkeypatch):
         snapshots._index()
 
 
-def test_snapshot_models_are_frozen_and_use_date_objects():
+def test_snapshot_models_are_frozen_and_use_date_objects() -> None:
     edition = _valid_model().editions[0]
     assert edition.date.isoformat() == "2026-01-01"
     with pytest.raises(ValueError, match="frozen"):
         edition.version = 2
 
 
-def test_pack_and_edition_payload_integrity_fail_closed(monkeypatch):
+def test_pack_and_edition_payload_integrity_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
     index = _valid_model()
     monkeypatch.setattr(snapshots, "_index", lambda: index)
     monkeypatch.setattr(snapshots, "files", lambda _package: _Resource(b"bad"))
@@ -164,12 +193,14 @@ def test_pack_and_edition_payload_integrity_fail_closed(monkeypatch):
 @pytest.mark.parametrize(
     "failure", [OSError("read failed"), EOFError("short stream"), lzma.LZMAError("bad stream")]
 )
-def test_decompression_failures_are_reported_as_integrity_errors(monkeypatch, failure):
+def test_decompression_failures_are_reported_as_integrity_errors(
+    monkeypatch: pytest.MonkeyPatch, failure: Exception
+) -> None:
     monkeypatch.setattr(snapshots, "_index", _valid_model)
     monkeypatch.setattr(snapshots, "_verify_pack", lambda: None)
     monkeypatch.setattr(snapshots, "files", lambda _package: _Resource(b"pack"))
 
-    def fail_decompression(_raw, _mode):
+    def fail_decompression(_raw: object, _mode: str) -> None:
         raise failure
 
     monkeypatch.setattr(snapshots.lzma, "LZMAFile", fail_decompression)
@@ -177,7 +208,7 @@ def test_decompression_failures_are_reported_as_integrity_errors(monkeypatch, fa
         snapshots.read_snapshot_bytes(1)
 
 
-def test_snapshot_payload_size_must_match_index(monkeypatch):
+def test_snapshot_payload_size_must_match_index(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = b"x"
     index = SnapshotIndex.model_validate_json(
         json.dumps(
@@ -201,7 +232,7 @@ def test_snapshot_payload_size_must_match_index(monkeypatch):
         snapshots.read_snapshot_bytes(1)
 
 
-def test_pack_io_errors_are_reported_as_integrity_failures(monkeypatch):
+def test_pack_io_errors_are_reported_as_integrity_failures(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(snapshots, "_index", _valid_model)
     monkeypatch.setattr(snapshots, "files", lambda _package: _Resource(error=OSError("gone")))
     snapshots._verify_pack.cache_clear()

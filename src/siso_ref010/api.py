@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Iterator
+from datetime import date as Date
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Final, cast
@@ -49,6 +50,7 @@ from .query_backend import (
     EntityQueryRequest,
     MappingEntityQueryBackend,
 )
+from .snapshots import available_snapshot_editions
 from .sources import BUNDLED_STANDARD_SOURCE, BundledStandardSource, StandardSource
 
 
@@ -281,6 +283,16 @@ class BundledStandards(ResultModel):
     versions: tuple[int, ...]
 
 
+class BundledEdition(ResultModel):
+    """Lightweight source metadata for one indexed bundled edition."""
+
+    version: int
+    title: str
+    date: Date
+    source_sha256: str
+    source_byte_length: int
+
+
 def _validated_prefix(value: object) -> EntityTypePrefix | None:
     if value is None or isinstance(value, EntityTypePrefix):
         return value
@@ -333,6 +345,20 @@ class SisoRef010API:
         return BundledStandards(
             default_version=BUNDLED_STANDARD_VERSION,
             versions=BUNDLED_STANDARD_VERSIONS,
+        )
+
+    @classmethod
+    def bundled_editions(cls) -> tuple[BundledEdition, ...]:
+        """Return edition dates, titles, hashes, and byte lengths from the index only."""
+        return tuple(
+            BundledEdition(
+                version=edition.version,
+                title=edition.title,
+                date=edition.date,
+                source_sha256=edition.sha256,
+                source_byte_length=edition.size,
+            )
+            for edition in available_snapshot_editions()
         )
 
     @classmethod
@@ -567,8 +593,8 @@ class SisoRef010API:
             indexed_records=self._query_backend.warmup(inspector),
         )
 
-    def search(self, query: str, *, limit: int | None = None) -> SearchResults:
-        """Search descriptions; None returns all, while zero returns no hits."""
+    def search(self, query: str, *, limit: int | None = 100) -> SearchResults:
+        """Search descriptions; defaults to 100 hits, while None returns all."""
         if limit is not None and (
             isinstance(limit, bool) or not isinstance(cast(object, limit), int) or limit < 0
         ):
@@ -703,56 +729,30 @@ class SisoRef010API:
                 },
             )
         entity = prefix.to_entity() if prefix is not None else EntityType(0, 0, 0, 0, 0, 0, 0)
-        if kind in {
-            Collection.COUNTRIES,
-            Collection.KINDS,
-            Collection.DOMAINS,
-            Collection.CATEGORIES,
-            Collection.SUBCATEGORIES,
-            Collection.SPECIFICS,
-            Collection.EXTRAS,
-        }:
-            match kind:
-                case Collection.COUNTRIES:
-                    rows = self._catalog.get_country_choices()
-                case Collection.KINDS:
-                    rows = self._catalog.get_kind_choices()
-                case Collection.DOMAINS:
-                    rows = self._catalog.get_domain_choices(entity.kind)
-                case _:
-                    rows = self._catalog.get_choice_rows(parents)
-            counts: dict[EntityFieldCode, int] = {}
-            for row in rows:
-                counts[row.value] = counts.get(row.value, 0) + 1
-            items = tuple(
-                Choice(
-                    value=row.value,
-                    description=row.description,
-                    ambiguous=counts[row.value] > 1,
-                )
-                for row in rows
-            )
-            return Choices(collection=kind, parents=parents, items=items)
-
         match kind:
             case Collection.COUNTRIES:
-                values = self._catalog.get_all_countries()
+                rows = self._catalog.get_country_choices()
             case Collection.KINDS:
-                values = self._catalog.get_all_kinds()
+                rows = self._catalog.get_kind_choices()
             case Collection.DOMAINS:
-                values = self._catalog.get_all_domains_of(entity.kind)
-            case Collection.CATEGORIES:
-                values = self._catalog.get_all_categories_of(entity)
-            case Collection.SUBCATEGORIES:
-                values = self._catalog.get_all_subcategories_of(entity)
-            case Collection.SPECIFICS:
-                values = self._catalog.get_all_specifics_of(entity)
-            case Collection.EXTRAS:
-                values = self._catalog.get_all_extras_of(entity)
+                rows = self._catalog.get_domain_choices(entity.kind)
+            case Collection.CATEGORIES | Collection.SUBCATEGORIES | Collection.SPECIFICS | Collection.EXTRAS:
+                rows = self._catalog.get_choice_rows(parents)
+        counts: dict[EntityFieldCode, int] = {}
+        for row in rows:
+            counts[row.value] = counts.get(row.value, 0) + 1
+        items = tuple(
+            Choice(
+                value=row.value,
+                description=row.description,
+                ambiguous=counts[row.value] > 1,
+            )
+            for row in rows
+        )
         return Choices(
             collection=kind,
             parents=parents,
-            items=tuple(Choice(value=value, description=text) for value, text in values.items()),
+            items=items,
         )
 
     def info(self) -> CatalogInfo:

@@ -3,10 +3,25 @@
 `SisoRef010API` is the main entry point. It returns frozen Pydantic models and
 does not print or exit the process.
 
+The supported top-level imports are `SisoRef010API`, `BundledEdition`,
+`BundledStandards`, `EntityType`,
+`EntityTypePrefix`, `Collection`, the field-code `NewType`s, the key conversion
+functions, and the `SisoRef010Error` exception family. They are listed in
+`siso_ref010.__all__`. Import parser, catalog, inspection, comparison, and
+reporting details from their corresponding modules; those specialized contracts
+are outside the top-level compatibility promise.
+
+Within the `0.1.x` release line, the supported Python names, behavior, and
+documented result attributes remain compatible. Additive changes are allowed;
+an incompatible change requires a new minor version and migration notes. CLI
+JSON and edition-diff projections have separate `schema_version` fields. Their
+field meanings and required structure remain stable within their schema
+version; consumers should ignore unknown additive fields.
+
 ```python
 from siso_ref010 import SisoRef010API
 
-api = SisoRef010API.bundled(37)
+api = SisoRef010API()
 entity = api.describe("1.3.153.6.4.2.0")
 print(entity.description)
 ```
@@ -18,13 +33,22 @@ custom XML source:
 
 ```python
 available = SisoRef010API.bundled_versions()
+editions = SisoRef010API.bundled_editions()
 api = SisoRef010API.bundled(35)
 custom = SisoRef010API.from_xml("./SISO-REF-010.xml")
 ```
 
+`bundled_versions()` and `bundled_editions()` read the packaged index only; each
+edition record includes `version`, `title`, `date`, `source_sha256`, and
+`source_byte_length`. Neither operation decompresses or parses XML. `bundled(version)` loads
+and parses one edition. `api.inspector` exposes source records and diagnostics;
+methods that enumerate values may materialize and filter the selected source
+collection before applying a result limit.
+
 `SisoRef010API.from_source(source, version)` loads an edition through a
-`StandardSource`. `iter_editions(versions=...)` yields selected editions one at
-a time.
+`StandardSource`. `iter_editions(versions=...)` constructs an API for each
+selected edition and is intended for cross-edition work, not lightweight version
+discovery.
 
 ## Look up and inspect
 
@@ -33,7 +57,7 @@ a time.
 | Describe an entity code | `api.describe(code)` |
 | Resolve a full code or prefix | `api.resolve_entity(code)` |
 | Filter by independent DIS fields | `api.query_entities(country=153, text="Tromp")` |
-| Search entity descriptions | `api.search("F803")` |
+| Search entity descriptions | `api.search("F803")` (defaults to 100 hits) |
 | List valid hierarchy choices | `api.choices(collection, prefix)` |
 | Explain the source rows behind a code | `api.explain_entity(code)` |
 | Inspect edition tables, rows, and diagnostics | `api.inspector` |
@@ -73,6 +97,8 @@ getters raise `ambiguous_enumeration_name` when a code has multiple source rows.
 
 Description search returns one hit per entity code. It matches text at any
 hierarchy level and displays the deepest effective description for that code.
+The default result limit is 100; pass `limit=None` to return every match. A
+limit bounds the returned page, not the catalog search work.
 If multiple source rows at that depth share the code,
 `SearchHit.description` is `None`, `candidate_descriptions` contains those
 equally specific labels, and `ambiguous` is `True`.

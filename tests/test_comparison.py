@@ -1,24 +1,22 @@
 import json
 from collections import Counter
+from collections.abc import Mapping
 from hashlib import sha256
-from typing import TypeAlias
 
 import pytest
 
-from siso_ref010 import (
-    BUNDLED_STANDARD_SOURCE,
-    ChangeAssessment,
-    ChangeCounts,
-    ChangeReference,
-    EditionChange,
-    EditionDiff,
-    SisoRef010API,
-    ValueHistory,
-    ValueRecord,
-)
+from siso_ref010 import SisoRef010API
 from siso_ref010.cli import main
 from siso_ref010.cli.text import print_history_text
 from siso_ref010.comparison import (
+    ChangeAssessment,
+    ChangeCounts,
+    ChangeReference,
+    ConciseChange,
+    EditionChange,
+    EditionDiff,
+    ValueHistory,
+    ValueRecord,
     _classify_change,
     _display_label,
     _inspection_records,
@@ -26,33 +24,34 @@ from siso_ref010.comparison import (
     _optional_source_bool,
     _record_changes,
 )
+from siso_ref010.sources import BUNDLED_STANDARD_SOURCE
 
 
 class MemorySource:
-    def __init__(self, versions):
+    def __init__(self, versions: Mapping[int, str]) -> None:
         self.data = versions
 
     @property
-    def versions(self):
+    def versions(self) -> tuple[int, ...]:
         return tuple(self.data)
 
-    def read_xml(self, version):
+    def read_xml(self, version: int) -> bytes:
         return self.data[version].encode()
 
 
 def _standard(
     *,
-    category="Old category",
-    subcategory_value=3,
-    subcategory="Tracked entry",
-    enum_name="Example table",
-    enum_value=1,
-    enum_description="Old value",
-    enum_uuid="enum-value-1",
-    include_removed=True,
-    xref_uid=91,
-    annotations="",
-):
+    category: str = "Old category",
+    subcategory_value: int = 3,
+    subcategory: str = "Tracked entry",
+    enum_name: str = "Example table",
+    enum_value: int = 1,
+    enum_description: str = "Old value",
+    enum_uuid: str = "enum-value-1",
+    include_removed: bool = True,
+    xref_uid: int = 91,
+    annotations: str = "",
+) -> str:
     rows = (
         f'<enumrow value="{enum_value}" description="{enum_description}" uuid="{enum_uuid}"/>'
         + ('<enumrow value="2" description="Removed value" uuid="enum-value-2"/>' if include_removed else "")
@@ -81,7 +80,7 @@ def _standard(
 
 
 @pytest.fixture
-def comparison_source():
+def comparison_source() -> MemorySource:
     return MemorySource(
         {
             1: _standard(annotations='<description uuid="note-1">Original table note</description>'),
@@ -98,7 +97,7 @@ def comparison_source():
     )
 
 
-def test_entity_history_reports_presence_and_effective_description(comparison_source):
+def test_entity_history_reports_presence_and_effective_description(comparison_source: MemorySource) -> None:
     history = SisoRef010API.entity_history("1.1.1.2.4.0.0", source=comparison_source, versions=(1, 2))
     assert history.kind == "entity"
     assert [point.present for point in history.points] == [True, True]
@@ -108,7 +107,7 @@ def test_entity_history_reports_presence_and_effective_description(comparison_so
     assert history.points[1].matched_path == (1, 1, 1, 2, 4)
 
 
-def test_enumeration_history_resolves_scalar_and_range_values(comparison_source):
+def test_enumeration_history_resolves_scalar_and_range_values(comparison_source: MemorySource) -> None:
     value = SisoRef010API.enumeration_history(90, 1, source=comparison_source, versions=(1, 2))
     table = SisoRef010API.enumeration_history(90, source=comparison_source, versions=(1, 2))
     range_value = SisoRef010API.enumeration_history(90, 11, source=comparison_source, versions=(1, 2))
@@ -118,7 +117,9 @@ def test_enumeration_history_resolves_scalar_and_range_values(comparison_source)
     assert [point.description for point in range_value.points] == ["Range value", "Range value"]
 
 
-def test_history_preserves_ambiguous_entity_and_enumeration_candidates(capsys):
+def test_history_preserves_ambiguous_entity_and_enumeration_candidates(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     xml = (
         '<ebv title="Ambiguous edition">'
         '<enum uid="7" name="Entity Kind"><enumrow value="1" description="Platform"/></enum>'
@@ -134,6 +135,7 @@ def test_history_preserves_ambiguous_entity_and_enumeration_candidates(capsys):
     entity_history = SisoRef010API.entity_history("1.1.1.2.0.0.0", source=source, versions=(1,))
     entity_point = entity_history.points[0]
     assert entity_point.present
+    assert entity_point.match_status is not None
     assert entity_point.match_status.value == "ambiguous"
     assert entity_point.description is None
     assert entity_point.stable_id is None
@@ -150,6 +152,7 @@ def test_history_preserves_ambiguous_entity_and_enumeration_candidates(capsys):
     enum_history = SisoRef010API.enumeration_history(90, 5, source=source, versions=(1,))
     enum_point = enum_history.points[0]
     assert enum_point.present
+    assert enum_point.match_status is not None
     assert enum_point.match_status.value == "ambiguous_table"
     assert enum_point.description is None
     assert [row.description for row in enum_point.candidates] == ["First value", "Second value"]
@@ -168,7 +171,9 @@ def test_history_preserves_ambiguous_entity_and_enumeration_candidates(capsys):
     assert [table.name for table in table_point.table_candidates] == ["First table", "Second table"]
 
 
-def test_pairwise_diff_detects_add_remove_modify_move_and_table_metadata(comparison_source):
+def test_pairwise_diff_detects_add_remove_modify_move_and_table_metadata(
+    comparison_source: MemorySource,
+) -> None:
     diff = SisoRef010API.compare_editions(1, 2, source=comparison_source, limit=None)
     by_identity = {(change.scope, change.stable_id): change for change in diff.changes}
     assert by_identity[("entity", "category-2")].action == "modified"
@@ -188,7 +193,7 @@ def test_pairwise_diff_detects_add_remove_modify_move_and_table_metadata(compari
     assert removed.fields == ()
 
 
-def test_diff_expands_ranges_and_tracks_cross_reference_target(comparison_source):
+def test_diff_expands_ranges_and_tracks_cross_reference_target(comparison_source: MemorySource) -> None:
     changed = MemorySource(
         {
             1: _standard(xref_uid=91),
@@ -204,7 +209,7 @@ def test_diff_expands_ranges_and_tracks_cross_reference_target(comparison_source
     assert all("reference_uid" in change.changed_fields for change in xref_rows)
 
 
-def test_diff_distinguishes_entity_moves_from_recodes():
+def test_diff_distinguishes_entity_moves_from_recodes() -> None:
     source = MemorySource(
         {
             1: _standard(),
@@ -217,7 +222,7 @@ def test_diff_distinguishes_entity_moves_from_recodes():
     assert by_identity[("entity", "tracked-entry")].action == "moved"
 
 
-def test_three_edition_changes_reconcile_add_modify_revert_and_restore():
+def test_three_edition_changes_reconcile_add_modify_revert_and_restore() -> None:
     base = _standard()
     added = base.replace(
         "</category>",
@@ -260,7 +265,7 @@ def test_three_edition_changes_reconcile_add_modify_revert_and_restore():
     assert all(row.stable_id != "tracked-entry" for row in restored.changes)
 
 
-def test_inherited_path_label_change_references_the_changed_ancestor():
+def test_inherited_path_label_change_references_the_changed_ancestor() -> None:
     before = _standard(category="Old category")
     after = _standard(category="Renamed category")
     source = MemorySource({1: before, 2: after})
@@ -286,7 +291,7 @@ def test_inherited_path_label_change_references_the_changed_ancestor():
     assert filtered_child.caused_by == child.caused_by
 
 
-def test_uuid_and_numeric_code_changes_are_reported_without_guessing():
+def test_uuid_and_numeric_code_changes_are_reported_without_guessing() -> None:
     before = _standard(enum_uuid="stable-before")
     same_code_new_uuid = before.replace('uuid="stable-before"', 'uuid="stable-after"')
     uuid_diff = SisoRef010API.compare_editions(
@@ -319,7 +324,7 @@ def test_uuid_and_numeric_code_changes_are_reported_without_guessing():
     assert recoded_value.assessment.identifier_resolution == "breaking"
 
 
-def test_duplicate_code_fallbacks_are_reported_as_ambiguous():
+def test_duplicate_code_fallbacks_are_reported_as_ambiguous() -> None:
     before = _standard().replace(
         '</enum><enum uid="91"',
         '<enumrow value="12" description="First meaning" uuid="first-uuid"/>'
@@ -348,7 +353,7 @@ def test_duplicate_code_fallbacks_are_reported_as_ambiguous():
     assert all("resolve_identity_manually" in row.recommendation_codes for row in ambiguous)
 
 
-def test_duplicate_uuids_do_not_drive_identity_matching():
+def test_duplicate_uuids_do_not_drive_identity_matching() -> None:
     before = _standard(enum_uuid="duplicate-uuid").replace('uuid="enum-range"', 'uuid="duplicate-uuid"')
     after = before.replace(
         'value="1" description="Old value" uuid="duplicate-uuid"',
@@ -362,7 +367,7 @@ def test_duplicate_uuids_do_not_drive_identity_matching():
     assert all(change.identity_match == "ambiguous_uuid" for change in ambiguous)
 
 
-def test_status_cleanup_is_quiet_and_concise_omits_raw_attribute_duplication():
+def test_status_cleanup_is_quiet_and_concise_omits_raw_attribute_duplication() -> None:
     before = _standard().replace(
         '<subcategory value="3" description="Tracked entry" uuid="tracked-entry"/>',
         '<subcategory value="3" description="Tracked entry" uuid="tracked-entry" status="new"/>',
@@ -381,7 +386,7 @@ def test_status_cleanup_is_quiet_and_concise_omits_raw_attribute_duplication():
     assert diff.summary().table_status_cleanups == 0
 
 
-def test_added_enumeration_has_concise_identity_and_label():
+def test_added_enumeration_has_concise_identity_and_label() -> None:
     before = _standard().replace(
         'name="Example table" size="8"', 'name="Example table" applicability="1.2.X" size="8"'
     )
@@ -419,7 +424,7 @@ def test_added_enumeration_has_concise_identity_and_label():
     assert change.record_after.applicability == "1.2.X"
 
 
-def test_added_enumeration_table_keeps_declared_size_and_applicability():
+def test_added_enumeration_table_keeps_declared_size_and_applicability() -> None:
     before = _standard()
     after = before.replace(
         "</ebv>",
@@ -436,7 +441,7 @@ def test_added_enumeration_table_keeps_declared_size_and_applicability():
     assert concise.record_after.applicability == "Entity"
 
 
-def test_mode_5_reply_width_change_is_explicitly_assessed():
+def test_mode_5_reply_width_change_is_explicitly_assessed() -> None:
     diff = SisoRef010API.compare_editions(
         36,
         37,
@@ -457,7 +462,7 @@ def test_mode_5_reply_width_change_is_explicitly_assessed():
     assert change.recommendation_codes == ("validate_enum_width_against_wire_field",)
 
 
-def test_same_edition_diff_is_empty():
+def test_same_edition_diff_is_empty() -> None:
     xml = _standard()
     diff = SisoRef010API.compare_editions(1, 1, source=MemorySource({1: xml}), limit=None)
     assert diff.changes == ()
@@ -471,7 +476,7 @@ def test_same_edition_diff_is_empty():
     assert diff.review_queue(limit=1).schema_version == 5
 
 
-def test_baseuuid_retired_and_unmodeled_attributes_are_exposed_as_deltas():
+def test_baseuuid_retired_and_unmodeled_attributes_are_exposed_as_deltas() -> None:
     before = _standard().replace(
         'uuid="tracked-entry"',
         'uuid="tracked-entry" baseuuid="base-before" retired="false" variation="old"',
@@ -514,7 +519,7 @@ def test_baseuuid_retired_and_unmodeled_attributes_are_exposed_as_deltas():
     assert relationship.review_priority == "medium"
 
 
-def test_concise_labels_use_table_name_and_enum_identity_fallback():
+def test_concise_labels_use_table_name_and_enum_identity_fallback() -> None:
     before = _standard().replace('description="Old value"', 'description=""')
     table_change = before.replace('size="8" uuid="enum-table-90"', 'size="7" uuid="enum-table-90"')
     table_diff = SisoRef010API.compare_editions(
@@ -542,7 +547,7 @@ def test_concise_labels_use_table_name_and_enum_identity_fallback():
     assert value.label == "Example table · UID 90 · Value 1"
 
 
-def test_summary_has_scope_counts_and_snapshot_free_review_items(comparison_source):
+def test_summary_has_scope_counts_and_snapshot_free_review_items(comparison_source: MemorySource) -> None:
     diff = SisoRef010API.compare_editions(1, 2, source=comparison_source, limit=None)
     summary = diff.summary()
     counts = summary.added_by_scope
@@ -594,11 +599,11 @@ def test_summary_has_scope_counts_and_snapshot_free_review_items(comparison_sour
     )
 
 
-def test_review_queue_is_compatibility_risk_first(comparison_source):
+def test_review_queue_is_compatibility_risk_first(comparison_source: MemorySource) -> None:
     diff = SisoRef010API.compare_editions(1, 2, source=comparison_source, limit=None)
     queue = diff.review_queue(limit=1000).changes
 
-    def ranking(item):
+    def ranking(item: ConciseChange) -> int:
         if item.assessment.wire_encoding in {"breaking", "potentially_breaking"}:
             return 0
         if item.review_priority == "high":
@@ -620,7 +625,7 @@ def test_review_queue_is_compatibility_risk_first(comparison_source):
     assert all(item.compatibility == "potentially_breaking" for item in risk_page.changes)
 
 
-def test_review_queue_prioritizes_risk_then_high_advisories_then_unassessed():
+def test_review_queue_prioritizes_risk_then_high_advisories_then_unassessed() -> None:
     changes = (
         EditionChange(
             action="modified",
@@ -672,7 +677,9 @@ def test_review_queue_prioritizes_risk_then_high_advisories_then_unassessed():
     assert [row.identifier for row in queue] == ["entity:1", "entity:3", "entity:2"]
 
 
-def test_low_priority_metadata_changes_are_counted_and_filterable(monkeypatch, capsys):
+def test_low_priority_metadata_changes_are_counted_and_filterable(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     diff = SisoRef010API.compare_editions(35, 37, limit=None)
     summary = diff.summary()
     unassessed = summary.unassessed_semantic_meaning_by_change
@@ -747,7 +754,7 @@ def test_low_priority_metadata_changes_are_counted_and_filterable(monkeypatch, c
     assert assessment["application_migration"] == "recommended"
 
 
-def test_review_queue_numeric_identity_tie_breaker():
+def test_review_queue_numeric_identity_tie_breaker() -> None:
     def entity_change(value: int) -> EditionChange:
         record = ValueRecord(
             scope="entity",
@@ -783,7 +790,7 @@ def test_review_queue_numeric_identity_tie_breaker():
     assert [row.identifier for row in diff.review_queue(limit=2).changes] == ["entity:2", "entity:10"]
 
 
-def test_reports_are_deterministic_for_identical_source_bytes():
+def test_reports_are_deterministic_for_identical_source_bytes() -> None:
     xml = _standard()
     source = MemorySource({1: xml, 2: xml.replace('description="Old value"', 'description="New value"')})
     first = SisoRef010API.compare_editions(1, 2, source=source, limit=None)
@@ -791,7 +798,7 @@ def test_reports_are_deterministic_for_identical_source_bytes():
     assert first.model_dump_json() == second.model_dump_json()
 
 
-def test_bundled_adjacent_snapshots_and_direct_v35_v37_target_reconcile():
+def test_bundled_adjacent_snapshots_and_direct_v35_v37_target_reconcile() -> None:
     first = SisoRef010API.compare_editions(35, 36, limit=None)
     second = SisoRef010API.compare_editions(36, 37, limit=None)
     direct = SisoRef010API.compare_editions(35, 37, limit=None)
@@ -809,7 +816,7 @@ def test_bundled_adjacent_snapshots_and_direct_v35_v37_target_reconcile():
     assert all(change.caused_by for change in derived)
     assert all(cause.identifier in direct_entity_changes for change in derived for cause in change.caused_by)
 
-    def identity(record):
+    def identity(record: ValueRecord) -> tuple[str, str]:
         return (record.scope, record.stable_id or record.identifier)
 
     middle_from_first = {identity(change.after): change.after for change in first.changes if change.after}
@@ -830,9 +837,8 @@ def test_bundled_adjacent_snapshots_and_direct_v35_v37_target_reconcile():
 
 
 @pytest.mark.all_editions
-def test_all_bundled_edition_ranges_reconcile_by_adjacent_composition():
+def test_all_bundled_edition_ranges_reconcile_by_adjacent_composition() -> None:
     versions = BUNDLED_STANDARD_SOURCE.versions
-    RecordChangeFingerprint: TypeAlias = tuple[str | None, str | None]
 
     def fingerprint(record: ValueRecord) -> str:
         return sha256(record.model_dump_json().encode("utf-8")).hexdigest()
@@ -840,7 +846,9 @@ def test_all_bundled_edition_ranges_reconcile_by_adjacent_composition():
     def signature(records: tuple[ValueRecord, ...]) -> Counter[str]:
         return Counter(fingerprint(record) for record in records)
 
-    def apply_changes(state: Counter[str], changes: tuple[RecordChangeFingerprint, ...]) -> Counter[str]:
+    def apply_changes(
+        state: Counter[str], changes: tuple[tuple[str | None, str | None], ...]
+    ) -> Counter[str]:
         result = state.copy()
         for before, after in changes:
             if before is not None:
@@ -854,7 +862,7 @@ def test_all_bundled_edition_ranges_reconcile_by_adjacent_composition():
         return result
 
     signatures_by_version: dict[int, Counter[str]] = {}
-    adjacent: dict[tuple[int, int], tuple[RecordChangeFingerprint, ...]] = {}
+    adjacent: dict[tuple[int, int], tuple[tuple[str | None, str | None], ...]] = {}
     previous_version: int | None = None
     previous_records: tuple[ValueRecord, ...] | None = None
     for version in versions:
@@ -884,7 +892,7 @@ def test_all_bundled_edition_ranges_reconcile_by_adjacent_composition():
             assert composed_state == target_signature
 
 
-def test_summary_and_review_queue_require_complete_diff(comparison_source):
+def test_summary_and_review_queue_require_complete_diff(comparison_source: MemorySource) -> None:
     diff = SisoRef010API.compare_editions(1, 2, source=comparison_source, scope="entities", limit=1)
     with pytest.raises(ValueError, match="complete review queue"):
         diff.review_queue()
@@ -898,7 +906,7 @@ def test_summary_and_review_queue_require_complete_diff(comparison_source):
         complete.review_queue(offset=True)
 
 
-def test_comparison_and_history_reject_invalid_filters(comparison_source):
+def test_comparison_and_history_reject_invalid_filters(comparison_source: MemorySource) -> None:
     invalid_comparisons = (
         {"scope": "unknown"},
         {"entity_prefix": (1, 2)},
@@ -913,7 +921,7 @@ def test_comparison_and_history_reject_invalid_filters(comparison_source):
     )
     for options in invalid_comparisons:
         with pytest.raises(ValueError):
-            SisoRef010API.compare_editions(1, 2, source=comparison_source, **options)
+            SisoRef010API.compare_editions(1, 2, source=comparison_source, **options)  # pyright: ignore[reportArgumentType] -- options deliberately contain invalid filter shapes.
 
     with pytest.raises(ValueError, match="unavailable"):
         SisoRef010API.compare_editions(1, 3, source=comparison_source)
@@ -931,7 +939,7 @@ def test_comparison_and_history_reject_invalid_filters(comparison_source):
         SisoRef010API.enumeration_history(90, True, source=comparison_source)
 
 
-def test_change_materiality_and_optional_boolean_normalization():
+def test_change_materiality_and_optional_boolean_normalization() -> None:
     neutral = ChangeAssessment(
         wire_encoding="unchanged",
         identifier_resolution="not_applicable",
@@ -950,7 +958,7 @@ def test_change_materiality_and_optional_boolean_normalization():
     assert _optional_source_bool("maybe") is None
 
 
-def test_comparison_fallback_labels_and_table_uid_assessment():
+def test_comparison_fallback_labels_and_table_uid_assessment() -> None:
     table = ValueRecord(scope="enumeration_table", identifier="table:7", table_uid=7)
     ranged_value = ValueRecord(
         scope="enumeration_value",
@@ -985,7 +993,7 @@ def test_comparison_fallback_labels_and_table_uid_assessment():
     assert "enumeration_table_uid_changed" in classified.reason_codes
 
 
-def test_entity_prefix_filter_includes_selected_code_inside_a_source_range():
+def test_entity_prefix_filter_includes_selected_code_inside_a_source_range() -> None:
     old = _standard().replace(
         '<subcategory value="3" description="Tracked entry" uuid="tracked-entry"/>',
         '<subcategory_range value_min="3" value_max="6" description="Tracked entry" uuid="tracked-entry"/>',
@@ -1002,7 +1010,7 @@ def test_entity_prefix_filter_includes_selected_code_inside_a_source_range():
     assert any(change.stable_id == "tracked-entry" for change in diff.changes)
 
 
-def test_diff_limit_and_filters_are_explicit(comparison_source):
+def test_diff_limit_and_filters_are_explicit(comparison_source: MemorySource) -> None:
     diff = SisoRef010API.compare_editions(
         1, 2, source=comparison_source, scope="enumerations", enumeration_uid=90, limit=1
     )
@@ -1017,7 +1025,9 @@ def test_diff_limit_and_filters_are_explicit(comparison_source):
         )
 
 
-def test_cli_history_and_compare_emit_versioned_json(monkeypatch, capsys):
+def test_cli_history_and_compare_emit_versioned_json(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     history = ValueHistory(
         kind="entity",
         target="entity:1.1.1.2.3.0.0",

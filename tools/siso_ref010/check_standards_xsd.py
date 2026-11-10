@@ -17,8 +17,7 @@ from xml.etree import ElementTree
 DATA = Path("src/siso_ref010/data")
 STANDARDS = DATA / "standards"
 CURRENT_SCHEMA = DATA / "SISO-REF-010.xsd"
-HISTORICAL_SCHEMA_DIRECTORY = Path("tools/standards-xsds")
-HISTORICAL_SCHEMA_MANIFEST = HISTORICAL_SCHEMA_DIRECTORY / "SOURCES.json"
+HISTORICAL_SCHEMA_DIRECTORY = Path("tools/siso_ref010/standards-xsds")
 PROVENANCE = STANDARDS / "PROVENANCE.json"
 
 
@@ -35,22 +34,22 @@ class XsdArtifact(TypedDict):
 
 
 class ProvenanceRegistry(TypedDict):
+    registry_schema: int
     entries: list[EditionProvenance]
     artifacts: list[XsdArtifact]
+    validation_schemas: list[HistoricalSchemaRecord]
 
 
-class HistoricalSchema(TypedDict):
+class HistoricalSchemaRecord(TypedDict):
     version: int
-    file: str
-    namespace: str
+    path: str
     sha256: str
     source_url: str
     source_reference: str
 
 
-class HistoricalSchemaManifest(TypedDict):
-    schema_version: int
-    entries: list[HistoricalSchema]
+class HistoricalSchema(HistoricalSchemaRecord):
+    namespace: str
 
 
 def _version(path: Path) -> int:
@@ -85,22 +84,19 @@ def _load_registries() -> tuple[
     current_hash = hashlib.sha256(CURRENT_SCHEMA.read_bytes()).hexdigest()
     if current_hash != xsd_artifact["sha256"]:
         raise ValueError("Packaged namespace 2.7 XSD does not match the provenance registry")
+    current_namespace = xsd_artifact["schema_namespace"]
+    if _schema_namespace(CURRENT_SCHEMA) != current_namespace:
+        raise ValueError("Packaged XSD namespace does not match the provenance registry")
 
-    manifest = cast(
-        HistoricalSchemaManifest,
-        json.loads(HISTORICAL_SCHEMA_MANIFEST.read_text(encoding="utf-8")),
-    )
-    if manifest["schema_version"] != 1:
-        raise ValueError("Unsupported historical XSD source manifest version")
+    if registry["registry_schema"] != 2:
+        raise ValueError("Unsupported SISO provenance registry schema")
     historical: dict[int, HistoricalSchema] = {}
-    for row in manifest["entries"]:
+    for row in registry["validation_schemas"]:
         if row["version"] in historical:
             raise ValueError(f"Duplicate historical XSD entry for v{row['version']}")
         if row["version"] not in editions:
             raise ValueError(f"Historical XSD manifest references unbundled v{row['version']}")
-        if row["namespace"] != editions[row["version"]]["schema_namespace"]:
-            raise ValueError(f"Historical XSD namespace mismatch for v{row['version']}")
-        schema_path = HISTORICAL_SCHEMA_DIRECTORY / row["file"]
+        schema_path = Path(row["path"])
         if schema_path.parent != HISTORICAL_SCHEMA_DIRECTORY or not schema_path.is_file():
             raise ValueError(f"Historical XSD is missing or escapes its directory: {schema_path}")
         digest = hashlib.sha256(schema_path.read_bytes()).hexdigest()
@@ -109,11 +105,14 @@ def _load_registries() -> tuple[
                 f"Historical XSD checksum mismatch for v{row['version']}: "
                 f"expected {row['sha256']}, got {digest} ({schema_path})"
             )
-        if _schema_namespace(schema_path) != row["namespace"]:
+        namespace = editions[row["version"]]["schema_namespace"]
+        if _schema_namespace(schema_path) != namespace:
             raise ValueError(f"Historical XSD target namespace mismatch for v{row['version']}")
-        historical[row["version"]] = row
+        historical[row["version"]] = {**row, "namespace": namespace}
 
-    expected_historical_versions = set(range(20, 30))
+    expected_historical_versions = {
+        version for version, edition in editions.items() if edition["schema_namespace"] != current_namespace
+    }
     if historical.keys() != expected_historical_versions:
         missing = sorted(expected_historical_versions - historical.keys())
         extra = sorted(historical.keys() - expected_historical_versions)
@@ -183,7 +182,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         historical = historical_schemas.get(version)
         if historical is not None:
-            schema_path = HISTORICAL_SCHEMA_DIRECTORY / historical["file"]
+            schema_path = Path(historical["path"])
             schema_namespace = historical["namespace"]
             schema_sha256 = historical["sha256"]
         elif source_namespace == current_namespace:

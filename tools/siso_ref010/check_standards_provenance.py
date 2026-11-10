@@ -8,15 +8,15 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import sys
 from io import BytesIO
 from pathlib import Path
-from typing import TypedDict, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 from zipfile import BadZipFile, ZipFile
+
+from tools.siso_ref010.standard_metadata import ProvenanceRegistry, SourceRecord
 
 REGISTRY = Path("src/siso_ref010/data/standards/PROVENANCE.json")
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024
@@ -28,26 +28,6 @@ ALLOWED_HOSTS = {
     "sisostandards.org",
     "www.sisostandards.org",
 }
-
-
-class SourceLocation(TypedDict):
-    provider: str
-    repository: str
-    path: str
-    url: str
-
-
-class EditionSource(TypedDict):
-    version: int
-    bytes: int
-    sha256: str
-    git_blob_sha1: str
-    primary_source: SourceLocation
-    verified_mirrors: list[SourceLocation]
-
-
-class SourceRegistry(TypedDict):
-    entries: list[EditionSource]
 
 
 def _read_https(url: str) -> tuple[bytes, str]:
@@ -96,39 +76,38 @@ def main() -> int:
     parser.add_argument("--versions", type=int, nargs="+", help="editions to verify; defaults to all")
     parser.add_argument("--registry", type=Path, default=REGISTRY)
     args = parser.parse_args()
-    registry = cast(SourceRegistry, json.loads(args.registry.read_text(encoding="utf-8")))
-    entries = {row["version"]: row for row in registry["entries"]}
+    try:
+        registry = ProvenanceRegistry.model_validate_json(args.registry.read_bytes())
+    except (OSError, ValueError) as error:
+        parser.error(f"Invalid provenance registry {args.registry}: {error}")
+    entries = {row.version: row for row in registry.entries}
     versions = args.versions or sorted(entries)
     failures = 0
     for version in versions:
         entry = entries.get(version)
         if entry is None:
             parser.error(f"Edition v{version} is not in {args.registry}")
-        sources = [("primary", entry["primary_source"])] + [
-            ("mirror", mirror) for mirror in entry["verified_mirrors"]
+        sources: list[tuple[str, SourceRecord]] = [("primary", entry.primary_source)] + [
+            ("mirror", mirror) for mirror in entry.verified_mirrors
         ]
         unavailable: list[str] = []
         matched_source: tuple[str, str, bytes, str | None] | None = None
         failure: str | None = None
         for source_kind, source in sources:
-            source_url = source["url"]
+            source_url = source.url
             try:
                 downloaded, final_url = _read_https(source_url)
             except (HTTPError, URLError, OSError) as error:
                 unavailable.append(f"{source_kind} {source_url}: {error}")
                 continue
             try:
-                edition_xml, archive_member = _edition_payload(downloaded, source_url, entry["sha256"])
+                edition_xml, archive_member = _edition_payload(downloaded, source_url, entry.sha256)
             except (ValueError, BadZipFile) as error:
                 failure = f"{source_kind} source payload invalid: {error}"
                 break
             sha256 = hashlib.sha256(edition_xml).hexdigest()
             git_blob = _git_blob_sha1(edition_xml)
-            if (
-                len(edition_xml) != entry["bytes"]
-                or sha256 != entry["sha256"]
-                or git_blob != entry["git_blob_sha1"]
-            ):
+            if len(edition_xml) != entry.bytes or sha256 != entry.sha256 or git_blob != entry.git_blob_sha1:
                 failure = (
                     f"{source_kind} source identity mismatch: bytes={len(edition_xml)}, sha256={sha256}, "
                     f"git_blob_sha1={git_blob}"

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from siso_ref010 import BUNDLED_STANDARD_VERSIONS, Collection, SisoRef010API
+from siso_ref010 import Collection, SisoRef010API
+from siso_ref010.catalog import BUNDLED_STANDARD_VERSIONS
 
 
 def _check_version(version: int) -> None:
@@ -30,8 +31,8 @@ def _check_version(version: int) -> None:
 def main() -> int:
     """Load, inspect, and query the oldest and newest bundled editions."""
 
-    if len(BUNDLED_STANDARD_VERSIONS) < 2:
-        raise SystemExit("At least two bundled editions are required for endpoint checks")
+    if not BUNDLED_STANDARD_VERSIONS:
+        raise SystemExit("At least one bundled edition is required for endpoint checks")
     versions = (min(BUNDLED_STANDARD_VERSIONS), max(BUNDLED_STANDARD_VERSIONS))
     failures = 0
     for version in versions:

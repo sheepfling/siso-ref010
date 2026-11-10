@@ -41,24 +41,37 @@ def _index_check() -> tuple[str, ...]:
     return ("git", "diff", "--exit-code", "--", "src/siso_ref010/data/standards/index.json")
 
 
+def _edition_endpoints() -> tuple[int, ...]:
+    from siso_ref010 import SisoRef010API
+
+    versions = SisoRef010API.bundled_versions().versions
+    if not versions:
+        raise ValueError("No bundled editions are available for endpoint checks")
+    return tuple(dict.fromkeys((versions[0], versions[-1])))
+
+
 def _quality_commands(*, full: bool) -> tuple[tuple[str, ...], ...]:
     if full:
         data_checks = (
-            _python_module("tools.check_bundled_standards"),
-            _python_module("tools.check_standards_xsd"),
+            _python_module("tools.siso_ref010.check_bundled_standards"),
+            _python_module("tools.siso_ref010.check_standards_xsd"),
         )
     else:
+        endpoints = tuple(str(version) for version in _edition_endpoints())
         data_checks = (
-            _python_module("tools.check_bundled_edges"),
-            _python_module("tools.check_standards_xsd", "--versions", "20", "37"),
+            _python_module("tools.siso_ref010.check_bundled_edges"),
+            _python_module("tools.siso_ref010.check_standards_xsd", "--versions", *endpoints),
         )
     commands = (
         _index_check(),
+        _python_module("tools.repo_hygiene.check_repository_hygiene"),
         *data_checks,
         _python_module("pre_commit", "run", "--all-files"),
         _python_module("ruff", "check", "."),
+        _python_module("ruff", "check", "tests", "--select", "ANN"),
         _python_module("ruff", "format", "--check", "."),
         _python_module("pyright"),
+        _python_module("pyright", "--project", "pyright-tests.json"),
     )
     if full:
         return (
@@ -79,7 +92,7 @@ def _test_commands(*, full: bool) -> tuple[tuple[str, ...], ...]:
         return ()
     return (
         _index_check(),
-        _python_module("tools.check_bundled_edges"),
+        _python_module("tools.siso_ref010.check_bundled_edges"),
         _python_module("pytest", "-q", "-m", "not all_editions"),
     )
 
@@ -126,7 +139,7 @@ def _package_checks(*, verify_wheel: bool, verify_sdist: bool) -> int:
         if verify_wheel:
             result = _run(
                 _python_module(
-                    "tools.check_installed",
+                    "tools.siso_ref010.check_installed",
                     str(distribution_directory),
                     "--kind",
                     "wheel",
@@ -139,7 +152,7 @@ def _package_checks(*, verify_wheel: bool, verify_sdist: bool) -> int:
         if verify_sdist:
             result = _run(
                 _python_module(
-                    "tools.check_installed",
+                    "tools.siso_ref010.check_installed",
                     str(distribution_directory),
                     "--kind",
                     "sdist",

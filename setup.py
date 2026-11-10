@@ -19,7 +19,14 @@ DATA = Path("src/siso_ref010/data/standards")
 def prepare_standards_pack() -> None:
     """Pack tracked source XMLs or validate the pack already stored in an sdist."""
     if tuple(DATA.glob("v*.xml")):
-        subprocess.run([sys.executable, "-m", "tools.build_standards_pack"], check=True)
+        current = subprocess.run(
+            [sys.executable, "-m", "tools.siso_ref010.build_standards_pack", "--check"],
+            capture_output=True,
+            text=True,
+        )
+        if current.returncode == 0:
+            return
+        subprocess.run([sys.executable, "-m", "tools.siso_ref010.build_standards_pack"], check=True)
         return
 
     try:

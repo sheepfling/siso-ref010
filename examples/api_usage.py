@@ -4,7 +4,7 @@ from siso_ref010 import Collection, EntityTypePrefix, SisoRef010API, decode_key,
 
 
 def main() -> None:
-    api = SisoRef010API.bundled(37)
+    api = SisoRef010API()
     details = api.describe("1.3.153.6.4.2.0")
     print(details.qualified_description)
     for hit in api.search("F803", limit=10).hits:

@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: markdown-quality
         name: Markdown lint and repository link checks
-        entry: python -m tools.check_markdown
+        entry: python -m tools.repo_hygiene.check_markdown
         language: python
         additional_dependencies:
           - mdrepo>=0.0.1.post0,<0.1

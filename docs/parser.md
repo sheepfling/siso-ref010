@@ -7,7 +7,8 @@ the source into a
 JSON catalog or flatten the entity hierarchy during parsing.
 
 ```python
-from siso_ref010 import ReferenceCatalog, EntityTypeXmlParser
+from siso_ref010.catalog import ReferenceCatalog
+from siso_ref010.parsing import EntityTypeXmlParser
 
 standard = EntityTypeXmlParser.from_file("SISO-REF-010.xml")
 print(standard.title, standard.date)

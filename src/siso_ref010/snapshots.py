@@ -111,6 +111,11 @@ def available_snapshot_versions() -> tuple[int, ...]:
     return tuple(sorted(edition.version for edition in _index().editions))
 
 
+def available_snapshot_editions() -> tuple[SnapshotEdition, ...]:
+    """Return indexed edition metadata without opening the compressed XML pack."""
+    return tuple(sorted(_index().editions, key=lambda edition: edition.version))
+
+
 @lru_cache(maxsize=4)
 def read_snapshot_bytes(version: int) -> bytes:
     """Decompress and verify one edition only when requested, retaining four editions."""

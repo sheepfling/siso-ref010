@@ -169,7 +169,7 @@ def _handle_compare(args: argparse.Namespace, command: str, machine: bool) -> No
     if args.xml is not None or args.standard_version is not None:
         raise ValueError(f"{command} uses the bundled version source; remove --xml/--standard-version")
     result = _filtered_diff(_compare_result(args), args)
-    detail = args.detail or ("audit" if machine else "summary")
+    detail = args.detail or "summary"
     if detail == "review-queue":
         queue = _review_queue_page(result, args)
         if machine:
@@ -420,7 +420,8 @@ def _text_error_message(error: SisoRef010Error) -> str:
     message = str(error)
     candidates = error.context.get("candidate_descriptions")
     if isinstance(candidates, (tuple, list)) and candidates:
-        message += "\n" + "\n".join(f"  candidate: {candidate}" for candidate in candidates)
+        descriptions = cast(tuple[object, ...] | list[object], candidates)
+        message += "\n" + "\n".join(f"  candidate: {description}" for description in descriptions)
     return message
 
 

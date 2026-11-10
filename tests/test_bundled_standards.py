@@ -1,24 +1,24 @@
 import gc
 from hashlib import sha256
+from typing import cast
 from weakref import ref
 
 import pytest
 
-from siso_ref010 import (
+from siso_ref010 import CountryCode, EntityTypePrefix, SisoRef010API, SisoRef010ValueError
+from siso_ref010.catalog import (
+    _BUNDLED_CATALOG_DATA_CACHE,
+    _BUNDLED_CATALOG_DATA_CACHE_LOCK,
     BUNDLED_STANDARD_VERSIONS,
-    BundledStandardSource,
-    CountryCode,
-    EntityTypePrefix,
     ReferenceCatalog,
-    SisoRef010API,
-    SisoRef010ValueError,
-    render_markdown,
 )
-from siso_ref010.catalog import _BUNDLED_CATALOG_DATA_CACHE, _BUNDLED_CATALOG_DATA_CACHE_LOCK
 from siso_ref010.cli import main
+from siso_ref010.inspection import EntityResolution
+from siso_ref010.reporting import render_markdown
+from siso_ref010.sources import BundledStandardSource
 
 
-def test_bundled_projection_cache_shares_live_data_without_retaining_released_editions():
+def test_bundled_projection_cache_shares_live_data_without_retaining_released_editions() -> None:
     with _BUNDLED_CATALOG_DATA_CACHE_LOCK:
         _BUNDLED_CATALOG_DATA_CACHE.clear()
     first = SisoRef010API.bundled(20)
@@ -33,7 +33,7 @@ def test_bundled_projection_cache_shares_live_data_without_retaining_released_ed
 
 
 @pytest.mark.all_editions
-def test_sequential_bundled_reports_release_each_edition_projection():
+def test_sequential_bundled_reports_release_each_edition_projection() -> None:
     with _BUNDLED_CATALOG_DATA_CACHE_LOCK:
         _BUNDLED_CATALOG_DATA_CACHE.clear()
 
@@ -56,10 +56,11 @@ def test_sequential_bundled_reports_release_each_edition_projection():
 
 @pytest.mark.parametrize("version", BUNDLED_STANDARD_VERSIONS)
 @pytest.mark.all_editions
-def test_each_bundled_standard_loads(version):
+def test_each_bundled_standard_loads(version: int) -> None:
     api = SisoRef010API.bundled(version)
-    assert api.info().data_version is not None
-    assert f"v{version}" in api.info().data_version.lower()
+    data_version = api.info().data_version
+    assert data_version is not None
+    assert f"v{version}" in data_version.lower()
     summary = api.inspector.summary()
     assert summary.enumeration_tables > 0
     assert summary.entity_values > 0
@@ -67,18 +68,37 @@ def test_each_bundled_standard_loads(version):
 
 
 @pytest.mark.parametrize("version", [19, 38, 35.0, "35", True])
-def test_unavailable_bundled_standard_is_rejected(version):
+def test_unavailable_bundled_standard_is_rejected(version: object) -> None:
     with pytest.raises(SisoRef010ValueError) as error:
-        ReferenceCatalog.bundled(version)
+        ReferenceCatalog.bundled(cast(int, version))
     assert error.value.code == "unavailable_bundled_version"
 
 
-def test_cli_can_select_bundled_standard(capsys):
+def test_cli_can_select_bundled_standard(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["--standard-version", "35", "info"]) == 0
     assert "Data version: SISO-REF-010-v35" in capsys.readouterr().out
 
 
-def test_full_entity_code_reports_zero_extra_as_unspecified():
+def test_bundled_edition_metadata_comes_from_index_without_loading_xml(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import siso_ref010.snapshots as snapshots
+
+    def fail_if_pack_is_verified() -> None:
+        raise AssertionError("edition discovery must not open or verify the XML pack")
+
+    monkeypatch.setattr(snapshots, "_verify_pack", fail_if_pack_is_verified)
+    editions = SisoRef010API.bundled_editions()
+    assert tuple(edition.version for edition in editions) == BUNDLED_STANDARD_VERSIONS
+    assert editions[-1].version == max(BUNDLED_STANDARD_VERSIONS)
+    assert editions[-1].title.startswith("SISO-REF-010")
+    assert editions[-1].date.isoformat()
+    assert len(editions[-1].source_sha256) == 64
+    assert editions[-1].source_byte_length > 0
+    assert editions[-1].model_dump(mode="json")["date"] == editions[-1].date.isoformat()
+
+
+def test_full_entity_code_reports_zero_extra_as_unspecified() -> None:
     resolution = SisoRef010API.bundled(37).resolve_entity("1.3.153.6.4.2.0")
     assert resolution.status.value == "unspecified"
     assert resolution.matched_depth == 6
@@ -91,7 +111,7 @@ def test_full_entity_code_reports_zero_extra_as_unspecified():
     ]
 
 
-def test_bundled_source_reads_indexed_editions():
+def test_bundled_source_reads_indexed_editions() -> None:
     source = BundledStandardSource()
     assert source.versions == BUNDLED_STANDARD_VERSIONS
     api = SisoRef010API.from_source(source, 35)
@@ -109,7 +129,7 @@ def test_bundled_source_reads_indexed_editions():
 
 @pytest.mark.parametrize("version", BUNDLED_STANDARD_VERSIONS)
 @pytest.mark.all_editions
-def test_inspection_contract_across_representative_editions(version):
+def test_inspection_contract_across_representative_editions(version: int) -> None:
     api = SisoRef010API.bundled(version)
     inspector = api.inspector
     summary = inspector.summary()
@@ -133,7 +153,7 @@ def test_inspection_contract_across_representative_editions(version):
         (item for item in report.examples if item.kind.value == "entity_resolution"),
         None,
     )
-    if entity_example is not None:
+    if entity_example is not None and isinstance(entity_example.result, EntityResolution):
         assert entity_example.query == entity_example.result.code
         assert entity_example.result.requested_depth == len(entity_example.query.split("."))
     if version == 20:
@@ -187,11 +207,13 @@ def test_inspection_contract_across_representative_editions(version):
                     for match in resolution.matches
                 )
         if rows:
-            maximum = max(
-                row.value if row.value is not None else row.value_max
-                for row in rows
-                if row.value is not None or row.value_max is not None
-            )
+            maximum_values: list[int] = []
+            for row in rows:
+                if row.value is not None:
+                    maximum_values.append(row.value)
+                elif row.value_max is not None:
+                    maximum_values.append(row.value_max)
+            maximum = max(maximum_values)
             outside = inspector.resolve_enumeration_value(table.uid, maximum + 1)
             assert outside.status.value == "unknown"
 
@@ -207,7 +229,7 @@ def test_inspection_contract_across_representative_editions(version):
         None,
     )
     if category is not None:
-        prefix = EntityTypePrefix.from_values(category.hierarchy_codes)
+        prefix = EntityTypePrefix.from_values(cast(tuple[int, ...], category.hierarchy_codes))
         result = api.resolve_entity(prefix)
         assert result.status.value == "partial"
         assert result.matched_depth == 4
@@ -223,7 +245,7 @@ def test_inspection_contract_across_representative_editions(version):
         None,
     )
     if explicit_entity is not None:
-        full_code = (*explicit_entity.hierarchy_codes[:-1], explicit_entity.value)
+        full_code = (*explicit_entity.hierarchy_codes[:-1], cast(int, explicit_entity.value))
         full_resolution = api.resolve_entity(EntityTypePrefix.from_values(full_code))
         assert full_resolution.requested_depth == 7
         assert not full_resolution.is_prefix
@@ -236,7 +258,7 @@ def test_inspection_contract_across_representative_editions(version):
     assert set(hit.identity for hit in page1.hits).isdisjoint(hit.identity for hit in page2.hits)
 
 
-def test_v37_report_groups_informational_findings_by_source_table():
+def test_v37_report_groups_informational_findings_by_source_table() -> None:
     api = SisoRef010API.bundled(37)
     report = api.inspector.report()
 
@@ -263,7 +285,7 @@ def test_v37_report_groups_informational_findings_by_source_table():
     assert "caller did not request" in prefix.resolution_description
 
 
-def test_v37_range_lookup_includes_both_inclusive_boundaries_and_unknown_values():
+def test_v37_range_lookup_includes_both_inclusive_boundaries_and_unknown_values() -> None:
     inspector = SisoRef010API.bundled(37).inspector
 
     for value in (64, 127):
@@ -276,7 +298,7 @@ def test_v37_range_lookup_includes_both_inclusive_boundaries_and_unknown_values(
     assert unknown.matches == ()
 
 
-def test_v22_duplicate_uuid_diagnostic_keeps_all_matching_records():
+def test_v22_duplicate_uuid_diagnostic_keeps_all_matching_records() -> None:
     inspector = SisoRef010API.bundled(22).inspector
     grouped = inspector.diagnostics(code="duplicate_uuid", limit=0)
     detailed = inspector.diagnostics(code="duplicate_uuid", limit=1)
@@ -289,7 +311,7 @@ def test_v22_duplicate_uuid_diagnostic_keeps_all_matching_records():
     assert len(inspector.lookup_uuid(uuid)) >= 2
 
 
-def test_v20_country_alias_is_flagged_without_resolving_duplicate_code():
+def test_v20_country_alias_is_flagged_without_resolving_duplicate_code() -> None:
     inspector = SisoRef010API.bundled(20).inspector
     api = SisoRef010API.bundled(20)
     catalog = ReferenceCatalog.bundled(20)
@@ -327,8 +349,8 @@ def test_v20_country_alias_is_flagged_without_resolving_duplicate_code():
     [(37, 8, 0, 0), (22, 40, 6, 6)],
 )
 def test_identity_diagnostics_explain_repeated_uuid_semantics(
-    version, reuse_groups, duplicate_identifier_groups, conflict_groups
-):
+    version: int, reuse_groups: int, duplicate_identifier_groups: int, conflict_groups: int
+) -> None:
     identity = SisoRef010API.bundled(version).inspector.identity_diagnostics()
     assert identity.checked
     assert identity.repeated_uuid_occurrences == (22 if version == 37 else 8_188)
@@ -346,7 +368,7 @@ def test_identity_diagnostics_explain_repeated_uuid_semantics(
         assert conflict.sample_contexts
 
 
-def test_entity_resolution_rejects_malformed_input_and_reports_unknown_supplied_components():
+def test_entity_resolution_rejects_malformed_input_and_reports_unknown_supplied_components() -> None:
     api = SisoRef010API.bundled(37)
     with pytest.raises(ValueError):
         api.resolve_entity("1.3.not-a-number")
@@ -356,13 +378,13 @@ def test_entity_resolution_rejects_malformed_input_and_reports_unknown_supplied_
     assert unknown.not_supplied_components == ("extra",)
 
 
-def test_injected_source_and_horizontal_queries():
+def test_injected_source_and_horizontal_queries() -> None:
     class MemorySource:
         @property
-        def versions(self):
+        def versions(self) -> tuple[int, ...]:
             return (7,)
 
-        def read_xml(self, version):
+        def read_xml(self, version: int) -> bytes:
             assert version == 7
             return (
                 b'<ebv title="CUSTOM-v7" date="2026-01-01">'

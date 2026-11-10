@@ -1,13 +1,12 @@
+from typing import cast
+
 import pytest
 
-from siso_ref010 import (
-    CountryCode,
-    EntityType,
-    EntityTypeStandard,
-    EntityTypeXmlParser,
-    KindCode,
-    ReferenceCatalog,
-)
+from siso_ref010.catalog import ReferenceCatalog
+from siso_ref010.models.codes import CategoryCode, CountryCode, KindCode
+from siso_ref010.models.entity import EntityType
+from siso_ref010.models.standard import EntityTypeStandard
+from siso_ref010.parsing import EntityTypeXmlParser
 
 
 def _catalog_xml(entities: str, *, title: str = "Test") -> EntityTypeStandard:
@@ -16,13 +15,13 @@ def _catalog_xml(entities: str, *, title: str = "Test") -> EntityTypeStandard:
     )
 
 
-def test_catalog_search(catalog):
+def test_catalog_search(catalog: ReferenceCatalog) -> None:
     assert len(catalog.search_descriptions("")) == 27323
     assert len(catalog.search_description("")) == 27323
     assert catalog.search_description("F803") == {"1.3.153.6.4.2.0": "F803 Tromp"}
 
 
-def test_v37_catalog_counts_and_examples(catalog):
+def test_v37_catalog_counts_and_examples(catalog: ReferenceCatalog) -> None:
     assert (
         catalog.country_count,
         catalog.kind_count,
@@ -67,13 +66,15 @@ def test_v37_catalog_counts_and_examples(catalog):
         ),
     ],
 )
-def test_original_description_examples(catalog, text, short, qualified):
+def test_original_description_examples(
+    catalog: ReferenceCatalog, text: str, short: str, qualified: str
+) -> None:
     entity = EntityType.from_string(text)
     assert catalog.get_description_of(entity) == short
     assert catalog.get_description_of(entity, True) == qualified
 
 
-def test_initialization_is_atomic_replacement():
+def test_initialization_is_atomic_replacement() -> None:
     old = _catalog_xml(
         '<entity kind="1" domain="1" country="153"><category value="2" description="Old"/></entity>'
     )
@@ -84,19 +85,19 @@ def test_initialization_is_atomic_replacement():
     entity = EntityType(1, 1, 153, 2, 0, 0, 0)
     assert catalog.get_description_of(entity, True).startswith("Old")
     with pytest.raises(ValueError):
-        catalog.initialize({"bad": 1})
+        catalog.initialize(cast(EntityTypeStandard, {"bad": 1}))
     assert catalog.get_description_of(entity) == "Old"
     catalog.initialize(new)
     assert catalog.get_description_of(entity, True).startswith("New")
     prefix = EntityType(1, 1, 153, 0, 0, 0, 0)
     copy = catalog.get_all_categories_of(prefix)
-    copy[2] = "Mutated"
+    copy[CategoryCode(2)] = "Mutated"
     assert catalog.get_category_name(entity) == "New"
     catalog.initialize(EntityTypeXmlParser.from_string("<ebv/>"))
     assert catalog.get_description_of(entity) == "-"
 
 
-def test_country_overlay_follows_source_order():
+def test_country_overlay_follows_source_order() -> None:
     prefix = EntityType(1, 1, 153, 0, 0, 0, 0)
     specific = (
         '<entity kind="1" domain="1" country="153"><category value="2" description="Specific"/></entity>'
@@ -108,11 +109,11 @@ def test_country_overlay_follows_source_order():
         (generic + specific, "Specific"),
     ):
         catalog = ReferenceCatalog(_catalog_xml(categories))
-        assert catalog.get_all_categories_of(prefix)[2] == expected
+        assert catalog.get_all_categories_of(prefix)[CategoryCode(2)] == expected
         assert catalog.get_description_of(entity) == expected
 
 
-def test_empty_catalog():
+def test_empty_catalog() -> None:
     catalog = ReferenceCatalog()
     assert catalog.kind_count == 0
     assert catalog.get_kind_name(KindCode(1)) == "Unknown kind 1"

@@ -1,28 +1,26 @@
 import hashlib
+import pathlib
 from datetime import date
 from pathlib import Path
 
 import pytest
 
-from siso_ref010 import (
-    CountryCode,
-    EntityType,
-    EntityTypeXmlParser,
-    KindCode,
-    ParseError,
-    ReferenceCatalog,
-)
+from siso_ref010.catalog import ReferenceCatalog
+from siso_ref010.models.codes import CountryCode, KindCode
+from siso_ref010.models.entity import EntityType
+from siso_ref010.models.standard import EntityTypeStandard
+from siso_ref010.parsing import EntityTypeXmlParser, ParseError
 
 DATA_DIR = Path(__file__).parents[1] / "src/siso_ref010/data"
 FIXTURES = DATA_DIR / "standards"
 
 
 @pytest.fixture(scope="module")
-def parsed():
+def parsed() -> EntityTypeStandard:
     return EntityTypeXmlParser.from_file(FIXTURES / "v37.xml")
 
 
-def test_v37_xml_metadata_and_counts(parsed):
+def test_v37_xml_metadata_and_counts(parsed: EntityTypeStandard) -> None:
     catalog = ReferenceCatalog(parsed)
     assert len(parsed.enumerations) == 535
     assert len(parsed.entity_types) == 451
@@ -44,12 +42,12 @@ def test_v37_xml_metadata_and_counts(parsed):
         (DATA_DIR / "SISO-REF-010.xsd", "4f6cb195ac133daf745e3fd51e070534c99fc2cb5b53a8dc9a58e8c9e49327ab"),
     ],
 )
-def test_pinned_fixture_hashes(path, blob):
+def test_pinned_fixture_hashes(path: pathlib.Path, blob: str) -> None:
     value = path.read_bytes()
     assert hashlib.sha256(value).hexdigest() == blob
 
 
-def test_v37_reference_examples(parsed):
+def test_v37_reference_examples(parsed: EntityTypeStandard) -> None:
     catalog = ReferenceCatalog(parsed)
     assert catalog.get_country_name(CountryCode(153)) == "Netherlands (NLD)"
     assert catalog.get_kind_name(KindCode(1)) == "Platform"
@@ -80,7 +78,7 @@ def test_v37_reference_examples(parsed):
         '<ebv><enum uid="29"><enumrow value="x" description="A"/></enum></ebv>',
     ],
 )
-def test_reject_invalid_or_unsafe_xml(xml):
+def test_reject_invalid_or_unsafe_xml(xml: str) -> None:
     with pytest.raises(ParseError):
         EntityTypeXmlParser.from_string(xml)
 
@@ -94,7 +92,7 @@ MINI = """<ebv xmlns="urn:test" title="Test" date="2026-01-01">
 </specific></subcategory></category></entity></cet></ebv>"""
 
 
-def test_singletons_namespace_qualification_and_deprecated():
+def test_singletons_namespace_qualification_and_deprecated() -> None:
     parsed = EntityTypeXmlParser.from_string(MINI)
     catalog = ReferenceCatalog(parsed)
     assert catalog.country_count == 1
@@ -104,7 +102,7 @@ def test_singletons_namespace_qualification_and_deprecated():
     assert catalog.get_description_of(EntityType.from_key(key), fully_qualified=True) == "A / B / C / D"
 
 
-def test_legacy_comprehensive_entity_table_name_is_loaded():
+def test_legacy_comprehensive_entity_table_name_is_loaded() -> None:
     parsed = EntityTypeXmlParser.from_string(
         '<ebv><cet uid="30" name="Comprehensive Entity Types">'
         '<entity kind="1" domain="1" country="225">'
@@ -116,7 +114,7 @@ def test_legacy_comprehensive_entity_table_name_is_loaded():
     assert ReferenceCatalog(parsed).get_category_name(EntityType(1, 1, 225, 2, 0, 0, 0)) == "Legacy category"
 
 
-def test_load_file_and_preserve_metadata(tmp_path):
+def test_load_file_and_preserve_metadata(tmp_path: pathlib.Path) -> None:
     source = tmp_path / "input.xml"
     source.write_text(MINI, encoding="utf-8")
     parsed = EntityTypeXmlParser.from_file(source)
@@ -125,7 +123,7 @@ def test_load_file_and_preserve_metadata(tmp_path):
     assert ReferenceCatalog(parsed).get_country_name(CountryCode(153)) == "Netherlands"
 
 
-def test_empty_and_missing_description():
+def test_empty_and_missing_description() -> None:
     parsed = EntityTypeXmlParser.from_string("<ebv/>")
     assert parsed.enumerations == ()
     assert parsed.entity_types == ()
@@ -133,7 +131,7 @@ def test_empty_and_missing_description():
     assert entry.enumerations[0].entries[0].description is None
 
 
-def test_missing_and_wildcard_applicability():
+def test_missing_and_wildcard_applicability() -> None:
     no_applicability = (
         '<ebv><enum uid="8" name="Platform Domain"><enumrow value="1" description="A"/></enum></ebv>'
     )

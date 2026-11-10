@@ -16,7 +16,7 @@ query. The default edition is the newest one in the bundle.
 
 | Command | Purpose |
 | --- | --- |
-| `describe CODE` | Describe a full or partial DIS entity code. |
+| `describe CODE` | Describe a complete seven-field DIS entity code. |
 | `query [filters]` | Filter by any combination of entity fields and text. |
 | `search TEXT` | Search entity descriptions. |
 | `list COLLECTION [PARENTS...]` | List choices below an entity prefix. |
@@ -26,10 +26,13 @@ query. The default edition is the newest one in the bundle.
 | `key VALUE` | Encode or decode a DIS entity key. |
 | `dump VERSION` | Write the original XML bytes for an edition. |
 
+Use `inspect entity PREFIX` for a one-to-seven-field code prefix. `describe`
+requires all seven fields and reports an error for an incomplete code.
+
 Use `inspect report --format markdown` for a readable edition report, and add
 `--audit` to include source rows and individual findings. Comparison output
-defaults to a summary; select `--detail concise`, `audit`, or `review-queue` for
-more detail. The review queue supports filters such as `--priority high`,
+defaults to a summary in both text and JSON; select `--detail concise`, `audit`,
+or `review-queue` for more detail. The review queue supports filters such as `--priority high`,
 `--scope enumeration_table`, and `--category relationship`.
 
 ## Output
@@ -38,6 +41,9 @@ Human-readable text is the default. Add `--json` for a machine-readable result
 with `schema_version`, `command`, and `result` fields. Errors go to stderr; JSON
 errors use the same versioned envelope and include a stable error code when
 available. The JSON output is generated from the Python Pydantic result models.
+The envelope schema is currently version 1. Additive result fields keep the
+same version; an incompatible envelope change increments it. Edition-diff
+details carry their own schema version and evolve independently.
 Description search labels duplicate entity codes as ambiguous and displays all
 source-description candidates.
 Entity inspection and history output list ambiguous source rows, including the

@@ -1,29 +1,18 @@
 import json
+import pathlib
 import subprocess
 import sys
 from zipfile import ZipFile
 
 REPORT_NAMES = (
-    "siso-ref-010-v35-to-v36-diff.json",
-    "siso-ref-010-v35-to-v36-diff-concise.json",
-    "siso-ref-010-v35-to-v36-diff-summary.json",
-    "siso-ref-010-v35-to-v36-diff-review-queue.json",
-    "siso-ref-010-v35-to-v36-summary.txt",
-    "siso-ref-010-v36-to-v37-diff.json",
-    "siso-ref-010-v36-to-v37-diff-concise.json",
-    "siso-ref-010-v36-to-v37-diff-summary.json",
-    "siso-ref-010-v36-to-v37-diff-review-queue.json",
-    "siso-ref-010-v36-to-v37-summary.txt",
-    "siso-ref-010-v35-to-v37-diff.json",
-    "siso-ref-010-v35-to-v37-diff-concise.json",
-    "siso-ref-010-v35-to-v37-diff-summary.json",
+    "siso-ref-010-v22-to-v23-diff.json",
+    "siso-ref-010-v22-to-v23-summary.txt",
     "siso-ref-010-v35-to-v37-diff-review-queue.json",
-    "siso-ref-010-v35-to-v37-summary.txt",
 )
 EVIDENCE_FILE = "siso-diff-test-evidence.json"
 
 
-def test_report_bundle_is_clean_deterministic_and_self_documenting(tmp_path):
+def test_report_bundle_is_clean_deterministic_and_self_documenting(tmp_path: pathlib.Path) -> None:
     inputs = tmp_path / "inputs"
     inputs.mkdir()
     for name in REPORT_NAMES:
@@ -42,7 +31,7 @@ def test_report_bundle_is_clean_deterministic_and_self_documenting(tmp_path):
             [
                 sys.executable,
                 "-m",
-                "tools.package_diff_reports",
+                "tools.siso_ref010.package_diff_reports",
                 "--reports-dir",
                 str(inputs),
                 "--output",
@@ -57,7 +46,7 @@ def test_report_bundle_is_clean_deterministic_and_self_documenting(tmp_path):
     expected = {"README.md", "SCHEMA.json", "TEST-EVIDENCE.json", *REPORT_NAMES}
     with ZipFile(first) as archive:
         assert set(archive.namelist()) == expected
-        assert len(archive.namelist()) == 18
+        assert len(archive.namelist()) == 6
         assert archive.testzip() is None
         assert json.loads(archive.read("TEST-EVIDENCE.json")) == {
             "manifest_version": 1,

@@ -1,7 +1,17 @@
+from collections.abc import Callable, Mapping
+from typing import cast
+
 import pytest
 
-from siso_ref010 import EntityTypeXmlParser, ReferenceCatalog, SisoRef010API
+from siso_ref010 import SisoRef010API
+from siso_ref010.catalog import ReferenceCatalog
+from siso_ref010.parsing import EntityTypeXmlParser
 from siso_ref010.query_backend import EntityFieldFilters, EntityQueryRequest
+
+
+def _dynamic_query(api: SisoRef010API, filters: Mapping[str, int | str]) -> object:
+    query = cast(Callable[..., object], api.query_entities)
+    return query(**filters)
 
 
 @pytest.mark.parametrize(
@@ -12,7 +22,7 @@ from siso_ref010.query_backend import EntityFieldFilters, EntityQueryRequest
         (None, None, None, None, None, None, None),
     ],
 )
-def test_query_fields_are_named_and_keep_tuple_behavior(values) -> None:
+def test_query_fields_are_named_and_keep_tuple_behavior(values: tuple[int | None, ...]) -> None:
     request = EntityQueryRequest(*values, text="demo", limit=3, offset=2)
     fields = request.fields
 
@@ -30,7 +40,8 @@ def test_query_fields_are_named_and_keep_tuple_behavior(values) -> None:
         fields.extra,
     ) == values
     with pytest.raises(AttributeError):
-        fields.country = 153
+        attribute = "country"
+        setattr(fields, attribute, 153)
 
 
 def test_cold_and_warmed_queries_match_for_source_records() -> None:
@@ -46,8 +57,8 @@ def test_cold_and_warmed_queries_match_for_source_records() -> None:
         {"text": "KIND 1", "limit": 3},
     ]
     for case in cases:
-        assert cold.query_entities(**case) == warm.query_entities(**case)
-        assert cold.query_entities(**case) == warm.query_entities(**case)
+        assert _dynamic_query(cold, case) == _dynamic_query(warm, case)
+        assert _dynamic_query(cold, case) == _dynamic_query(warm, case)
 
 
 def test_ranges_and_cross_references_match() -> None:
@@ -70,4 +81,4 @@ def test_ranges_and_cross_references_match() -> None:
         {"text": "xref"},
         {"specific": 5},
     ):
-        assert cold.query_entities(**case) == warm.query_entities(**case)
+        assert _dynamic_query(cold, case) == _dynamic_query(warm, case)
