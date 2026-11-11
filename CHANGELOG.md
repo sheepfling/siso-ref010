@@ -4,6 +4,8 @@
 
 - Stream completed XML tables and entity branches to reduce cold-start memory while preserving the full source model, validation, ordering, and exact XML retrieval.
 - Share immutable change-request annotations within a parse, and add reproducible cold-start benchmarks with all-edition model-parity checks.
+- Compact validated source-model field tracking and share repeated XML tag strings without sharing mutable field sets.
+- Track first and repeated exact-code lookup latency alongside current RSS and retained Python allocations, both before and after optional structured-query warmup.
 - Use absolute repository links in the package description while retaining local README links in the checkout.
 
 ## 0.1.0a0

@@ -2,6 +2,11 @@
 
 ## Scope and decision
 
+This study covers the initial streaming and request-sharing change at commit
+`b61218e`. Later field-tracking compaction and tag sharing are measured separately
+in [exact lookups and steady-state memory](lookup-performance.md). Keep those
+matched comparisons separate from the initial measurements below.
+
 The parser now projects completed enumeration tables and entity branches while
 reading XML, releasing their temporary XML subtrees immediately. Identical
 immutable change-request annotations are shared only within that parse. The

@@ -55,6 +55,7 @@ class _ModelBuilder:
 
     def __init__(self) -> None:
         self._requests: dict[tuple[str | None, str | None], ChangeRequest] = {}
+        self._tags: dict[str, str] = {}
 
     def _change_request(self, minimum: str | None, maximum: str | None) -> ChangeRequest:
         key = (minimum, maximum)
@@ -89,7 +90,10 @@ class _ModelBuilder:
 
     def entry(self, element: ET.Element) -> ReferenceEntry:
         tag = _tag(element)
+        tag = self._tags.setdefault(tag, tag)
         children = tuple(self.entry(child) for child in element if _tag(child) in _ENTITY_ENTRY_TAGS)
+        # A shallow public model copy compacts Pydantic's per-instance field-name
+        # set on CPython. Validation still runs, and mutable sets are never shared.
         return ReferenceEntry.model_validate(
             {
                 "tag": tag,
@@ -100,7 +104,7 @@ class _ModelBuilder:
                 "source": self.source_info(element),
                 "children": children,
             }
-        )
+        ).model_copy()
 
     def enumeration(self, element: ET.Element) -> EnumerationTable:
         return EnumerationTable.model_validate(
@@ -125,7 +129,7 @@ class _ModelBuilder:
                     if _tag(child) in {"description", "header"}
                 ),
             }
-        )
+        ).model_copy()
 
     def entity_branch(self, element: ET.Element) -> EntityBranch:
         return EntityBranch.model_validate(
@@ -138,7 +142,7 @@ class _ModelBuilder:
                     self.entry(child) for child in element if _tag(child) in _ENTITY_ENTRY_TAGS
                 ),
             }
-        )
+        ).model_copy()
 
 
 @dataclass

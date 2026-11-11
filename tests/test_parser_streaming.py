@@ -114,6 +114,44 @@ def test_text_stream_read_boundaries() -> None:
         assert stream.read(None) == "text"
 
 
+def test_compact_models_keep_independent_field_tracking_and_shared_children() -> None:
+    standard = EntityTypeXmlParser.from_string(
+        '<ebv xmlns="urn:test"><enum uid="1" name="Test">'
+        '<enumrow value="1" description="First"/>'
+        '<enumrow value="2" description="Second"/></enum>'
+        f"{_table('Entity Types')}</ebv>"
+    )
+    table = standard.enumerations[0]
+    first, second = table.entries
+    assert first.tag is second.tag
+    assert (
+        first.model_fields_set
+        == second.model_fields_set
+        == {"tag", "value", "value_min", "value_max", "description", "source", "children"}
+    )
+    assert first.model_fields_set is not second.model_fields_set
+    updated = first.model_copy(update={"description": "Updated"})
+    assert updated.source is first.source
+    assert updated.children is first.children
+    assert first.description == "First"
+    assert updated.description == "Updated"
+    assert updated.model_fields_set is not first.model_fields_set
+    first.model_fields_set.remove("description")
+    assert "description" not in first.model_dump(exclude_unset=True)
+    assert second.model_dump(exclude_unset=True)["description"] == "Second"
+    assert updated.model_dump(exclude_unset=True)["description"] == "Updated"
+    assert table.model_fields_set == {
+        "uid",
+        "name",
+        "applicability",
+        "size",
+        "source",
+        "entries",
+        "annotations",
+    }
+    assert standard.entity_types[0].model_fields_set == {"kind", "domain", "country", "source", "categories"}
+
+
 def test_benchmark_alternatives_preserve_models(monkeypatch: pytest.MonkeyPatch) -> None:
     import siso_ref010.snapshots as snapshots
 
