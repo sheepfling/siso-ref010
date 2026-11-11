@@ -1,4 +1,12 @@
-# Unreleased
+# Changelog
+
+## Unreleased
+
+- Stream completed XML tables and entity branches to reduce cold-start memory while preserving the full source model, validation, ordering, and exact XML retrieval.
+- Share immutable change-request annotations within a parse, and add reproducible cold-start benchmarks with all-edition model-parity checks.
+- Use absolute repository links in the package description while retaining local README links in the checkout.
+
+## 0.1.0a0
 
 - Add entity and enumeration value histories and pairwise edition diffs with JSON/text CLI output, filters, and UUID-based move/recode recognition.
 - Retain enumeration table description/header annotations for inspection and comparison.
