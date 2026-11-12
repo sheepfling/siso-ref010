@@ -51,7 +51,7 @@ def _children(element: ET.Element, tag: str) -> list[ET.Element]:
 
 
 class _ModelBuilder:
-    """Share immutable annotations within one parse, never between source documents."""
+    """Reuse validated annotation values without sharing public model bookkeeping."""
 
     def __init__(self) -> None:
         self._requests: dict[tuple[str | None, str | None], ChangeRequest] = {}
@@ -63,7 +63,9 @@ class _ModelBuilder:
         if cached is None:
             cached = ChangeRequest.model_validate({"minimum": minimum, "maximum": maximum})
             self._requests[key] = cached
-        return cached
+        # Frozen models still expose mutable model_fields_set and __dict__.
+        # Keep the cached template private and give each occurrence its own copy.
+        return cached.model_copy()
 
     def source_info(self, element: ET.Element) -> SourceInfo:
         requests: list[ChangeRequest] = []

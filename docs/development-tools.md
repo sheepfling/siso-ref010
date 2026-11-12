@@ -18,7 +18,7 @@ performance. Examples include:
 - `benchmark_entity_queries`, `benchmark_snapshot_loading`,
   `benchmark_cold_start`, and `benchmark_steady_state`: measure query behavior, loading latency, and
   fresh-process allocation peaks. See [cold-start performance](cold-start-performance.md)
-  for initial results, alternatives, and measurement limits, and
+  for alternatives and measurement limits, and
   [exact lookups and steady-state memory](lookup-performance.md) for ongoing
   before/after latency and retained-memory comparisons.
 - `standard_metadata`: typed models shared by the metadata tools.

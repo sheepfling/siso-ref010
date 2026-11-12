@@ -19,15 +19,17 @@ DIGESTS = Path(__file__).parent / "fixtures/standard-model-digests.json"
 @pytest.mark.all_editions
 @pytest.mark.parametrize("version", available_snapshot_versions())
 def test_streamed_model_matches_original_tree_parser(version: int) -> None:
-    # Recorded from 024ca4d before changing the parser. Include duplicate rows,
-    # annotations, ranges, xrefs, and attribute ordering, not just lookup counts.
+    # These are parsed-model output hashes, not the XML hashes in the source index.
+    # Recorded before changing the parser, they include duplicate rows, annotations,
+    # ranges, xrefs, and attribute ordering, not just lookup counts.
     registry = json.loads(DIGESTS.read_text())
-    assert registry["schema_version"] == 1
+    assert registry["schema_version"] == 2
     expected = registry["editions"][f"v{version}"]
     payload = read_snapshot_bytes(version)
     standard = EntityTypeXmlParser.from_bytes(payload)
-    assert hashlib.sha256(payload).hexdigest() == expected["source"] == standard.source_sha256
-    assert hashlib.sha256(standard.model_dump_json().encode()).hexdigest() == expected["model"]
+    # read_snapshot_bytes already verifies the XML against the canonical source index.
+    assert hashlib.sha256(payload).hexdigest() == standard.source_sha256
+    assert hashlib.sha256(standard.model_dump_json().encode()).hexdigest() == expected
     assert standard.xml_parse_succeeded is True
     assert standard.date is not None
 
@@ -94,14 +96,32 @@ def test_projection_keeps_metadata_text_namespace_and_repeated_requests() -> Non
     request = standard.source.change_requests[0]
     assert standard.source.change_requests == (request, request)
     assert standard.enumerations[0].entries[0].source.change_requests == (request, request)
-    assert standard.entity_types[0].source.change_requests[0] is request
-    assert standard.source.change_requests[1] is request
+    assert standard.entity_types[0].source.change_requests[0] is not request
+    assert standard.source.change_requests[1] is not request
     assert standard.revisions[0].change_requests[0].maximum == 9
     with pytest.raises(ValidationError):
         request.minimum = 1  # type: ignore[misc]
     another = EntityTypeXmlParser.from_string(xml)
     assert another == standard
     assert another.source.change_requests[0] is not request
+
+
+@pytest.mark.parametrize("annotation", ['<cr value="7"/>', '<cr_range value_min="7" value_max="9"/>'])
+def test_repeated_requests_keep_independent_public_field_tracking(annotation: str) -> None:
+    standard = EntityTypeXmlParser.from_string(
+        f'<ebv>{annotation}{annotation}<enum uid="1" name="Test">'
+        f'<enumrow value="1">{annotation}</enumrow></enum></ebv>'
+    )
+    first, second = standard.source.change_requests
+    nested = standard.enumerations[0].entries[0].source.change_requests[0]
+    assert first == second == nested
+    assert len({id(request) for request in (first, second, nested)}) == 3
+    assert len({id(request.model_fields_set) for request in (first, second, nested)}) == 3
+    expected = second.model_dump(exclude_unset=True)
+    first.model_fields_set.remove("minimum")
+    assert "minimum" not in first.model_dump(exclude_unset=True)
+    assert second.model_dump(exclude_unset=True) == expected
+    assert nested.model_dump(exclude_unset=True) == expected
 
 
 def test_text_stream_read_boundaries() -> None:
@@ -158,7 +178,7 @@ def test_benchmark_alternatives_preserve_models(monkeypatch: pytest.MonkeyPatch)
     xml = f'<ebv title="Test">{_table("Entity Types")}</ebv>'.encode()
     monkeypatch.setattr(snapshots, "read_snapshot_bytes", lambda _version: xml)
     results = [
-        measure_child(1, strategy, strategy == "stream") for strategy in ("tree", "tree-shared", "stream")
+        measure_child(1, strategy, strategy == "stream") for strategy in ("tree", "tree-cached", "stream")
     ]
     assert len({result["model_sha256"] for result in results}) == 1
     assert len({result["source_sha256"] for result in results}) == 1

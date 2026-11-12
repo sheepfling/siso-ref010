@@ -56,16 +56,16 @@ def _peak_rss() -> float | None:
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * unit / 2**20
 
 
-def _tree_model(root: ET.Element, digest: str, *, share: bool) -> EntityTypeStandard:
+def _tree_model(root: ET.Element, digest: str, *, cache: bool) -> EntityTypeStandard:
     """Reference tree projection for measurements only; inputs are verified bundled XML."""
     from siso_ref010.models.standard import ChangeRequest, EntityTypeStandard
     from siso_ref010.parsing.xml import _children, _ModelBuilder  # pyright: ignore[reportPrivateUsage]
 
-    class UnsharedBuilder(_ModelBuilder):
+    class UncachedBuilder(_ModelBuilder):
         def _change_request(self, minimum: str | None, maximum: str | None) -> ChangeRequest:
             return ChangeRequest.model_validate({"minimum": minimum, "maximum": maximum})
 
-    builder = _ModelBuilder() if share else UnsharedBuilder()
+    builder = _ModelBuilder() if cache else UncachedBuilder()
     tables = _children(root, "cet")
     table = next((row for row in tables if row.get("name") == "Entity Types"), None)
     if table is None:
@@ -120,7 +120,7 @@ def measure_child(version: int, strategy: str, trace: bool) -> dict[str, Any]:
             xml_string = payload.decode("utf-8-sig")
             root = ET.fromstring(xml_string)
         with measurements.stage("source_model_projection"):
-            standard = _tree_model(root, sha256(payload).hexdigest(), share=strategy == "tree-shared")
+            standard = _tree_model(root, sha256(payload).hexdigest(), cache=strategy == "tree-cached")
         with measurements.stage("release_xml_tree"):
             del root, xml_string
     with measurements.stage("catalog_projection"):
@@ -162,12 +162,12 @@ def main() -> int:
     parser.add_argument("--versions", nargs="+", type=int)
     parser.add_argument("--iterations", type=int, default=3)
     parser.add_argument(
-        "--strategies", nargs="+", choices=("stream", "tree", "tree-shared"), default=["stream"]
+        "--strategies", nargs="+", choices=("stream", "tree", "tree-cached"), default=["stream"]
     )
     parser.add_argument("--output", type=Path, help="Write machine-readable raw samples")
     parser.add_argument("--child", type=int, help=argparse.SUPPRESS)
     parser.add_argument(
-        "--strategy", choices=("stream", "tree", "tree-shared"), default="stream", help=argparse.SUPPRESS
+        "--strategy", choices=("stream", "tree", "tree-cached"), default="stream", help=argparse.SUPPRESS
     )
     parser.add_argument("--trace", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()

@@ -3,8 +3,9 @@
 Run from the repository root with the same Python executable for every comparison:
 
 ```sh
+mkdir -p .local/benchmarks
 PYTHONPATH="$PWD/src:$PWD" python3.13 tools/siso_ref010/benchmark_steady_state.py \
-  --warmup --output lookup-memory.json
+  --warmup --output .local/benchmarks/candidate-lookup-memory.json
 ```
 
 Defaults select the oldest, middle, and newest editions from the selected
@@ -17,7 +18,7 @@ Use the **same benchmark script** against another local checkout:
 
 ```sh
 PYTHONPATH="$PWD/src:$PWD" python3.13 tools/siso_ref010/benchmark_steady_state.py \
-  --checkout /path/to/baseline --warmup --output baseline-lookup-memory.json
+  --checkout /path/to/baseline --warmup --output .local/benchmarks/baseline-lookup-memory.json
 ```
 
 The script starts a new interpreter for each sample and sets that child's
@@ -80,64 +81,10 @@ candidate using the same harness, interpreter, dependency versions, source data,
 and installed-distribution metadata. Run sequentially on an otherwise idle host.
 Record load time, the first exact lookup, repeated exact lookup batches, current
 RSS and retained Python allocations before and after structured-query warmup.
-Keep raw samples and report regressions and tradeoffs alongside improvements.
+Keep raw samples in the ignored `.local/benchmarks/` directory, not in source
+control. Attach run artifacts and summarize regressions and tradeoffs in the
+relevant pull request; repository documentation describes the method rather than
+accumulating machine-specific results.
 Use the index-derived oldest/middle/newest representative set, and add targeted editions
 when a change warrants them. Do not impose hard cross-platform thresholds or
 claim universal speedups from local measurements.
-
-## Recorded compact-model comparison
-
-These are same-harness medians from three fresh-process samples per edition and
-mode, Python 3.13.18 / Pydantic 2.14.3 on macOS ARM64. Baseline is commit
-`b61218e`; candidate is that revision with compact independent model field sets
-and parse-local tag sharing. Candidate was dirty; the exact parser SHA-256 and
-other runtime module hashes are in each raw sample. Only the parser hash differs
-between their loaded package modules.
-
-Raw samples, ranges, and provenance:
-
-- [Baseline report](benchmarks/steady-state-b61218e.json)
-- [Candidate report](benchmarks/steady-state-compact-models.json)
-
-Both reports retain the identical hash of the exact measured benchmark. A later
-CLI-only change derives equivalent edition defaults from the target index rather
-than hard-coding them; measurement functions and these recorded results are
-unchanged, and the recorded hashes were not relabeled. Each sample records exact source
-XML hashes and sizes, collected after the measured stages. Pack and decompressed
-edition hashes were also independently verified afterward; source bytes match.
-Identical ignored `src/siso_ref010.egg-info` was present in both checkouts so the
-package-version import follows the same path. Import retained allocations match
-within about 1 KiB. Checked-in reports normalize personal checkout prefixes to
-`<baseline>` or `<candidate>`, retaining source-relative paths and all hashes.
-Their `artifact_notes` describe this normalization and post-run pack verification.
-All values below are absolute totals from this harness, not older cold-start
-reports. Arrows indicate baseline to candidate.
-
-### Lookup-only state
-
-| Edition | Load ms | First lookup ms | Repeated lookup µs | Current RSS MiB | Retained Python MiB |
-| --- | --- | --- | --- | --- | --- |
-| 20 | 615.9 → 633.7 | 0.143 → 0.143 | 29.24 → 29.78 | 186.69 → 180.17 | 79.44 → 73.48 |
-| 29 | 733.3 → 764.3 | 0.148 → 0.148 | 28.44 → 28.92 | 218.20 → 207.75 | 109.99 → 100.37 |
-| 37 | 417.4 → 442.2 | 0.157 → 0.151 | 28.29 → 28.46 | 167.75 → 155.56 | 105.15 → 93.68 |
-
-RSS and retained values above are after the repeated lookup batch, before any
-structured-query warmup. The raw report also gives memory after load and the
-first lookup.
-
-### Structured-query warmed state
-
-| Edition | Repeated lookup µs | Current RSS MiB | Retained Python MiB |
-| --- | --- | --- | --- |
-| 20 | 28.47 → 29.13 | 266.83 → 260.22 | 154.49 → 148.53 |
-| 29 | 28.27 → 28.61 | 331.66 → 321.27 | 214.67 → 205.05 |
-| 37 | 27.39 → 27.54 | 267.38 → 255.27 | 195.15 → 183.68 |
-
-Lookup-only repeated latency medians rise about 1.8%, 1.7%, and 0.6% for v20,
-v29, and v37; these small changes need more samples before a strong conclusion.
-Load medians rise about 2.9%, 4.2%, and 5.9% respectively. Lookup-only retained
-Python allocations fall about 5.96, 9.62, and 11.47 MiB; current RSS falls about
-6.52, 10.45, and 12.19 MiB. This is a retained-memory improvement with a modest
-loading-time cost, not a speedup claim. Warming query indexes adds substantial
-memory in both versions, so this cost stays separate from exact-lookup-only
-usage. Three local samples establish a useful baseline, not a universal guarantee.

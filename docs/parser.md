@@ -29,9 +29,10 @@ rejected.
 
 Completed enumeration tables and entity branches are projected incrementally,
 so their temporary XML subtrees can be released before the whole document is
-modeled. Identical immutable change requests may share an object within one
-parse; their occurrences and ordering remain intact. See
-[cold-start performance](cold-start-performance.md) for measurements and tradeoffs.
+modeled. Repeated change requests reuse validated scalar values within one
+parse, but each occurrence has independent model bookkeeping. Their occurrences
+and ordering remain intact. See [cold-start performance](cold-start-performance.md)
+for the measurement method and tradeoffs.
 
 ## Structured source model
 
