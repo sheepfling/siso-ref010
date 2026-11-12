@@ -92,8 +92,16 @@ def test_unsupported_current_rss_is_null(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_linux_current_rss_uses_resident_pages(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(benchmark.sys, "platform", "linux")
     monkeypatch.setattr(Path, "read_text", lambda self: "1234 256 99")
-    monkeypatch.setattr(benchmark.os, "sysconf", lambda key: 4096)
+    # Windows has no os.sysconf, even when sys.platform is mocked to Linux.
+    monkeypatch.setattr(benchmark, "os", SimpleNamespace(sysconf=lambda key: 4096))
     assert benchmark.current_rss_mib() == 1
+
+
+def test_linux_current_rss_without_sysconf_is_null(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(benchmark.sys, "platform", "linux")
+    monkeypatch.setattr(Path, "read_text", lambda self: "1234 256 99")
+    monkeypatch.setattr(benchmark, "os", SimpleNamespace())
+    assert benchmark.current_rss_mib() is None
 
 
 def test_sample_runs_same_script_with_target_checkout(
