@@ -1,0 +1,786 @@
+{
+  "schema_version": 1,
+  "python": "3.13.18 (main, Oct 25 2026, 18:31:23) [Clang 21.0.0 (clang-2100.3.34.2)]",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "samples": [
+    {
+      "version": 20,
+      "strategy": "stream",
+      "traced": false,
+      "pydantic": "2.14.3",
+      "source_sha256": "42fc960fa00e95b7f3b18c1bd6c6e3e1353d15ae504f21790ee22abe058d1944",
+      "model_sha256": "0332bf59a3101a350b4ab664efb3c10c15856c9e770ff70d81ce83d09b82e4ee",
+      "first_description": "Beechcraft Super King AIR 200/B200",
+      "indexed_records": 22777,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 60.94879191368818,
+          "process_peak_rss_mib": 37.515625
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 136.01229200139642,
+          "process_peak_rss_mib": 106.671875
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 123.96341701969504,
+          "process_peak_rss_mib": 185.25
+        },
+        "catalog_projection": {
+          "elapsed_ms": 366.627334151417,
+          "process_peak_rss_mib": 195.515625
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.1888750120997429,
+          "process_peak_rss_mib": 195.546875
+        },
+        "query_warmup": {
+          "elapsed_ms": 111.82629084214568,
+          "process_peak_rss_mib": 272.640625
+        }
+      },
+      "process_elapsed_ms": 1208.7505417875946
+    },
+    {
+      "version": 20,
+      "strategy": "stream",
+      "traced": false,
+      "pydantic": "2.14.3",
+      "source_sha256": "42fc960fa00e95b7f3b18c1bd6c6e3e1353d15ae504f21790ee22abe058d1944",
+      "model_sha256": "0332bf59a3101a350b4ab664efb3c10c15856c9e770ff70d81ce83d09b82e4ee",
+      "first_description": "Beechcraft Super King AIR 200/B200",
+      "indexed_records": 22777,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 54.94795925915241,
+          "process_peak_rss_mib": 37.21875
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 141.48458279669285,
+          "process_peak_rss_mib": 106.375
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 130.66945876926184,
+          "process_peak_rss_mib": 185.25
+        },
+        "catalog_projection": {
+          "elapsed_ms": 396.07016602531075,
+          "process_peak_rss_mib": 195.484375
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.14958390966057777,
+          "process_peak_rss_mib": 195.5
+        },
+        "query_warmup": {
+          "elapsed_ms": 113.34774969145656,
+          "process_peak_rss_mib": 272.578125
+        }
+      },
+      "process_elapsed_ms": 1210.2217501960695
+    },
+    {
+      "version": 20,
+      "strategy": "stream",
+      "traced": false,
+      "pydantic": "2.14.3",
+      "source_sha256": "42fc960fa00e95b7f3b18c1bd6c6e3e1353d15ae504f21790ee22abe058d1944",
+      "model_sha256": "0332bf59a3101a350b4ab664efb3c10c15856c9e770ff70d81ce83d09b82e4ee",
+      "first_description": "Beechcraft Super King AIR 200/B200",
+      "indexed_records": 22777,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 52.81341727823019,
+          "process_peak_rss_mib": 37.375
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 141.69429196044803,
+          "process_peak_rss_mib": 106.484375
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 136.44583337008953,
+          "process_peak_rss_mib": 185.171875
+        },
+        "catalog_projection": {
+          "elapsed_ms": 367.30595910921693,
+          "process_peak_rss_mib": 195.453125
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.15695858746767044,
+          "process_peak_rss_mib": 195.46875
+        },
+        "query_warmup": {
+          "elapsed_ms": 110.44454202055931,
+          "process_peak_rss_mib": 272.609375
+        }
+      },
+      "process_elapsed_ms": 1181.2669169157743
+    },
+    {
+      "version": 20,
+      "strategy": "stream",
+      "traced": true,
+      "pydantic": "2.14.3",
+      "source_sha256": "42fc960fa00e95b7f3b18c1bd6c6e3e1353d15ae504f21790ee22abe058d1944",
+      "model_sha256": "0332bf59a3101a350b4ab664efb3c10c15856c9e770ff70d81ce83d09b82e4ee",
+      "first_description": "Beechcraft Super King AIR 200/B200",
+      "indexed_records": 22777,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 275.41620936244726,
+          "process_peak_rss_mib": 45.9375,
+          "retained_mib": 8.909214973449707,
+          "peak_mib": 8.955926895141602
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 175.44208420440555,
+          "process_peak_rss_mib": 113.53125,
+          "retained_mib": 11.791593551635742,
+          "peak_mib": 78.48960781097412
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 542.5527920015156,
+          "process_peak_rss_mib": 246.046875,
+          "retained_mib": 55.95074462890625,
+          "peak_mib": 81.41864776611328
+        },
+        "catalog_projection": {
+          "elapsed_ms": 2418.964875396341,
+          "process_peak_rss_mib": 246.65625,
+          "retained_mib": 79.60232543945312,
+          "peak_mib": 81.65589141845703
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.439958181232214,
+          "process_peak_rss_mib": 246.65625,
+          "retained_mib": 79.6028003692627,
+          "peak_mib": 79.63679695129395
+        },
+        "query_warmup": {
+          "elapsed_ms": 800.0065418891609,
+          "process_peak_rss_mib": 302.875,
+          "retained_mib": 154.65875720977783,
+          "peak_mib": 161.9958209991455
+        }
+      },
+      "process_elapsed_ms": 4599.0607496351
+    },
+    {
+      "version": 20,
+      "strategy": "stream",
+      "traced": true,
+      "pydantic": "2.14.3",
+      "source_sha256": "42fc960fa00e95b7f3b18c1bd6c6e3e1353d15ae504f21790ee22abe058d1944",
+      "model_sha256": "0332bf59a3101a350b4ab664efb3c10c15856c9e770ff70d81ce83d09b82e4ee",
+      "first_description": "Beechcraft Super King AIR 200/B200",
+      "indexed_records": 22777,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 285.0336669944227,
+          "process_peak_rss_mib": 45.890625,
+          "retained_mib": 8.909214973449707,
+          "peak_mib": 8.955926895141602
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 171.88379215076566,
+          "process_peak_rss_mib": 113.828125,
+          "retained_mib": 11.791593551635742,
+          "peak_mib": 78.48960781097412
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 550.2734580077231,
+          "process_peak_rss_mib": 246.21875,
+          "retained_mib": 55.95074462890625,
+          "peak_mib": 81.41864776611328
+        },
+        "catalog_projection": {
+          "elapsed_ms": 2421.239791903645,
+          "process_peak_rss_mib": 246.8125,
+          "retained_mib": 79.60238552093506,
+          "peak_mib": 81.65595149993896
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.4070829600095749,
+          "process_peak_rss_mib": 246.8125,
+          "retained_mib": 79.60286045074463,
+          "peak_mib": 79.63685703277588
+        },
+        "query_warmup": {
+          "elapsed_ms": 775.2480413764715,
+          "process_peak_rss_mib": 303.0625,
+          "retained_mib": 154.65881729125977,
+          "peak_mib": 161.99588108062744
+        }
+      },
+      "process_elapsed_ms": 4624.591708183289
+    },
+    {
+      "version": 20,
+      "strategy": "stream",
+      "traced": true,
+      "pydantic": "2.14.3",
+      "source_sha256": "42fc960fa00e95b7f3b18c1bd6c6e3e1353d15ae504f21790ee22abe058d1944",
+      "model_sha256": "0332bf59a3101a350b4ab664efb3c10c15856c9e770ff70d81ce83d09b82e4ee",
+      "first_description": "Beechcraft Super King AIR 200/B200",
+      "indexed_records": 22777,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 274.51795898377895,
+          "process_peak_rss_mib": 45.984375,
+          "retained_mib": 8.909537315368652,
+          "peak_mib": 8.956083297729492
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 174.49541669338942,
+          "process_peak_rss_mib": 113.875,
+          "retained_mib": 11.79200267791748,
+          "peak_mib": 78.49001693725586
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 537.370374891907,
+          "process_peak_rss_mib": 246.1875,
+          "retained_mib": 55.951059341430664,
+          "peak_mib": 81.4189624786377
+        },
+        "catalog_projection": {
+          "elapsed_ms": 2453.2802090980113,
+          "process_peak_rss_mib": 246.90625,
+          "retained_mib": 79.6025619506836,
+          "peak_mib": 81.65620040893555
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.43783290311694145,
+          "process_peak_rss_mib": 246.90625,
+          "retained_mib": 79.60306930541992,
+          "peak_mib": 79.63706588745117
+        },
+        "query_warmup": {
+          "elapsed_ms": 798.4904581680894,
+          "process_peak_rss_mib": 303.171875,
+          "retained_mib": 154.65902614593506,
+          "peak_mib": 161.9960470199585
+        }
+      },
+      "process_elapsed_ms": 4682.30583332479
+    },
+    {
+      "version": 29,
+      "strategy": "stream",
+      "traced": false,
+      "pydantic": "2.14.3",
+      "source_sha256": "cb56f99b1e6ad2f0ec889d5cfe88550dffa3651aa129aa73b1ae356c03a3d493",
+      "model_sha256": "22b0b7b03107dcdd30272da2624af5f879ef9cef36b5714b6c544845c2a0500b",
+      "first_description": "MC-12W Liberty",
+      "indexed_records": 31811,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 60.14554109424353,
+          "process_peak_rss_mib": 37.40625
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 101.5915828756988,
+          "process_peak_rss_mib": 103.453125
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 283.0745419487357,
+          "process_peak_rss_mib": 245.328125
+        },
+        "catalog_projection": {
+          "elapsed_ms": 411.6003327071667,
+          "process_peak_rss_mib": 248.8125
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.1820828765630722,
+          "process_peak_rss_mib": 248.84375
+        },
+        "query_warmup": {
+          "elapsed_ms": 164.1102498397231,
+          "process_peak_rss_mib": 301.03125
+        }
+      },
+      "process_elapsed_ms": 1973.6531251110137
+    },
+    {
+      "version": 29,
+      "strategy": "stream",
+      "traced": false,
+      "pydantic": "2.14.3",
+      "source_sha256": "cb56f99b1e6ad2f0ec889d5cfe88550dffa3651aa129aa73b1ae356c03a3d493",
+      "model_sha256": "22b0b7b03107dcdd30272da2624af5f879ef9cef36b5714b6c544845c2a0500b",
+      "first_description": "MC-12W Liberty",
+      "indexed_records": 31811,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 54.68645924702287,
+          "process_peak_rss_mib": 37.25
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 98.8605828024447,
+          "process_peak_rss_mib": 101.625
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 279.71295779570937,
+          "process_peak_rss_mib": 243.453125
+        },
+        "catalog_projection": {
+          "elapsed_ms": 411.2610840238631,
+          "process_peak_rss_mib": 246.984375
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.1766248606145382,
+          "process_peak_rss_mib": 247.015625
+        },
+        "query_warmup": {
+          "elapsed_ms": 166.29708418622613,
+          "process_peak_rss_mib": 299.203125
+        }
+      },
+      "process_elapsed_ms": 1903.9897499606013
+    },
+    {
+      "version": 29,
+      "strategy": "stream",
+      "traced": false,
+      "pydantic": "2.14.3",
+      "source_sha256": "cb56f99b1e6ad2f0ec889d5cfe88550dffa3651aa129aa73b1ae356c03a3d493",
+      "model_sha256": "22b0b7b03107dcdd30272da2624af5f879ef9cef36b5714b6c544845c2a0500b",
+      "first_description": "MC-12W Liberty",
+      "indexed_records": 31811,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 57.29199992492795,
+          "process_peak_rss_mib": 37.171875
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 102.11370792239904,
+          "process_peak_rss_mib": 101.53125
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 282.2994999587536,
+          "process_peak_rss_mib": 243.5
+        },
+        "catalog_projection": {
+          "elapsed_ms": 398.2334160245955,
+          "process_peak_rss_mib": 247.03125
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.1804158091545105,
+          "process_peak_rss_mib": 247.0625
+        },
+        "query_warmup": {
+          "elapsed_ms": 168.63595927134156,
+          "process_peak_rss_mib": 354.328125
+        }
+      },
+      "process_elapsed_ms": 1902.3673748597503
+    },
+    {
+      "version": 29,
+      "strategy": "stream",
+      "traced": true,
+      "pydantic": "2.14.3",
+      "source_sha256": "cb56f99b1e6ad2f0ec889d5cfe88550dffa3651aa129aa73b1ae356c03a3d493",
+      "model_sha256": "22b0b7b03107dcdd30272da2624af5f879ef9cef36b5714b6c544845c2a0500b",
+      "first_description": "MC-12W Liberty",
+      "indexed_records": 31811,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 290.8637085929513,
+          "process_peak_rss_mib": 45.875,
+          "retained_mib": 8.909322738647461,
+          "peak_mib": 8.9558687210083
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 118.06729203090072,
+          "process_peak_rss_mib": 109.03125,
+          "retained_mib": 14.02203369140625,
+          "peak_mib": 85.79056644439697
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 1085.899957921356,
+          "process_peak_rss_mib": 359.140625,
+          "retained_mib": 92.1791353225708,
+          "peak_mib": 141.66248989105225
+        },
+        "catalog_projection": {
+          "elapsed_ms": 2658.8762500323355,
+          "process_peak_rss_mib": 359.1875,
+          "retained_mib": 117.34803771972656,
+          "peak_mib": 119.80189990997314
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.43562473729252815,
+          "process_peak_rss_mib": 359.1875,
+          "retained_mib": 117.34860134124756,
+          "peak_mib": 117.38387966156006
+        },
+        "query_warmup": {
+          "elapsed_ms": 1103.1537079252303,
+          "process_peak_rss_mib": 397.1875,
+          "retained_mib": 222.03135681152344,
+          "peak_mib": 232.0067367553711
+        }
+      },
+      "process_elapsed_ms": 6197.975915856659
+    },
+    {
+      "version": 29,
+      "strategy": "stream",
+      "traced": true,
+      "pydantic": "2.14.3",
+      "source_sha256": "cb56f99b1e6ad2f0ec889d5cfe88550dffa3651aa129aa73b1ae356c03a3d493",
+      "model_sha256": "22b0b7b03107dcdd30272da2624af5f879ef9cef36b5714b6c544845c2a0500b",
+      "first_description": "MC-12W Liberty",
+      "indexed_records": 31811,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 276.3038328848779,
+          "process_peak_rss_mib": 45.859375,
+          "retained_mib": 8.909947395324707,
+          "peak_mib": 8.956493377685547
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 120.18504086881876,
+          "process_peak_rss_mib": 108.96875,
+          "retained_mib": 14.022615432739258,
+          "peak_mib": 85.79114818572998
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 1052.0193339325488,
+          "process_peak_rss_mib": 359.046875,
+          "retained_mib": 92.1796989440918,
+          "peak_mib": 141.66305351257324
+        },
+        "catalog_projection": {
+          "elapsed_ms": 2586.4706253632903,
+          "process_peak_rss_mib": 359.421875,
+          "retained_mib": 117.3486442565918,
+          "peak_mib": 119.80246353149414
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.48066722229123116,
+          "process_peak_rss_mib": 359.421875,
+          "retained_mib": 117.3492078781128,
+          "peak_mib": 117.3844861984253
+        },
+        "query_warmup": {
+          "elapsed_ms": 1075.3486673347652,
+          "process_peak_rss_mib": 384.375,
+          "retained_mib": 222.0320816040039,
+          "peak_mib": 232.00746154785156
+        }
+      },
+      "process_elapsed_ms": 5985.442833043635
+    },
+    {
+      "version": 29,
+      "strategy": "stream",
+      "traced": true,
+      "pydantic": "2.14.3",
+      "source_sha256": "cb56f99b1e6ad2f0ec889d5cfe88550dffa3651aa129aa73b1ae356c03a3d493",
+      "model_sha256": "22b0b7b03107dcdd30272da2624af5f879ef9cef36b5714b6c544845c2a0500b",
+      "first_description": "MC-12W Liberty",
+      "indexed_records": 31811,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 283.71975012123585,
+          "process_peak_rss_mib": 45.84375,
+          "retained_mib": 8.909308433532715,
+          "peak_mib": 8.955794334411621
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 116.1267077550292,
+          "process_peak_rss_mib": 108.984375,
+          "retained_mib": 14.021966934204102,
+          "peak_mib": 85.79049968719482
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 1057.3288328014314,
+          "process_peak_rss_mib": 359.046875,
+          "retained_mib": 92.17904758453369,
+          "peak_mib": 141.66240215301514
+        },
+        "catalog_projection": {
+          "elapsed_ms": 2586.0211248509586,
+          "process_peak_rss_mib": 359.296875,
+          "retained_mib": 117.3477029800415,
+          "peak_mib": 119.80160808563232
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.42220810428261757,
+          "process_peak_rss_mib": 359.296875,
+          "retained_mib": 117.3482666015625,
+          "peak_mib": 117.383544921875
+        },
+        "query_warmup": {
+          "elapsed_ms": 1053.7453750148416,
+          "process_peak_rss_mib": 384.1875,
+          "retained_mib": 222.03108596801758,
+          "peak_mib": 232.00646591186523
+        }
+      },
+      "process_elapsed_ms": 5892.294208984822
+    },
+    {
+      "version": 37,
+      "strategy": "stream",
+      "traced": false,
+      "pydantic": "2.14.3",
+      "source_sha256": "eaafe0b868e5fe6b3497c915226f312ca9853c242fae11d2f6afcbfb53c8be8c",
+      "model_sha256": "82a91ef5a279d5214cecc698de67219ec3a982bee07acf29f3a9554ea8a62f4c",
+      "first_description": "MC-12S EMARSS-S",
+      "indexed_records": 27390,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 54.41283294931054,
+          "process_peak_rss_mib": 37.25
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 47.83158330246806,
+          "process_peak_rss_mib": 51.140625
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 399.05662508681417,
+          "process_peak_rss_mib": 225.234375
+        },
+        "catalog_projection": {
+          "elapsed_ms": 72.09758320823312,
+          "process_peak_rss_mib": 226.15625
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.1615830697119236,
+          "process_peak_rss_mib": 226.171875
+        },
+        "query_warmup": {
+          "elapsed_ms": 134.2744999565184,
+          "process_peak_rss_mib": 310.5
+        }
+      },
+      "process_elapsed_ms": 1630.1932078786194
+    },
+    {
+      "version": 37,
+      "strategy": "stream",
+      "traced": false,
+      "pydantic": "2.14.3",
+      "source_sha256": "eaafe0b868e5fe6b3497c915226f312ca9853c242fae11d2f6afcbfb53c8be8c",
+      "model_sha256": "82a91ef5a279d5214cecc698de67219ec3a982bee07acf29f3a9554ea8a62f4c",
+      "first_description": "MC-12S EMARSS-S",
+      "indexed_records": 27390,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 53.246875293552876,
+          "process_peak_rss_mib": 37.296875
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 46.17749992758036,
+          "process_peak_rss_mib": 51.171875
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 392.69120804965496,
+          "process_peak_rss_mib": 225.078125
+        },
+        "catalog_projection": {
+          "elapsed_ms": 71.46866666153073,
+          "process_peak_rss_mib": 225.96875
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.1698746345937252,
+          "process_peak_rss_mib": 225.984375
+        },
+        "query_warmup": {
+          "elapsed_ms": 143.03204091265798,
+          "process_peak_rss_mib": 310.40625
+        }
+      },
+      "process_elapsed_ms": 1589.9937921203673
+    },
+    {
+      "version": 37,
+      "strategy": "stream",
+      "traced": false,
+      "pydantic": "2.14.3",
+      "source_sha256": "eaafe0b868e5fe6b3497c915226f312ca9853c242fae11d2f6afcbfb53c8be8c",
+      "model_sha256": "82a91ef5a279d5214cecc698de67219ec3a982bee07acf29f3a9554ea8a62f4c",
+      "first_description": "MC-12S EMARSS-S",
+      "indexed_records": 27390,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 53.646084386855364,
+          "process_peak_rss_mib": 37.28125
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 50.39495788514614,
+          "process_peak_rss_mib": 51.390625
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 391.15233393386006,
+          "process_peak_rss_mib": 225.3125
+        },
+        "catalog_projection": {
+          "elapsed_ms": 72.18841603025794,
+          "process_peak_rss_mib": 226.25
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.16700010746717453,
+          "process_peak_rss_mib": 226.265625
+        },
+        "query_warmup": {
+          "elapsed_ms": 136.76970917731524,
+          "process_peak_rss_mib": 310.609375
+        }
+      },
+      "process_elapsed_ms": 1626.533624716103
+    },
+    {
+      "version": 37,
+      "strategy": "stream",
+      "traced": true,
+      "pydantic": "2.14.3",
+      "source_sha256": "eaafe0b868e5fe6b3497c915226f312ca9853c242fae11d2f6afcbfb53c8be8c",
+      "model_sha256": "82a91ef5a279d5214cecc698de67219ec3a982bee07acf29f3a9554ea8a62f4c",
+      "first_description": "MC-12S EMARSS-S",
+      "indexed_records": 27390,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 279.0112914517522,
+          "process_peak_rss_mib": 45.84375,
+          "retained_mib": 8.908733367919922,
+          "peak_mib": 8.955279350280762
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 47.31041705235839,
+          "process_peak_rss_mib": 59.171875,
+          "retained_mib": 15.226473808288574,
+          "peak_mib": 79.442138671875
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 1375.817249994725,
+          "process_peak_rss_mib": 353.859375,
+          "retained_mib": 110.18484210968018,
+          "peak_mib": 171.9387493133545
+        },
+        "catalog_projection": {
+          "elapsed_ms": 478.8278331980109,
+          "process_peak_rss_mib": 353.875,
+          "retained_mib": 115.82013034820557,
+          "peak_mib": 117.20483493804932
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.4289592616260052,
+          "process_peak_rss_mib": 353.890625,
+          "retained_mib": 115.82069396972656,
+          "peak_mib": 115.85603332519531
+        },
+        "query_warmup": {
+          "elapsed_ms": 848.8535420037806,
+          "process_peak_rss_mib": 431.078125,
+          "retained_mib": 205.81798553466797,
+          "peak_mib": 215.79861450195312
+        }
+      },
+      "process_elapsed_ms": 3952.4276247248054
+    },
+    {
+      "version": 37,
+      "strategy": "stream",
+      "traced": true,
+      "pydantic": "2.14.3",
+      "source_sha256": "eaafe0b868e5fe6b3497c915226f312ca9853c242fae11d2f6afcbfb53c8be8c",
+      "model_sha256": "82a91ef5a279d5214cecc698de67219ec3a982bee07acf29f3a9554ea8a62f4c",
+      "first_description": "MC-12S EMARSS-S",
+      "indexed_records": 27390,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 282.4678332544863,
+          "process_peak_rss_mib": 45.296875,
+          "retained_mib": 8.908588409423828,
+          "peak_mib": 8.955233573913574
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 47.59104223921895,
+          "process_peak_rss_mib": 58.796875,
+          "retained_mib": 15.226391792297363,
+          "peak_mib": 79.44205665588379
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 1376.1354996822774,
+          "process_peak_rss_mib": 354.078125,
+          "retained_mib": 110.18477439880371,
+          "peak_mib": 171.93868160247803
+        },
+        "catalog_projection": {
+          "elapsed_ms": 484.4019589945674,
+          "process_peak_rss_mib": 354.09375,
+          "retained_mib": 115.8200626373291,
+          "peak_mib": 117.20476722717285
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.39116712287068367,
+          "process_peak_rss_mib": 354.109375,
+          "retained_mib": 115.8206262588501,
+          "peak_mib": 115.85596561431885
+        },
+        "query_warmup": {
+          "elapsed_ms": 848.3500829897821,
+          "process_peak_rss_mib": 432.9375,
+          "retained_mib": 205.81785774230957,
+          "peak_mib": 215.79848670959473
+        }
+      },
+      "process_elapsed_ms": 3971.377917099744
+    },
+    {
+      "version": 37,
+      "strategy": "stream",
+      "traced": true,
+      "pydantic": "2.14.3",
+      "source_sha256": "eaafe0b868e5fe6b3497c915226f312ca9853c242fae11d2f6afcbfb53c8be8c",
+      "model_sha256": "82a91ef5a279d5214cecc698de67219ec3a982bee07acf29f3a9554ea8a62f4c",
+      "first_description": "MC-12S EMARSS-S",
+      "indexed_records": 27390,
+      "stages": {
+        "imports": {
+          "elapsed_ms": 280.8435829356313,
+          "process_peak_rss_mib": 45.796875,
+          "retained_mib": 8.908729553222656,
+          "peak_mib": 8.9552583694458
+        },
+        "decompression_and_verification": {
+          "elapsed_ms": 47.36820887774229,
+          "process_peak_rss_mib": 59.125,
+          "retained_mib": 15.226628303527832,
+          "peak_mib": 79.44229316711426
+        },
+        "xml_and_source_models": {
+          "elapsed_ms": 1377.8813751414418,
+          "process_peak_rss_mib": 353.8125,
+          "retained_mib": 110.18490791320801,
+          "peak_mib": 171.93881511688232
+        },
+        "catalog_projection": {
+          "elapsed_ms": 484.8934579640627,
+          "process_peak_rss_mib": 355.109375,
+          "retained_mib": 115.82015323638916,
+          "peak_mib": 117.20485782623291
+        },
+        "first_lookup": {
+          "elapsed_ms": 0.4071248695254326,
+          "process_peak_rss_mib": 355.125,
+          "retained_mib": 115.82061195373535,
+          "peak_mib": 115.8559513092041
+        },
+        "query_warmup": {
+          "elapsed_ms": 852.5419593788683,
+          "process_peak_rss_mib": 430.984375,
+          "retained_mib": 205.81785106658936,
+          "peak_mib": 215.7984800338745
+        }
+      },
+      "process_elapsed_ms": 3980.0596246495843
+    }
+  ],
+  "baseline_commit": "024ca4d",
+  "variant": "baseline public parser",
+  "benchmark_scope": "Fresh processes with explicit collections; process_elapsed_ms includes diagnostics and teardown.",
+  "parser_sha256": "5ffe572a57f01aa35bc29cb0a55024a7c783171dd0c7d8b13495e7da5abef806",
+  "benchmark_sha256": "5ce32703327a5190ca171697ace7da1380fde721780333b96b728eda232ce0db"
+}
