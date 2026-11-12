@@ -13,10 +13,12 @@ reused. Although source models are frozen, Pydantic exposes mutable field-tracki
 sets, so separate source occurrences must not share model instances or those sets.
 Repeated occurrences and their original ordering are preserved.
 
-Entry tags share immutable strings within a parse. Shallow public model copies
-compact validated field-tracking sets on supported CPython/Pydantic versions
-without sharing the sets themselves. This is an implementation-dependent memory
-tradeoff, not a universal saving or a validation shortcut.
+Entry tags share immutable strings within a parse. Shallow public copies of
+`ReferenceEntry` models compact validated field-tracking sets on supported
+CPython/Pydantic versions without sharing the sets themselves. This is an
+implementation-dependent memory tradeoff, not a universal saving or a validation
+shortcut. Enumeration tables and entity branches do not need that extra copy;
+the optimization is limited to the numerous entry models where it is material.
 
 No persistent derived cache was added. The existing snapshot pack, index,
 source XML and source/pack SHA-256 checks are unchanged. Any future persistent

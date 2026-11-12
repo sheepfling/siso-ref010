@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from hashlib import sha256
 from io import TextIOBase
+from typing import NamedTuple
 
 from pydantic import ValidationError
 
@@ -50,15 +51,20 @@ def _children(element: ET.Element, tag: str) -> list[ET.Element]:
     return [child for child in element if _tag(child) == tag]
 
 
+class _ChangeRequestKey(NamedTuple):
+    minimum: str | None
+    maximum: str | None
+
+
 class _ModelBuilder:
     """Reuse validated annotation values without sharing public model bookkeeping."""
 
     def __init__(self) -> None:
-        self._requests: dict[tuple[str | None, str | None], ChangeRequest] = {}
+        self._requests: dict[_ChangeRequestKey, ChangeRequest] = {}
         self._tags: dict[str, str] = {}
 
     def _change_request(self, minimum: str | None, maximum: str | None) -> ChangeRequest:
-        key = (minimum, maximum)
+        key = _ChangeRequestKey(minimum, maximum)
         cached = self._requests.get(key)
         if cached is None:
             cached = ChangeRequest.model_validate({"minimum": minimum, "maximum": maximum})
@@ -131,7 +137,7 @@ class _ModelBuilder:
                     if _tag(child) in {"description", "header"}
                 ),
             }
-        ).model_copy()
+        )
 
     def entity_branch(self, element: ET.Element) -> EntityBranch:
         return EntityBranch.model_validate(
@@ -144,7 +150,7 @@ class _ModelBuilder:
                     self.entry(child) for child in element if _tag(child) in _ENTITY_ENTRY_TAGS
                 ),
             }
-        ).model_copy()
+        )
 
 
 @dataclass
