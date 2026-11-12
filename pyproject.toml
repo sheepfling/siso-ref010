@@ -4,8 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siso-ref010"
-dynamic = ["version", "readme"]
+dynamic = ["version"]
 description = "Structured multi-edition SISO-REF-010 parser and typed DIS entity API"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT AND LicenseRef-SISO-Data"
 license-files = ["LICENSE", "SISO-DATA-NOTICE.txt"]

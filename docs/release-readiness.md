@@ -21,10 +21,6 @@ included SISO source editions.
   duplicate table identifiers are returned as ambiguous rather than guessed.
 - Each retrieved bundled XML is checked against the per-edition SHA-256 in the
   index. The index also fingerprints the compressed archive.
-- Package descriptions use absolute repository links so they work on PyPI.
-  The build transforms the README's inline file links without changing the
-  checked-in README or its local documentation links. These links point to the
-  repository's `main` branch, not a version-pinned documentation snapshot.
 
 ## Run the full local gate
 

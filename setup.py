@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -15,17 +14,6 @@ from setuptools.command.editable_wheel import editable_wheel
 from setuptools.command.sdist import sdist
 
 DATA = Path("src/siso_ref010/data/standards")
-REPOSITORY_FILES = "https://github.com/sheepfling/siso-ref010/blob/main/"
-
-
-def package_readme() -> str:
-    """Keep local README links, but make inline file links usable on package indexes."""
-    readme = Path("README.md").read_text(encoding="utf-8")
-    return re.sub(
-        r"\]\((?![a-zA-Z][a-zA-Z0-9+.-]*:|//|#)([^)\s]+)\)",
-        lambda match: f"]({REPOSITORY_FILES}{match.group(1)})",
-        readme,
-    )
 
 
 def prepare_standards_pack() -> None:
@@ -71,11 +59,9 @@ class EditableWheelWithStandards(editable_wheel):
 
 
 setup(
-    long_description=package_readme(),
-    long_description_content_type="text/markdown",
     cmdclass={
         "build_py": BuildPyWithStandards,
         "sdist": SdistWithStandards,
         "editable_wheel": EditableWheelWithStandards,
-    },
+    }
 )
