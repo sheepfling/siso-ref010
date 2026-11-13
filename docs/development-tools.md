@@ -15,8 +15,12 @@ performance. Examples include:
 - `check_installed` and `installed_consumer_smoke`: verify built distributions.
 - `build_diff_reports` and `package_diff_reports`: generate comparison
   artifacts.
-- `benchmark_entity_queries` and `benchmark_snapshot_loading`: measure library
-  query and loading behavior.
+- `benchmark_entity_queries`, `benchmark_snapshot_loading`,
+  `benchmark_cold_start`, and `benchmark_steady_state`: measure query behavior, loading latency, and
+  fresh-process allocation peaks. See [cold-start performance](cold-start-performance.md)
+  for alternatives and measurement limits, and
+  [exact lookups and steady-state memory](lookup-performance.md) for ongoing
+  before/after latency and retained-memory comparisons.
 - `standard_metadata`: typed models shared by the metadata tools.
 
 Run a tool from the repository root with `python -m`, for example:

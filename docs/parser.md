@@ -27,6 +27,13 @@ Use `EntityTypeXmlParser.from_string(xml)` for in-memory parsing. Namespaced and
 unnamespaced `<ebv>` documents are accepted. DTD and entity declarations are
 rejected.
 
+Completed enumeration tables and entity branches are projected incrementally,
+so their temporary XML subtrees can be released before the whole document is
+modeled. Repeated change requests reuse validated scalar values within one
+parse, but each occurrence has independent model bookkeeping. Their occurrences
+and ordering remain intact. See [cold-start performance](cold-start-performance.md)
+for the measurement method and tradeoffs.
+
 ## Structured source model
 
 - `EntityTypeStandard` contains root attributes, namespace, revision records,
