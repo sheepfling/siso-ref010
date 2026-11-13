@@ -68,6 +68,40 @@ first and repeated public lookups, current RSS and retained Python allocations,
 with and without query-index warmup. Report loading costs as well as memory gains;
 keep single-query usage separate from the larger warmed working set.
 
+## Interpreting a before/after comparison
+
+A memory optimization is not necessarily a startup-speed optimization. Measure
+representative older editions as well as the newest: archive retrieval and source
+structure differ by edition. Report a slowdown even when the memory saving is
+worth keeping. Do not infer a stable latency change from only three samples.
+
+For a matched comparison:
+
+1. Pin both source revisions, interpreter, dependencies and bundled source hashes.
+2. Run serial fresh-process pairs with balanced randomized baseline/candidate
+   order and shuffled edition order. Record host load and excluded preflight runs.
+3. Keep untraced timing separate from traced allocation measurements. Fresh
+   processes after a warmup still have warm filesystem caches, not cold-disk I/O.
+4. Report paired changes, variability and sample counts, not just the ratio of
+   two medians. Within-session bootstrap intervals do not establish repeatability
+   across machines or days; shared load and serial correlation remain limitations.
+5. Measure construction through the first public lookup without intervening
+   diagnostic garbage collection. Exclude imports explicitly if the timer starts
+   after import, and do not label that result total process startup time.
+6. Track first lookup, repeated unindexed lookups, retained current RSS and the
+   optional warmed query-index working set separately. RSS reductions are not
+   interchangeable with reductions in traced live Python allocations.
+
+A profiler can identify extra stream-event or model-copy work, but it changes the
+relative cost of Python-call-heavy code. Its timings cannot explain an unprofiled
+latency difference quantitatively. Preserve independent mutable Pydantic state
+rather than removing copies solely to improve a microbenchmark. A second session
+or host is the next validation step before generalizing a measured tradeoff.
+
+Keep run-specific numbers and raw evidence with the pull request or local
+artifacts as described above. Record correctness checks separately: a benchmark
+with matching source hashes and lookup results does not replace the full tests.
+
 ## Correctness checks
 
 `tests/fixtures/standard-model-digests.json` is a regression oracle for the parsed
